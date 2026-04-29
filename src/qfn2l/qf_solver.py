@@ -127,7 +127,9 @@ def z3_preprocess_aggressive(formula, level=1, timeout=5000):
         except Exception:
             log(2, f"tactic {name} failed or timed out")
     new_vars = list(z3.z3util.get_vars(current))
-    assert set(new_vars).issubset(set(all_vars)), "preprocessing introduced new variables"
+    assert set(new_vars).issubset(set(all_vars)), (
+        "preprocessing introduced new variables"
+    )
     return current
 
 
@@ -137,7 +139,9 @@ def main():
 
     parser = argparse.ArgumentParser(description="QF_NIA solver.")
     parser.add_argument("filename", default="-", nargs="?")
-    parser.add_argument("-v", dest="verbose", default=0, type=int, help="verbosity level")
+    parser.add_argument(
+        "-v", dest="verbose", default=0, type=int, help="verbosity level"
+    )
     parser.add_argument(
         "--maxits",
         default=-1,
