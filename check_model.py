@@ -8,10 +8,6 @@ The solver is invoked with --print-model. If it returns sat, the model values
 are added as (assert (= var val)) constraints and the resulting file is passed
 to a reference solver. If the reference solver returns sat, the model is valid.
 
-Example:
-    check_model.py examples/b1.smt2
-    check_model.py examples/b1.smt2 -- --fproj --modax 4
-    check_model.py --ref-solver cvc5 examples/b1.smt2 -- --bounds
 """
 
 import argparse
@@ -129,7 +125,7 @@ def main():
         "--solver",
         default=None,
         metavar="CMD",
-        help="nia-solver binary to use (default: src/n2l/solver.py via sys.executable)",
+        help="nia-solver binary to use (default: src/qfn2l/qf_solver.py via sys.executable)",
     )
     parser.add_argument(
         "--keep-tmp",
