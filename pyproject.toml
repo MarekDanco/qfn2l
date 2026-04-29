@@ -1,0 +1,16 @@
+[tool.ruff]
+line-length = 88
+
+[tool.black]
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle (includes spacing rules)
+    "W",
+]
+
+# Optional but explicit
+ignore = []
+
+[tool.ruff.format]
