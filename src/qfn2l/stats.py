@@ -49,29 +49,33 @@ class Stats:
 
     def __init__(self) -> None:
         self.its = Stat("iteration", 0)
-        self.bts = Stat("backtracks", 0)
         self.liacalls = Stat("lia_calls", 0)
         self.liatime = Stat("lia_time", 0.0, ".2f")
         self.parse_time = Stat("parse_time", 0.0, ".2f")
+        self.nnf_time = Stat("nnf_time", 0.0, ".2f")
+        self.simplify_time = Stat("simplify_time", 0.0, ".2f")
+        self.propagate_time = Stat("propagate_time", 0.0, ".2f")
+        self.makedefs_time = Stat("makedefs_time", 0.0, ".2f")
         self.init_time = Stat("init_time", 0.0, ".2f")
         self.set_level_time = Stat("set_level_time", 0.0, ".2f")
         self.check_nia_time = Stat("check_nia_time", 0.0, ".2f")
         self.solve_time = Stat("solve_time", 0.0, ".2f")
         self.complete_model_time = Stat("complete_model_time", 0.0, ".2f")
-        self.mk_ext_assign_time = Stat("mk_ext_assign_time", 0.0, ".2f")
         self.total_time = Stat("total_time", 0.0, ".2f")
         self._all = [
             self.its,
-            self.bts,
             self.liacalls,
             self.liatime,
             self.parse_time,
+            self.nnf_time,
+            self.simplify_time,
+            self.propagate_time,
+            self.makedefs_time,
             self.init_time,
             self.set_level_time,
             self.check_nia_time,
             self.solve_time,
             self.complete_model_time,
-            self.mk_ext_assign_time,
             self.total_time,
         ]
 

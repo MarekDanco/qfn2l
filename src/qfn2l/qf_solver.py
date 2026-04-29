@@ -24,13 +24,23 @@ log = tagged_logging.mk_logfn(LOG_TAG)
 class QfSolver:
     def __init__(self, opts, formula):
         self.opts = opts
+        _t = time.perf_counter()
         f = NNFConverter()(formula)
+        STATS.nnf_time += time.perf_counter() - _t
+        _t = time.perf_counter()
         f = SimpleSimplify()(f)
+        STATS.simplify_time += time.perf_counter() - _t
+        _t = time.perf_counter()
         f = SimplePropagate()(f)
+        STATS.propagate_time += time.perf_counter() - _t
         free_vars = list(z3.z3util.get_vars(f))
         prefix = [QLev(is_forall=False, vs=free_vars)]
+        _t = time.perf_counter()
         prefix, f = MakeDefs().make(prefix, f)
+        STATS.makedefs_time += time.perf_counter() - _t
+        _t = time.perf_counter()
         f = SimpleSimplify()(f)
+        STATS.simplify_time += time.perf_counter() - _t
         log(3, "input:", prefix, f)
         self.level_info = FormulaInfo(prefix, f)
         self.abstraction = LiaAbstraction(opts, self.level_info, is_exists=True)
