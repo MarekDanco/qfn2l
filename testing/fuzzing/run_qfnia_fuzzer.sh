@@ -27,6 +27,6 @@ fi
 
 its=$1
 setup_venv
-S1='../../src/n2l/solver.py --maxbts 10 --maxits 20'
-S2='./venv/bin/z3 -T:2 -in'
-./nia_fuzzer.py -j 10 ${its} "$S1" "$S2"
+S1='../../src/qfn2l/qf_solver.py --maxits 20 --timeout 5'
+S2='./venv/bin/z3 -T:5 -in'
+./nia_fuzzer.py -d --no-nia -j 10 ${its} "$S1" "$S2"
