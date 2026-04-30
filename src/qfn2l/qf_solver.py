@@ -2,6 +2,7 @@
 """Quantifier-free NIA solver."""
 
 import argparse
+import os
 import signal
 import sys
 import time
@@ -21,26 +22,40 @@ LOG_TAG = "slv"
 log = tagged_logging.mk_logfn(LOG_TAG)
 
 
+_start_time = 0.0
+_brief_stats = False
+
+
+def _handle_alarm(signum, frame):
+    STATS.commit_phases()
+    STATS.total_time += time.time() - _start_time
+    STATS.brief_prn() if _brief_stats else STATS.prn()
+    print()
+    print("unknown")
+    sys.stdout.flush()
+    os._exit(0)
+
+
 class QfSolver:
     def __init__(self, opts, formula):
         self.opts = opts
-        _t = time.perf_counter()
+        STATS.begin_phase(STATS.nnf_time)
         f = NNFConverter()(formula)
-        STATS.nnf_time += time.perf_counter() - _t
-        _t = time.perf_counter()
+        STATS.end_phase()
+        STATS.begin_phase(STATS.simplify_time)
         f = SimpleSimplify()(f)
-        STATS.simplify_time += time.perf_counter() - _t
-        _t = time.perf_counter()
+        STATS.end_phase()
+        STATS.begin_phase(STATS.propagate_time)
         f = SimplePropagate()(f)
-        STATS.propagate_time += time.perf_counter() - _t
+        STATS.end_phase()
         free_vars = list(z3.z3util.get_vars(f))
         prefix = [QLev(is_forall=False, vs=free_vars)]
-        _t = time.perf_counter()
+        STATS.begin_phase(STATS.makedefs_time)
         prefix, f = MakeDefs().make(prefix, f)
-        STATS.makedefs_time += time.perf_counter() - _t
-        _t = time.perf_counter()
+        STATS.end_phase()
+        STATS.begin_phase(STATS.simplify_time)
         f = SimpleSimplify()(f)
-        STATS.simplify_time += time.perf_counter() - _t
+        STATS.end_phase()
         log(3, "input:", prefix, f)
         self.level_info = FormulaInfo(prefix, f)
         self.abstraction = LiaAbstraction(opts, self.level_info, is_exists=True)
@@ -50,17 +65,12 @@ class QfSolver:
         STATS.reset()
         self.abstraction.set_level(0, {})
         while True:
-            if (self.opts.maxits >= 0 and STATS.its >= self.opts.maxits) or (
-                self.opts.timeout > 0
-                and time.time() - self.opts.start_time > self.opts.timeout
-            ):
+            if self.opts.maxits >= 0 and STATS.its >= self.opts.maxits:
                 return None
             STATS.its += 1
             log(1, "it:", STATS.its)
             try:
                 model = self.abstraction.solve()
-            except lia_abstraction.SolverTimeout:
-                return None
             except lia_abstraction.LIAFail:
                 return None
             log(2, "model:", model)
@@ -91,7 +101,8 @@ def _print_model(s: QfSolver, orig_consts):
 def handle_shutdown(signum, _):
     print("\nShutdown signal received:", signum)
     STATS.prn()
-    sys.exit(0)
+    sys.stdout.flush()
+    os._exit(0)
 
 
 def z3_preprocess(formula):
@@ -231,50 +242,71 @@ def main():
         type=int,
         help="Python recursion limit",
     )
+    parser.add_argument(
+        "--brief-stats",
+        dest="brief_stats",
+        default=False,
+        action=argparse.BooleanOptionalAction,
+        help="on exit print only terminated phase and longest phase instead of all stats",
+    )
 
     opts = parser.parse_args()
     sys.setrecursionlimit(opts.recursion_depth)
+    global _start_time, _brief_stats
+    _brief_stats = opts.brief_stats
     opts.start_time = time.time()
+    _start_time = opts.start_time
     tagged_logging.VERBOSITY_LEVELS[LOG_TAG] = opts.verbose
     tagged_logging.VERBOSITY_LEVELS[lia_abstraction.LOG_TAG] = opts.verbose
+
+    if opts.timeout > 0:
+        signal.signal(signal.SIGALRM, _handle_alarm)
+        signal.setitimer(signal.ITIMER_REAL, opts.timeout)
 
     z3.set_param("smt.random_seed", opts.seed)
     z3.set_param("sat.random_seed", opts.seed)
 
     s = z3.Solver()
-    _t0 = time.perf_counter()
+    STATS.begin_phase(STATS.parse_time)
     if opts.filename == "-":
         s.from_string(sys.stdin.read())
     else:
         s.from_file(opts.filename)
     formula = mk_and(*s.assertions())
-    STATS.parse_time += time.perf_counter() - _t0
+    STATS.end_phase()
 
     orig_consts = set()
     if opts.print_model:
         orig_consts = {v.decl() for v in z3.z3util.get_vars(formula)}
 
-    if opts.preprocess_aggressive > 0:
-        formula = z3_preprocess_aggressive(
-            formula,
-            level=opts.preprocess_aggressive,
-            timeout=opts.preprocess_aggressive_timeout,
-        )
-    elif opts.preprocess:
-        formula = z3_preprocess(formula)
+    solver = None
+    res = None
+    try:
+        if opts.preprocess_aggressive > 0:
+            formula = z3_preprocess_aggressive(
+                formula,
+                level=opts.preprocess_aggressive,
+                timeout=opts.preprocess_aggressive_timeout,
+            )
+        elif opts.preprocess:
+            formula = z3_preprocess(formula)
 
-    _t1 = time.perf_counter()
-    solver = QfSolver(opts, formula)
-    STATS.init_time += time.perf_counter() - _t1
+        STATS.begin_phase(STATS.init_time)
+        solver = QfSolver(opts, formula)
+        STATS.end_phase()
 
-    res = solver.solve()
+        res = solver.solve()
+    finally:
+        if opts.timeout > 0:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+
     STATS.total_time += time.time() - opts.start_time
-    STATS.prn()
+    STATS.brief_prn() if opts.brief_stats else STATS.prn()
     print()
     if res is None:
         print("unknown")
     elif res:
-        if opts.print_model:
+        if opts.print_model and solver is not None:
             _print_model(solver, orig_consts)
         print("sat")
     else:

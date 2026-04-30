@@ -72,10 +72,6 @@ class LIAFail(Exception):
     pass
 
 
-class SolverTimeout(Exception):
-    pass
-
-
 class LiaAbstraction:
     """Represents the lia abstraction for a formula.
 
@@ -312,6 +308,7 @@ class LiaAbstraction:
         pure = FreshConst(term.sort(), make_fancy_name(term))
         assert isinstance(pure, ArithRef)
         self.pures.map_t2p(term, pure)
+        stats.STATS.pures += 1
         self.log(4, f"mapping {term} to {pure}")
         new_level = -1
         for lev in range(term_level, len(self.prefix)):
@@ -370,7 +367,7 @@ class LiaAbstraction:
 
     def set_level(self, level: int, assignment: dict[ExprRef, ExprRef]):
         """Instantiate the current abstraction under the given assignment."""
-        _t0 = time.perf_counter()
+        stats.STATS.begin_phase(stats.STATS.set_level_time)
         assert isinstance(assignment, dict)
         self.assignment = assignment
         self.current_level = level
@@ -393,7 +390,7 @@ class LiaAbstraction:
             ],
         )
         self.log(3, "inst by:", assignment, self.current_instantiation)
-        stats.STATS.set_level_time += time.perf_counter() - _t0
+        stats.STATS.end_phase()
 
     def solve(self) -> ModelRef | None:
         """Solve the current LIA abstraction.
@@ -411,14 +408,15 @@ class LiaAbstraction:
                 self.log(5, f"solve: creating a default value for {c}")
                 model.update_value(c, default_value)
 
-        _t0 = time.perf_counter()
+        stats.STATS.begin_phase(stats.STATS.solve_time)
         self._solve()
-        stats.STATS.solve_time += time.perf_counter() - _t0
         if self.current_model is None:
+            stats.STATS.end_phase()
             return None
-        _t1 = time.perf_counter()
+        stats.STATS.begin_phase(stats.STATS.complete_model_time)
         complete_model(self.current_model)
-        stats.STATS.complete_model_time += time.perf_counter() - _t1
+        stats.STATS.end_phase()
+        stats.STATS.end_phase()
         return self.current_model
 
     def incorporate_assumptions(self, assumptions, msg) -> ModelRef | None:
@@ -463,18 +461,13 @@ class LiaAbstraction:
             remaining_ms = int(
                 (self.opts.timeout - (time.time() - self.opts.start_time)) * 1000
             )
-            if remaining_ms <= 0:
-                raise SolverTimeout()
-            self.current_solver.set("timeout", remaining_ms)
+            self.current_solver.set("timeout", max(1, remaining_ms))
 
         res = stats.timed_check(self.current_solver)
         self.log(4, "check done")
         if res == z3.sat:
             self.current_model = self.current_solver.model()
         elif res == z3.unknown:
-            if self.opts.timeout > 0:
-                if time.time() - self.opts.start_time >= self.opts.timeout:
-                    raise SolverTimeout()
             self.log(-1, "LIA solver fail")
             self.log(4, res)
             raise LIAFail("we didn't budget for lia not being solved")
@@ -748,12 +741,12 @@ class LiaAbstraction:
         assert self.current_solver is not None
         assert self.current_pure_body is not None
         self.log(3, f"check_nia assignment: {assignment}")
-        _t0 = time.perf_counter()
+        stats.STATS.begin_phase(stats.STATS.check_nia_time)
 
         three_valued_checker = CheckVal(self.hu, self.pures, self.current_model)
         if three_valued_checker.check(self.current_pure_body):
             self.log(2, "check_nia quick ok")
-            stats.STATS.check_nia_time += time.perf_counter() - _t0
+            stats.STATS.end_phase()
             return True
 
         res = True
@@ -773,14 +766,17 @@ class LiaAbstraction:
             if z3.is_idiv(t):
                 axioms = self.mk_idiv_axiom(assignment, t)
                 self.add_axioms(pure, axioms, "div")
+                stats.STATS.div_axioms += len(axioms)
                 continue
             if z3.is_mod(t):
                 axioms = self.mk_mod_axiom(assignment, t)
                 self.add_axioms(pure, axioms, "mod")
+                stats.STATS.mod_axioms += len(axioms)
                 continue
             if z3.is_mul(t):
                 axioms = self.mk_mul_axioms(self.current_model, t)
                 self.add_axioms(pure, axioms, "mul")
+                stats.STATS.mul_axioms += len(axioms)
                 continue
-        stats.STATS.check_nia_time += time.perf_counter() - _t0
+        stats.STATS.end_phase()
         return res
