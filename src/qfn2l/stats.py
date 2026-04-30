@@ -114,10 +114,15 @@ class Stats:
     def brief_prn(self) -> None:
         if self._phase_stack:
             print(f"terminated in: {self._phase_stack[-1][0].name}")
-        timed = [s for s in self._all if s.fmt == ".2f" and s not in self._containers and s.value > 0]
+        timed = [
+            s
+            for s in self._all
+            if s.fmt == ".2f" and s not in self._containers and s.value > 0
+        ]
         if timed:
             longest = max(timed, key=lambda s: s.value)
             print(f"longest phase: {longest.name} ({longest}s)")
+        print(f"{self.its.name}: {self.its}")
 
 
 STATS = Stats()
