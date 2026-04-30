@@ -100,7 +100,9 @@ def _print_model(s: QfSolver, orig_consts):
 
 def handle_shutdown(signum, _):
     print("\nShutdown signal received:", signum)
-    STATS.prn()
+    STATS.commit_phases()
+    STATS.total_time += time.time() - _start_time
+    STATS.brief_prn() if _brief_stats else STATS.prn()
     sys.stdout.flush()
     os._exit(0)
 
