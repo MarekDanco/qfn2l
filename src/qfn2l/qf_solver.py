@@ -26,7 +26,7 @@ _start_time = 0.0
 _brief_stats = False
 
 
-def _handle_alarm(signum, frame):
+def _handle_alarm(_signum, _frame):
     STATS.commit_phases()
     STATS.total_time += time.time() - _start_time
     STATS.brief_prn() if _brief_stats else STATS.prn()
