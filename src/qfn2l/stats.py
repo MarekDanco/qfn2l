@@ -12,11 +12,7 @@ class Stat:
     def __init__(self, name: str, initial: typing.Any = 0, fmt: str = ""):
         self.name = name
         self.value = initial
-        self.initial = initial
         self.fmt = fmt
-
-    def reset(self):
-        self.value = self.initial
 
     def __iadd__(self, other):
         self.value += other
@@ -88,10 +84,6 @@ class Stats:
             self.total_time,
         ]
         self._containers = [self.init_time, self.solve_time, self.total_time]
-
-    def reset(self) -> None:
-        for stat in self._all:
-            stat.reset()
 
     def begin_phase(self, stat: "Stat") -> None:
         self._phase_stack.append((stat, time.perf_counter()))
