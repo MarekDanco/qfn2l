@@ -116,6 +116,9 @@ class Stats:
             print(f"longest phase: {longest.name} ({longest}s)")
         print(f"{self.its.name}: {self.its}")
         print(f"{self.pures.name}: {self.pures}")
+        print(f"{self.mul_axioms.name}: {self.mul_axioms}")
+        print(f"{self.div_axioms.name}: {self.div_axioms}")
+        print(f"{self.mod_axioms.name}: {self.mod_axioms}")
 
 
 STATS = Stats()
