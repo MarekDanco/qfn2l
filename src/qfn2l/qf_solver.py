@@ -249,7 +249,7 @@ def main():
         dest="brief_stats",
         default=False,
         action=argparse.BooleanOptionalAction,
-        help="on exit print only terminated phase and longest phase instead of all stats",
+        help="on exit print only: terminated phase, longest phase, iteration count, pures count",
     )
 
     opts = parser.parse_args()

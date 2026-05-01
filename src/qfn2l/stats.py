@@ -123,6 +123,7 @@ class Stats:
             longest = max(timed, key=lambda s: s.value)
             print(f"longest phase: {longest.name} ({longest}s)")
         print(f"{self.its.name}: {self.its}")
+        print(f"{self.pures.name}: {self.pures}")
 
 
 STATS = Stats()
