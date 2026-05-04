@@ -59,31 +59,25 @@ class GetLevel:
         return self._terms
 
     def __call__(self, e: ExprRef) -> int:
+        """Calculates the maximum level of the given Z3 term."""
         if e in self._memo:
             return self._memo[e]
-        stack = [e]
-        while stack:
-            node = stack[-1]
-            if node in self._memo:
-                stack.pop()
-                continue
-            if node.num_args() == 0:
-                stack.pop()
-                level = self.const2lev.get(node, -1)
-                if level >= 0 and not is_nnf_connective(node):
-                    self._terms[node] = level
-                self._memo[node] = level
-                continue
-            pending = [c for c in node.children() if c not in self._memo]
-            if pending:
-                stack.extend(pending)
-            else:
-                stack.pop()
-                level = max(max(self._memo[c] for c in node.children()), 0)
-                if level >= 0 and not is_nnf_connective(node):
-                    self._terms[node] = level
-                self._memo[node] = level
-        return self._memo[e]
+
+        level = self._calculate_max_level(e)
+        if level >= 0 and not is_nnf_connective(e):
+            self._terms[e] = level
+
+        self._memo[e] = level
+        return level
+
+    def _calculate_max_level(self, term):
+        if term.num_args() == 0:
+            return self.const2lev.get(term, -1)
+        max_level = 0
+        for arg in term.children():
+            arg_level = self(arg)
+            max_level = max(max_level, arg_level)
+        return max_level
 
 
 ZERO = z3.IntVal(0)

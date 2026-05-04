@@ -86,26 +86,12 @@ class SimpleVisit:
         return a.decl()(rc)
 
     def visit(self, a) -> typing.Any:
+        """A memoized wrapper around visit_node."""
         if a in self._memo:
             return self._memo[a]
-        stack = [a]
-        while stack:
-            node = stack[-1]
-            if node in self._memo:
-                stack.pop()
-                continue
-            if not is_app(node) or node.num_args() == 0:
-                stack.pop()
-                self._memo[node] = self.visit_node(node)
-                continue
-            pending = [node.arg(i) for i in range(node.num_args())
-                       if node.arg(i) not in self._memo]
-            if pending:
-                stack.extend(pending)
-            else:
-                stack.pop()
-                self._memo[node] = self.visit_node(node)
-        return self._memo[a]
+        res = self.visit_node(a)
+        self._memo[a] = res
+        return res
 
 
 class Contains(SimpleVisit):

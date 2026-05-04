@@ -239,7 +239,7 @@ def main():
     parser.add_argument(
         "--recursion-depth",
         dest="recursion_depth",
-        default=10000,
+        default=100000,
         type=int,
         help="Python recursion limit",
     )

@@ -85,106 +85,77 @@ class NNFConverter:
             )
         return out
 
-    def _to_nnf(self, root: ExprRef, root_negate: bool) -> ExprRef:
-        if (root, root_negate) in self._nnf_cache:
-            return self._nnf_cache[(root, root_negate)]
-        stack = [(root, root_negate)]
-        while stack:
-            expr, negate = stack[-1]
-            key = (expr, negate)
-            if key in self._nnf_cache:
-                stack.pop()
-                continue
-
-            if is_not(expr):
-                inner_key = (expr.arg(0), not negate)
-                if inner_key not in self._nnf_cache:
-                    stack.append((expr.arg(0), not negate))
-                else:
-                    stack.pop()
-                    self._nnf_cache[key] = self._nnf_cache[inner_key]
-
-            elif is_and(expr) or is_or(expr):
-                children = expr.children()
-                pending = [(c, negate) for c in children
-                           if (c, negate) not in self._nnf_cache]
-                if pending:
-                    stack.extend(pending)
-                else:
-                    stack.pop()
-                    converted = [self._nnf_cache[(c, negate)] for c in children]
-                    if is_and(expr):
-                        self._nnf_cache[key] = Or(converted) if negate else And(converted)
-                    else:
-                        self._nnf_cache[key] = And(converted) if negate else Or(converted)
-
-            elif is_implies(expr):
-                a, b = expr.arg(0), expr.arg(1)
-                ak = (a, not negate)
-                bk = (b, negate)
-                pending = [k for k in [ak, bk] if k not in self._nnf_cache]
-                if pending:
-                    stack.extend(pending)
-                else:
-                    stack.pop()
-                    ac, bc = self._nnf_cache[ak], self._nnf_cache[bk]
-                    self._nnf_cache[key] = And(ac, bc) if negate else Or(ac, bc)
-
-            elif is_distinct(expr):
-                rw = distinct_as_not_equalities(expr)
-                rk = (rw, negate)
-                if rk not in self._nnf_cache:
-                    stack.append((rw, negate))
-                else:
-                    stack.pop()
-                    self._nnf_cache[key] = self._nnf_cache[rk]
-
-            elif expr.num_args() > 2 and is_chainable(expr):
-                rw = mk_chainable(expr.decl(), expr.children())
-                rk = (rw, negate)
-                if rk not in self._nnf_cache:
-                    stack.append((rw, negate))
-                else:
-                    stack.pop()
-                    self._nnf_cache[key] = self._nnf_cache[rk]
-
-            elif is_eq(expr) and is_bool(expr.arg(0)):
-                c0, c1 = expr.arg(0), expr.arg(1)
-                rw = And(Implies(c0, c1), Implies(c1, c0))
-                rk = (rw, negate)
-                if rk not in self._nnf_cache:
-                    stack.append((rw, negate))
-                else:
-                    stack.pop()
-                    self._nnf_cache[key] = self._nnf_cache[rk]
-
-            elif is_quantifier(expr):
-                assert isinstance(expr, QuantifierRef)
-                stack.pop()
-                num_vars = expr.num_vars()
-                bound_vars = [
-                    Const(expr.var_name(i), expr.var_sort(i)) for i in range(num_vars)
-                ]
-                body_with_consts = substitute_vars(expr.body(), *reversed(bound_vars))
-                new_body = NNFConverter().convert(body_with_consts, negate=negate)
-                if negate:
-                    result = Exists(bound_vars, new_body) if expr.is_forall() else ForAll(bound_vars, new_body)
-                else:
-                    result = ForAll(bound_vars, new_body) if expr.is_forall() else Exists(bound_vars, new_body)
-                self._nnf_cache[key] = result
-
+    def _to_nnf_inner(self, expr: ExprRef, negate) -> ExprRef:
+        if is_distinct(expr):
+            return self._to_nnf(distinct_as_not_equalities(expr), negate)
+        if is_not(expr):
+            return self._to_nnf(expr.arg(0), not negate)
+        elif is_and(expr):
+            if negate:
+                return Or([self._to_nnf(child, True) for child in expr.children()])
             else:
-                stack.pop()
-                if is_le(expr):
-                    result = mk_binary(op.gt if negate else op.le, expr.children())
-                elif is_ge(expr):
-                    result = mk_binary(op.lt if negate else op.ge, expr.children())
-                elif is_gt(expr):
-                    result = mk_binary(op.le if negate else op.gt, expr.children())
-                elif is_lt(expr):
-                    result = mk_binary(op.ge if negate else op.lt, expr.children())
-                else:
-                    result = Not(expr) if negate else expr
-                self._nnf_cache[key] = result
+                return And([self._to_nnf(child, False) for child in expr.children()])
+        elif is_or(expr):
+            if negate:
+                return And([self._to_nnf(child, True) for child in expr.children()])
+            else:
+                return Or([self._to_nnf(child, False) for child in expr.children()])
+        elif is_implies(expr):
+            if negate:
+                return And(
+                    self._to_nnf(expr.arg(0), False), self._to_nnf(expr.arg(1), True)
+                )
+            else:
+                return Or(
+                    self._to_nnf(expr.arg(0), True), self._to_nnf(expr.arg(1), False)
+                )
+        elif is_quantifier(expr):
+            assert isinstance(expr, QuantifierRef)
+            num_vars = expr.num_vars()
+            var_names = [expr.var_name(i) for i in range(num_vars)]
+            var_sorts = [expr.var_sort(i) for i in range(num_vars)]
 
-        return self._nnf_cache[(root, root_negate)]
+            bound_vars = [Const(var_names[i], var_sorts[i]) for i in range(num_vars)]
+
+            body = expr.body()
+            body_with_consts = substitute_vars(body, *reversed(bound_vars))
+
+            qconverter = NNFConverter()
+            new_body = qconverter.convert(body_with_consts, check=False, negate=negate)
+            if negate:
+                if expr.is_forall():
+                    return Exists(bound_vars, new_body)
+                else:
+                    return ForAll(bound_vars, new_body)
+            else:
+                if expr.is_forall():
+                    return ForAll(bound_vars, new_body)
+                else:
+                    return Exists(bound_vars, new_body)
+        elif expr.num_args() > 2 and is_chainable(expr):
+            return self._to_nnf(mk_chainable(expr.decl(), expr.children()), negate)
+        elif is_eq(expr) and is_bool(expr.arg(0)):
+            assert expr.num_args() == 2, f"we should have gotten rid of chaining {expr}"
+            child_0 = expr.arg(0)
+            child_1 = expr.arg(1)
+            implies_01 = Implies(child_0, child_1)
+            implies_10 = Implies(child_1, child_0)
+            rewrite = And(implies_01, implies_10)
+            return self._to_nnf(rewrite, negate)
+        elif is_le(expr):
+            return mk_binary(op.gt if negate else op.le, expr.children())
+        elif is_ge(expr):
+            return mk_binary(op.lt if negate else op.ge, expr.children())
+        elif is_gt(expr):
+            return mk_binary(op.le if negate else op.gt, expr.children())
+        elif is_lt(expr):
+            return mk_binary(op.ge if negate else op.lt, expr.children())
+        return Not(expr) if negate else expr
+
+    def _to_nnf(self, expr: ExprRef, negate: bool) -> ExprRef:
+        cache_key = (expr, negate)
+        if cache_key in self._nnf_cache:
+            return self._nnf_cache[cache_key]
+        res = self._to_nnf_inner(expr, negate)
+        self._nnf_cache[cache_key] = res
+        return res
