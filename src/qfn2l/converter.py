@@ -61,15 +61,15 @@ class NNFConverter:
         self._check_cache = {}
 
     def _check_correct(self, expr, seen_not):
-        if expr in self._check_cache:
-            return self._check_cache[expr]
+        if (expr, seen_not) in self._check_cache:
+            return self._check_cache[(expr, seen_not)]
         if is_quantifier(expr):
             if seen_not:
                 return False
         if is_not(expr):
             seen_not = True
         res = all(self._check_correct(c, seen_not) for c in expr.children())
-        self._check_cache[expr] = res
+        self._check_cache[(expr, seen_not)] = res
         return res
 
     def __call__(self, f: ExprRef):

@@ -114,26 +114,6 @@ class CollectPures(SimpleVisit):
                     self(ax)
 
 
-class EvalUnderPures(SimpleVisit):
-    """Evaluate the given expression but also expand all definitions of pure
-    variables.
-
-    We need this in backtracking when these are not defined by the
-    assignment.
-    """
-
-    def __init__(self, pures: Pures, vals: ModelRef) -> None:
-        SimpleVisit.__init__(self)
-        self.pures = pures
-        self.vals = vals
-
-    def __call__(self, t) -> ExprRef:
-        return super().__call__(t)
-
-    def visit_node(self, a):
-        t = self.pures.find_t(a)
-        return self(t) if t is not None else self.vals.eval(self.recurse(a))
-
 
 class CheckVal(SimpleVisit):
     def __init__(self, hu: HasUninterpreted, pures: Pures, vals: ModelRef):
@@ -218,38 +198,3 @@ class CheckVal(SimpleVisit):
         return self.visit_const(t) if is_const(t) else self.visit_complex(t)
 
 
-class CollectAtoms(SimpleVisit):
-    def __init__(self, val: CheckVal):
-        SimpleVisit.__init__(self)
-        self.val = val
-        self.pos_atoms = set()
-        self.neg_atoms = set()
-
-    def visit_node(self, a: ExprRef) -> None:
-        av = self.val(a)
-        if av is None:
-            return
-        assert is_true(av) or is_false(av)
-        av = is_true(av)
-        if av and is_int_atom(a):
-            self.pos_atoms.add(a)
-            return
-        if not av and is_int_atom(a):
-            self.neg_atoms.add(a)
-            return
-        if not is_app(a):
-            return
-        if av and is_or(a):
-            for c in a.children():
-                if is_true(self.val(c)):
-                    self(c)
-                    return
-            raise AssertionError("or-node is true but no true child found")
-        if not av and is_and(a):
-            for c in a.children():
-                if is_false(self.val(c)):
-                    self(c)
-                    return
-            raise AssertionError("and-node is false but no false child found")
-        for i in range(a.num_args()):
-            self(a.arg(i))

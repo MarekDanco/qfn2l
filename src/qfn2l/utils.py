@@ -133,7 +133,7 @@ def eval_mul(*args: ArithRef) -> IntNumRef:
 
 def eval_exp(x: ArithRef, exp: int) -> ArithRef:
     assert exp >= 0
-    return x if exp == 1 else eval_mul(exp * [x])
+    return x if exp == 1 else eval_mul(*(exp * [x]))
 
 
 def mk_add(*args: ArithRef) -> ArithRef:
@@ -262,64 +262,3 @@ def split_mul(t: ArithRef):
     return k, *pows.values()
 
 
-_collect_symbolic_constants_memo: dict = {}
-
-
-def collect_symbolic_constants(expr: ExprRef):
-    """Return a set of symbolic Z3 constants in `expr`.
-
-    Numerals and compound expressions are ignored.
-    """
-    if expr in _collect_symbolic_constants_memo:
-        return _collect_symbolic_constants_memo[expr]
-    if is_symbolic_const(expr):
-        result = {expr}
-    else:
-        result = set()
-        for child in expr.children():
-            result |= collect_symbolic_constants(child)
-    _collect_symbolic_constants_memo[expr] = result
-    return result
-
-
-def var_subs(e: ExprRef, subs: list[ExprRef], offset: int = 0, memo=None):
-    """Give in an expression it substitutes all the variables by terms, which
-    we assume are ground.
-
-    This is useful when we're trying to remove a  quantifier. Then we
-    run this function on the quantifier's body. The logic for vars is as
-    follows, if a variable index is less than the offset, it means that
-    we are replacing variables from the outer scope and nothing is
-    changed. If the variable index is between the
-    offset<vix<offset+len(subs), it is replaced by subs[vix-offset].
-    otherwise, it means that it's from a scope outer to the quantifier
-    that is being removed and therefore the variable's index is
-    decreased by len(subs).
-    """
-    if memo is None:
-        memo = {}
-    if e in memo:
-        return memo[e]
-    result = None
-
-    if z3.is_quantifier(e):
-        # purposefully resetting the memo
-        result = var_subs(e, subs, offset + e.num_vars(), None)  # type: ignore
-    elif z3.is_var(e):
-        vid = z3.get_var_index(e)
-        if vid < offset:
-            result = e
-        elif vid < offset + len(subs):
-            result = subs[vid - offset]
-        else:
-            result = z3.Var(vid - len(subs), e.sort())
-    else:
-        new_children = [var_subs(child, subs, offset, memo) for child in e.children()]
-        if all(nc.eq(c) for nc, c in zip(new_children, e.children())):
-            result = e
-        else:
-            result = e.decl()(*new_children)
-
-    # Memoize the result
-    memo[e] = result
-    return result

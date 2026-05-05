@@ -409,28 +409,3 @@ class MakeDefs(SimpleVisit):
         )
 
 
-class InterpretZeroDivision(SimpleVisit):
-    """Replace terms x%0 and x/0 in the formula by their value in the current
-    interpretation.
-
-    If they are not interpreted return original term.
-    """
-
-    def __init__(self, div_zero_interp, mod_zero_interp):
-        super().__init__()
-        self.div_zero_interp = div_zero_interp
-        self.mod_zero_interp = mod_zero_interp
-
-    def _is_zero(self, a) -> bool:
-        return a.eq(ZERO)
-
-    def visit_node(self, a: ExprRef):
-        if is_mod(a):
-            if self._is_zero(a.arg(1)):
-                return self.mod_zero_interp.get(a.arg(0), a)
-            return a
-        if is_idiv(a):
-            if self._is_zero(a.arg(1)):
-                return self.div_zero_interp.get(a.arg(0), a)
-            return a
-        return self.recurse(a)

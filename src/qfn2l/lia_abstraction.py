@@ -161,7 +161,6 @@ class LiaAbstraction:
         self.axioms: defaultdict[ExprRef, list[BoolRef]] = defaultdict(list)
         self.pures = Pures()
         self.hu = HasUninterpreted()
-        self.current_pure_body = None
         # run purification on the body
         self.purify = self.Purifier(self)
         self.simpl = SimpleSimplify()
