@@ -163,7 +163,7 @@ class LiaAbstraction:
         self.hu = HasUninterpreted()
         # run purification on the body
         self.purify = self.Purifier(self)
-        self.simpl = SimpleSimplify()
+        # self.simpl = SimpleSimplify()
         self.prop = SimplePropagate()
         self.is_exists = is_exists
 
@@ -371,19 +371,17 @@ class LiaAbstraction:
         self.assignment = assignment
         self.current_level = level
         subs = list(self.assignment.items())
-        self.current_body = self.prop(self.simpl(substitute(self.body, subs)))
+        self.current_body = self.prop(substitute(self.body, subs))  # self.simpl()
         self.current_pure_body = self.purify(self.current_body)
         pcol = CollectPures(self.pures, self.axioms)
         pcol(self.current_pure_body)
-        substituted_congruence = self.simpl(
-            substitute(mk_and(*self.mk_congruence_axioms(pcol)), subs)
-        )
+        substituted_congruence = substitute(mk_and(*self.mk_congruence_axioms(pcol)), subs)  # self.simpl()
         self.current_pure_body = mk_and(self.current_pure_body, substituted_congruence)
         assert self.current_pure_body is not None
         self.current_instantiation = mk_and(
             self.current_pure_body,
             *[
-                self.simpl(substitute(ax, subs))
+                substitute(ax, subs)  # self.simpl()
                 for ls in self.axioms.values()
                 for ax in ls
             ],
@@ -606,7 +604,7 @@ class LiaAbstraction:
             for r in (root1, root2)
             if (rv := assignment.get_interp(r)) is not None
         ]
-        tsubs = self.simpl(substitute(t, premise))
+        tsubs = substitute(t, premise)  # self.simpl()
         eq_axiom = Implies(pairs2fla(premise), pure == tsubs)
         rv = []
         rv.append(eq_axiom)
@@ -659,8 +657,8 @@ class LiaAbstraction:
         x, y = t.arg(0), t.arg(1)
         xval = assignment.eval(x)
         yval = assignment.eval(y)
-        tsubs_x = self.simpl(substitute(x, (y, yval)))
-        tsubs_y = self.simpl(substitute(y, (x, xval)))
+        tsubs_x = substitute(x, (y, yval))  # self.simpl()
+        tsubs_y = substitute(y, (x, xval))  # self.simpl()
         pure = self.pures.get_p(t)
         axioms = []
         if not self.hu(xval):
@@ -684,8 +682,8 @@ class LiaAbstraction:
         x, y = t.arg(0), t.arg(1)
         xval = assignment.eval(x)
         yval = assignment.eval(y)
-        tsubs_x = self.simpl(substitute(x, (y, yval)))
-        tsubs_y = self.simpl(substitute(y, (x, xval)))
+        tsubs_x = substitute(x, (y, yval))  # self.simpl()
+        tsubs_y = substitute(y, (x, xval))  # self.simpl()
         pure = self.pures.get_p(t)
         axioms = []
         if not self.hu(xval):

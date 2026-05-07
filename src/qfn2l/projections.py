@@ -109,7 +109,7 @@ def combine_lb_left(
     neg_y = is_negative_power(y_val, y_exp)
     x_cond, x_bound = (lin_lb_pow if not neg_y else lin_ub_pow)(x, x_exp, x_val)
     y_cond, y_bound = (const_lb_pow if not neg_x else const_ub_pow)(y, y_exp, y_val)
-    return [(SimpleSimplify()(mk_and(x_cond, y_cond)), mk_mul(x_bound, y_bound))]
+    return [(mk_and(x_cond, y_cond), mk_mul(x_bound, y_bound))]  # SimpleSimplify()
 
 
 def combine_lb(
@@ -134,7 +134,7 @@ def combine_ub_left(
     neg_y = is_negative_power(y_val, y_exp)
     x_cond, x_bound = (lin_ub_pow if not neg_y else lin_lb_pow)(x, x_exp, x_val)
     y_cond, y_bound = (const_ub_pow if not neg_x else const_lb_pow)(y, y_exp, y_val)
-    return [(SimpleSimplify()(mk_and(x_cond, y_cond)), mk_mul(x_bound, y_bound))]
+    return [(mk_and(x_cond, y_cond), mk_mul(x_bound, y_bound))]  # SimpleSimplify()
 
 
 def combine_ub(
