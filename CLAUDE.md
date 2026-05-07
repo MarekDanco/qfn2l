@@ -13,11 +13,11 @@ The solver's approach: abstract nonlinear operations into fresh constants ("pure
 The main entry point is `src/qfn2l/qf_solver.py`. SMT2 files are provided as input:
 
 ```bash
-python3 src/qfn2l/qf_solver.py examples/t0.smt2
-python3 src/qfn2l/qf_solver.py -v3 examples/b7.smt2   # verbosity level 3
-python3 src/qfn2l/qf_solver.py -p examples/t0.smt2    # preprocess with z3 tactics
-python3 src/qfn2l/qf_solver.py -pa 1 examples/t0.smt2 # aggressive preprocessing level 1
-python3 src/qfn2l/qf_solver.py --modax 4 examples/t0.smt2  # modulo axioms up to value 4
+python3 src/qfn2l/qf_solver.py examples/jain_5-2.c_0.smt2
+python3 src/qfn2l/qf_solver.py -v3 examples/hard.c_2.smt2   # verbosity level 3
+python3 src/qfn2l/qf_solver.py -p examples/jain_5-2.c_0.smt2    # preprocess with z3 tactics
+python3 src/qfn2l/qf_solver.py -pa 1 examples/jain_5-2.c_0.smt2 # aggressive preprocessing level 1
+python3 src/qfn2l/qf_solver.py --modax 4 examples/jain_5-2.c_0.smt2  # modulo axioms up to value 4
 ```
 
 Key options:
@@ -34,6 +34,7 @@ Key options:
 - `--heur-timeout N` — timeout for heuristic LIA calls in ms (default 3000)
 - `--print-model` — print SAT model as SMT2 define-fun lines
 - `--brief-stats` — on exit print only: terminated phase, longest phase, iteration count, pures count
+- `--recursion-depth N` — set Python recursion limit (default 100000)
 
 Note: shell `timeout` / SIGTERM is **unreliable** for this solver — z3 can block in C code and never deliver the signal to Python. Use `--timeout` instead.
 
@@ -57,7 +58,7 @@ All source is in `src/qfn2l/`. The main modules:
 
 **`level_info.py`** — `FormulaInfo` tracks which quantifier level each constant/term belongs to.
 
-**`pures.py`** — `Pures` bidirectional map between NIA terms and their pure constants. `CollectPures` traverses a formula collecting active pures. `CheckVal` and `CollectAtoms` support NIA checking.
+**`pures.py`** — `Pures` bidirectional map between NIA terms and their pure constants. `CollectPures` traverses a formula collecting active pures. `CheckVal` supports NIA checking.
 
 **`projections.py`** — Linear arithmetic bounds for NIA terms (used in axiom generation): `lin_lb_pow`, `lin_ub_pow`, `combine_lb`, `combine_ub`, `mod_ax_mul`, `project_y`, `triple_to_axiom`.
 
@@ -91,9 +92,9 @@ All source is in `src/qfn2l/`. The main modules:
 **`check_model.py`** (root-level) — Verifies SAT answers by running the solver with `--print-model`, injecting the returned model as `assert` constraints, and checking with a reference solver (default: z3):
 
 ```bash
-./check_model.py examples/b1.smt2
-./check_model.py examples/b1.smt2 -- --modax 4
-./check_model.py --ref-solver cvc5 examples/b1.smt2 -- --bounds
+./check_model.py examples/jain_5-2.c_0.smt2
+./check_model.py examples/jain_5-2.c_0.smt2 -- --modax 4
+./check_model.py --ref-solver cvc5 examples/jain_5-2.c_0.smt2 -- --bounds
 ```
 
 ## Examples and Testing Inputs
