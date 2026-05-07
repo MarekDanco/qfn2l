@@ -38,8 +38,6 @@ from z3 import (
     is_app,
     is_const,
     is_eq,
-    is_idiv,
-    is_mod,
     is_mul,
     is_not,
     is_or,
@@ -223,7 +221,6 @@ class SimplePropagate(SimpleVisit):
 class SimpleSimplify(SimpleVisit):
     def __init__(self):
         super().__init__()
-        self.hu = HasUninterpreted()
 
     def visit_ite(self, a: ExprRef):
         cs = a.children()
@@ -314,10 +311,6 @@ class SimpleSimplify(SimpleVisit):
 
     def visit_node(self, a):
         rv = self.recurse(a)
-
-        if not self.hu(rv):
-            return simplify(rv)
-
         if is_mul(rv):
             return self.visit_mul(rv)
         if is_add(rv):
@@ -330,6 +323,10 @@ class SimpleSimplify(SimpleVisit):
             return self.visit_and(rv)
         if is_or(rv):
             return self.visit_or(rv)
+        if is_app(rv):
+            n = rv.num_args()
+            if n > 0 and all(is_numeral(rv.arg(i)) for i in range(n)):
+                return simplify(rv)
         return rv
 
 
@@ -407,5 +404,3 @@ class MakeDefs(SimpleVisit):
             if len(splits) == 1
             else mk_mul(coeff, *splits[0], *splits[1])
         )
-
-

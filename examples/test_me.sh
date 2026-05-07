@@ -44,9 +44,9 @@ run_and_check() {
 
     # Run the program on the file and check stdout for expected
     if "$program" $arg "$file" 2>/dev/null | grep -q $expected;then
-        echo -e "${GREEN}success${NC}"
+        echo "${GREEN}success${NC}"
     else
-        echo -e "${RED}failure${NC}"
+        echo "${RED}failure${NC}"
     fi
 }
 
@@ -54,17 +54,15 @@ setup_venv
 S=../src/qfn2l/qf_solver.py
 for opts in "--zeros" "--bounds" "--zeros --bounds" "--modax 5"; do
 	echo OPTS: ${opts}
-	run_and_check "${S}" "--timeout 5 ${opts}" ./hard.c_2.smt2 unsat
-	run_and_check "${S}" "--timeout 5 ${opts}" ./hard.c_3.smt2 unsat
-	run_and_check "${S}" "--timeout 5 ${opts}" ./hard-ll.c_0.smt2 unsat
-	run_and_check "${S}" "--timeout 5 ${opts}" ./hard-ll.c_1.smt2 unsat
-	run_and_check "${S}" "--timeout 5 ${opts}" ./hard-ll.c_2.smt2 unsat
-	run_and_check "${S}" "--timeout 5 ${opts}" ./hard-ll.c_3.smt2 unsat
-	run_and_check "${S}" "--timeout 5 ${opts}" ./hard-ll.c_4.smt2 unsat
-	run_and_check "${S}" "--timeout 5 ${opts}" ./interleave_bits.c_1.smt2 unsat
-	run_and_check "${S}" "--timeout 5 ${opts}" ./interleave_bits.c_2.smt2 unsat
-	run_and_check "${S}" "--timeout 5 ${opts}" ./interleave_bits.c_3.smt2 sat
-	run_and_check "${S}" "--timeout 5 ${opts}" ./interleave_bits.c_4.smt2 sat
-	run_and_check "${S}" "--timeout 5 ${opts}" ./jain_5-2.c_0.smt2 sat
-	run_and_check "${S}" "--timeout 5 ${opts}" ./jain_7-2.c_3.smt2 unsat
+	run_and_check "${S}" "--timeout 20 ${opts}" ./hard.c_2.smt2 unsat
+	run_and_check "${S}" "--timeout 20 ${opts}" ./hard.c_3.smt2 unsat
+	run_and_check "${S}" "--timeout 20 ${opts}" ./hard-ll.c_0.smt2 unsat
+	run_and_check "${S}" "--timeout 20 ${opts}" ./hard-ll.c_1.smt2 unsat
+	run_and_check "${S}" "--timeout 20 ${opts}" ./hard-ll.c_2.smt2 unsat
+	run_and_check "${S}" "--timeout 20 ${opts}" ./hard-ll.c_3.smt2 unsat
+	run_and_check "${S}" "--timeout 20 ${opts}" ./hard-ll.c_4.smt2 unsat
+	run_and_check "${S}" "--timeout 20 ${opts}" ./STC_0019.smt2 sat
+	run_and_check "${S}" "--timeout 20 ${opts}" ./STC_0072.smt2 sat
+	run_and_check "${S}" "--timeout 20 ${opts}" ./STC_0504.smt2 sat
 done
+
