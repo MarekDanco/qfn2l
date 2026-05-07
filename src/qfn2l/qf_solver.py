@@ -269,10 +269,14 @@ def main():
 
     s = z3.Solver()
     STATS.begin_phase(STATS.parse_time)
-    if opts.filename == "-":
-        s.from_string(sys.stdin.read())
-    else:
-        s.from_file(opts.filename)
+    try:
+        if opts.filename == "-":
+            s.from_string(sys.stdin.read())
+        else:
+            s.from_file(opts.filename)
+    except z3.Z3Exception as e:
+        print(f"Parse error: {e}", file=sys.stderr)
+        sys.exit(1)
     formula = mk_and(*s.assertions())
     STATS.end_phase()
 
