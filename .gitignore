@@ -211,3 +211,5 @@ __marimo__/
 run_check.sh
 sync.sh
 sync_main.sh
+logs/
+*svg

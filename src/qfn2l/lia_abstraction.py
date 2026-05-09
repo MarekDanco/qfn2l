@@ -179,6 +179,7 @@ class LiaAbstraction:
 
         self.mod_zero_interp = {}
         self.idiv_zero_interp = {}
+        self._congruence_pairs_added: set[tuple[int, int]] = set()
 
     def _congruence_same_axioms(self, pures_set: set) -> list:
         """Congruence axioms for div/mod pures: same args => same pure."""
@@ -272,6 +273,80 @@ class LiaAbstraction:
                     Implies(mk_and(ra <= ZERO, rb >= ZERO), (rb <= nra) == (pb <= pa))
                 )
         return axioms
+
+    def _congruence_axioms_for_pair(self, a: ExprRef, b: ExprRef) -> list:
+        """Generate all congruence axioms for a pair of pures (any type)."""
+        t = self.pures.get_t(a)
+        if is_idiv(t) or is_mod(t):
+            a_term = t
+            b_term = self.pures.get_t(b)
+            ax, ay = a_term.children()
+            bx, by = b_term.children()
+            ax = self.pures.find_p(ax) or ax
+            ay = self.pures.find_p(ay) or ay
+            bx = self.pures.find_p(bx) or bx
+            by = self.pures.find_p(by) or by
+            return [Implies(mk_and(ax == bx, ay == by), a == b)]
+        if is_mul(t):
+            spla = self.split_mul(t)
+            splb = self.split_mul(self.pures.get_t(b))
+            assert 2 <= len(spla) <= 3
+            assert 2 <= len(splb) <= 3
+            axioms = []
+            if (
+                len(spla) == 3
+                and len(splb) == 3
+                and is_one(spla[0])
+                and is_one(splb[0])
+            ):
+                (ar1, ae1), (ar2, ae2) = (spla[1][0], len(spla[1])), (spla[2][0], len(spla[2]))
+                (br1, be1), (br2, be2) = (splb[1][0], len(splb[1])), (splb[2][0], len(splb[2]))
+                if ae1 == be1 and ae2 == be2:
+                    axioms.append(Implies(mk_and(ar1 == br1, ar2 == br2), a == b))
+                if ae1 == be2 and ae2 == be1:
+                    axioms.append(Implies(mk_and(ar1 == br2, ar2 == br1), a == b))
+            if (
+                len(spla) == 2
+                and len(splb) == 2
+                and is_one(spla[0])
+                and is_one(splb[0])
+            ):
+                ra, ea = spla[1][0], len(spla[1])
+                rb, eb = splb[1][0], len(splb[1])
+                if ea == eb:
+                    nra, nrb = -ra, -rb
+                    if ea % 2 == 1:
+                        axioms.append((ra <= rb) == (a <= b))
+                        axioms.append((rb <= ra) == (b <= a))
+                    else:
+                        axioms += [
+                            Implies(mk_and(ra >= ZERO, rb >= ZERO), (ra <= rb) == (a <= b)),
+                            Implies(mk_and(ra >= ZERO, rb >= ZERO), (rb <= ra) == (b <= a)),
+                            Implies(mk_and(ra <= ZERO, rb <= ZERO), (rb <= ra) == (a <= b)),
+                            Implies(mk_and(ra <= ZERO, rb <= ZERO), (ra <= rb) == (b <= a)),
+                            Implies(mk_and(ra >= ZERO, rb <= ZERO), (ra <= nrb) == (a <= b)),
+                            Implies(mk_and(ra >= ZERO, rb <= ZERO), (nrb <= ra) == (b <= a)),
+                            Implies(mk_and(ra <= ZERO, rb >= ZERO), (nra <= rb) == (a <= b)),
+                            Implies(mk_and(ra <= ZERO, rb >= ZERO), (rb <= nra) == (b <= a)),
+                        ]
+            return axioms
+        return []
+
+    def _add_lazy_congruence_axioms(self, pcol: CollectPures) -> None:
+        """Add pairwise congruence axioms violated in the current model."""
+        for collection in (pcol.idiv_collected, pcol.mod_collected, pcol.mul_collected):
+            for a, b in combinations(collection, 2):
+                key = (min(a.get_id(), b.get_id()), max(a.get_id(), b.get_id()))
+                if key in self._congruence_pairs_added:
+                    continue
+                candidates = self._congruence_axioms_for_pair(a, b)
+                violated = [
+                    ax for ax in candidates
+                    if z3.is_false(self.current_model.eval(ax, model_completion=True))
+                ]
+                if violated:
+                    self.add_axioms(a, violated, "cong")
+                    self._congruence_pairs_added.add(key)
 
     def mk_congruence_axioms(self, _pures: CollectPures):
         """Create congruence axioms of the collected pures."""
@@ -375,8 +450,6 @@ class LiaAbstraction:
         self.current_pure_body = self.purify(self.current_body)
         pcol = CollectPures(self.pures, self.axioms)
         pcol(self.current_pure_body)
-        substituted_congruence = substitute(mk_and(*self.mk_congruence_axioms(pcol)), subs)  # self.simpl()
-        self.current_pure_body = mk_and(self.current_pure_body, substituted_congruence)
         assert self.current_pure_body is not None
         self.current_instantiation = mk_and(
             self.current_pure_body,
@@ -749,6 +822,10 @@ class LiaAbstraction:
         res = True
         pcol = CollectPures(pures=self.pures, axioms=self.axioms)
         pcol(self.current_pure_body)
+        pairs_before = len(self._congruence_pairs_added)
+        self._add_lazy_congruence_axioms(pcol)
+        if len(self._congruence_pairs_added) > pairs_before:
+            res = False
 
         for pure in pcol.collected:
             t = self.pures.get_t(pure)
