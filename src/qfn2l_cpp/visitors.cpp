@@ -1,0 +1,322 @@
+#include "visitors.h"
+#include <algorithm>
+#include <unordered_map>
+
+// ── TermTransformer ───────────────────────────────────────────────────────────
+smt::Term TermTransformer::operator()(const smt::Term& t) {
+    auto it = _memo.find(t);
+    if (it != _memo.end()) return it->second;
+    smt::Term res = visit_node(t);
+    _memo[t] = res;
+    return res;
+}
+
+smt::Term TermTransformer::recurse(const smt::Term& t) {
+    if (!is_app(t) || t->begin() == t->end()) return t;
+    smt::TermVec new_args;
+    bool changed = false;
+    for (auto it = t->begin(); it != t->end(); ++it) {
+        smt::Term nc = (*this)(*it);
+        if (nc != *it) changed = true;
+        new_args.push_back(nc);
+    }
+    return changed ? rebuild(_ctx, t, new_args) : t;
+}
+
+// ── TermPredicate ─────────────────────────────────────────────────────────────
+bool TermPredicate::operator()(const smt::Term& t) {
+    auto it = _memo.find(t);
+    if (it != _memo.end()) return it->second;
+    bool res = visit_node(t);
+    _memo[t] = res;
+    return res;
+}
+
+// ── HasUninterpreted ──────────────────────────────────────────────────────────
+bool HasUninterpreted::visit_node(const smt::Term& t) {
+    if (is_symbolic_const(t)) return true;
+    for (auto it = t->begin(); it != t->end(); ++it)
+        if ((*this)(*it)) return true;
+    return false;
+}
+
+// ── Contains ─────────────────────────────────────────────────────────────────
+bool Contains::visit_node(const smt::Term& t) {
+    if (_cs.count(t)) return true;
+    for (auto it = t->begin(); it != t->end(); ++it)
+        if ((*this)(*it)) return true;
+    return false;
+}
+
+// ── SimpleSimplify ────────────────────────────────────────────────────────────
+smt::Term SimpleSimplify::visit_add(const smt::Term& t) {
+    // Flatten and collect numerals.
+    std::vector<smt::Term> stack = get_children(t);
+    smt::TermVec coeffs, others;
+    while (!stack.empty()) {
+        auto c = stack.back(); stack.pop_back();
+        if (is_value(c))
+            coeffs.push_back(c);
+        else if (is_add(c))
+            for (auto ch : get_children(c)) stack.push_back(ch);
+        else
+            others.push_back(c);
+    }
+    smt::Term c = eval_sum(_ctx, coeffs);
+    std::sort(others.begin(), others.end(),
+              [](auto& a, auto& b){ return a->hash() < b->hash(); });
+    if (is_zero(_ctx, c)) return mk_add(_ctx, others);
+    smt::TermVec all; all.push_back(c);
+    all.insert(all.end(), others.begin(), others.end());
+    return mk_add(_ctx, all);
+}
+
+smt::Term SimpleSimplify::visit_mul(const smt::Term& t) {
+    std::vector<smt::Term> stack = get_children(t);
+    smt::TermVec coeffs, others;
+    while (!stack.empty()) {
+        auto c = stack.back(); stack.pop_back();
+        if (is_one(_ctx, c)) continue;
+        if (is_zero(_ctx, c)) return _ctx.ZERO;
+        if (is_value(c))
+            coeffs.push_back(c);
+        else if (is_mul(c))
+            for (auto ch : get_children(c)) stack.push_back(ch);
+        else
+            others.push_back(c);
+    }
+    smt::Term c = eval_mul(_ctx, coeffs);
+    if (is_zero(_ctx, c)) return _ctx.ZERO;
+    std::sort(others.begin(), others.end(),
+              [](auto& a, auto& b){ return a->hash() < b->hash(); });
+    if (is_one(_ctx, c)) return mk_mul(_ctx, others);
+    smt::TermVec all; all.push_back(c);
+    all.insert(all.end(), others.begin(), others.end());
+    return mk_mul(_ctx, all);
+}
+
+smt::Term SimpleSimplify::visit_or(const smt::Term& t) {
+    std::vector<smt::Term> stack = get_children(t);
+    smt::TermVec nchs;
+    while (!stack.empty()) {
+        auto c = stack.back(); stack.pop_back();
+        if (is_true(_ctx, c)) return _ctx.TRUE_T;
+        if (is_or(c))
+            for (auto ch : get_children(c)) stack.push_back(ch);
+        else if (!is_false(_ctx, c))
+            nchs.push_back(c);
+    }
+    std::sort(nchs.begin(), nchs.end(),
+              [](auto& a, auto& b){ return a->hash() < b->hash(); });
+    return mk_or(_ctx, nchs);
+}
+
+smt::Term SimpleSimplify::visit_and(const smt::Term& t) {
+    std::vector<smt::Term> stack = get_children(t);
+    smt::TermVec nchs;
+    while (!stack.empty()) {
+        auto c = stack.back(); stack.pop_back();
+        if (is_false(_ctx, c)) return _ctx.FALSE_T;
+        if (is_and(c))
+            for (auto ch : get_children(c)) stack.push_back(ch);
+        else if (!is_true(_ctx, c))
+            nchs.push_back(c);
+    }
+    std::sort(nchs.begin(), nchs.end(),
+              [](auto& a, auto& b){ return a->hash() < b->hash(); });
+    return mk_and(_ctx, nchs);
+}
+
+smt::Term SimpleSimplify::visit_sub(const smt::Term& t) {
+    auto chs = get_children(t);
+    if (chs.size() == 2 && is_zero(_ctx, chs[1])) return chs[0];
+    return t;
+}
+
+smt::Term SimpleSimplify::visit_ite(const smt::Term& t) {
+    auto chs = get_children(t);
+    assert(chs.size() == 3);
+    if (is_true(_ctx, chs[0]))  return chs[1];
+    if (is_false(_ctx, chs[0])) return chs[2];
+    return t;
+}
+
+smt::Term SimpleSimplify::visit_node(const smt::Term& t) {
+    smt::Term rv = recurse(t);
+    if (is_mul(rv)) return visit_mul(rv);
+    if (is_add(rv)) return visit_add(rv);
+    if (is_ite(rv)) return visit_ite(rv);
+    if (is_sub(rv)) return visit_sub(rv);
+    if (is_and(rv)) return visit_and(rv);
+    if (is_or(rv))  return visit_or(rv);
+    // Constant-fold fully-numeral applications.
+    if (is_app(rv) && rv->begin() != rv->end()) {
+        bool all_vals = true;
+        for (auto it = rv->begin(); it != rv->end(); ++it)
+            if (!(*it)->is_value()) { all_vals = false; break; }
+        if (all_vals) {
+            // TODO: call solver->simplify(rv) or evaluate via get_value.
+            // For now, return as-is; this is conservative.
+        }
+    }
+    return rv;
+}
+
+// ── SimplePropagate ───────────────────────────────────────────────────────────
+smt::Term SimplePropagate::propagate(bool pos, const smt::Term& node) {
+    smt::TermVec chs = get_children(node);
+
+    // Extract equalities of the form (= symbolic_const value_or_const).
+    // Under And (pos=true): extract x==c.
+    // Under Or (pos=false): extract not(x==c).
+    using EqPair = std::pair<smt::Term, smt::Term>;
+    std::vector<EqPair> eqs;
+
+    for (int i = static_cast<int>(chs.size()) - 1; i >= 0; --i) {
+        smt::Term ch = chs[i];
+        // Under Or, unwrap Not.
+        if (!pos) {
+            if (!is_not(ch)) continue;
+            ch = get_child(ch, 0);
+        }
+        if (!is_eq(ch)) continue;
+        auto lhs = get_child(ch, 0), rhs = get_child(ch, 1);
+        if (!is_symbolic_const(lhs) && !is_symbolic_const(rhs)) continue;
+        if (!is_symbolic_const(lhs)) std::swap(lhs, rhs);
+        if (!is_symbolic_const(lhs)) continue;
+        eqs.push_back({lhs, rhs});
+        // Swap-remove.
+        chs[i] = chs.back();
+        chs.pop_back();
+    }
+    if (eqs.empty()) return node;
+
+    // Build substitution, applying earlier subs to later rhs values.
+    smt::UnorderedTermMap subst;
+    for (auto& [lhs, rhs] : eqs) {
+        smt::Term new_rhs = do_substitute(_ctx, rhs, subst);
+        subst[lhs] = new_rhs;
+    }
+
+    // Apply substitution to remaining children.
+    for (auto& ch : chs)
+        ch = do_substitute(_ctx, ch, subst);
+
+    // Rebuild equality literals.
+    smt::TermVec eq_lits;
+    for (auto& [lhs, rhs] : subst) {
+        if (lhs == rhs) continue;
+        smt::Term eq = _ctx.solver->make_term(smt::Equal, lhs, rhs);
+        eq_lits.push_back(pos ? eq : mk_not(_ctx, eq));
+    }
+    smt::TermVec all_chs;
+    all_chs.insert(all_chs.end(), chs.begin(), chs.end());
+    all_chs.insert(all_chs.end(), eq_lits.begin(), eq_lits.end());
+    std::sort(all_chs.begin(), all_chs.end(),
+              [](auto& a, auto& b){ return a->hash() < b->hash(); });
+    return pos ? mk_and(_ctx, all_chs) : mk_or(_ctx, all_chs);
+}
+
+smt::Term SimplePropagate::visit_node(const smt::Term& t) {
+    smt::Term rv = recurse(t);
+    if (is_and(rv)) return propagate(true, rv);
+    if (is_or(rv))  return propagate(false, rv);
+    return rv;
+}
+
+// ── MakeDefs ──────────────────────────────────────────────────────────────────
+MakeDefs::MakeDefs(const Ctx& ctx) : TermTransformer(ctx), _hu(ctx) {}
+
+smt::Term MakeDefs::mk_def(const smt::Term& t) {
+    auto it = _definitions.find(t);
+    if (it != _definitions.end()) return it->second;
+    smt::Term nc = _ctx.fresh_symbol(t->get_sort());
+    _definitions[t] = nc;
+    return nc;
+}
+
+smt::Term MakeDefs::visit_node(const smt::Term& init_t) {
+    smt::Term t = recurse(init_t);
+    if (t != init_t) return (*this)(t);
+    if (!is_mul(t)) return t;
+
+    smt::TermVec children = get_children(t);
+    int usymbols = 0;
+    for (auto& c : children)
+        if (_hu(c)) ++usymbols;
+    if (usymbols < 2) return t;
+
+    // Separate numeric coefficients from symbolic factors.
+    smt::TermVec coeffs;
+    // Map: symbol_term -> list of that symbol (to track power = repeated)
+    std::unordered_map<smt::Term, smt::TermVec> splits;
+    for (auto& c : children) {
+        if (!_hu(c)) {
+            coeffs.push_back(c);
+        } else {
+            smt::Term x = is_symbol(c) ? c : mk_def(c);
+            splits[x].push_back(x);
+        }
+    }
+
+    smt::Term coeff = eval_mul(_ctx, coeffs);
+    if (is_zero(_ctx, coeff)) return _ctx.ZERO;
+
+    // Reduce: while >2 groups, merge two.
+    std::vector<smt::TermVec> split_list;
+    for (auto& [_, v] : splits) split_list.push_back(v);
+
+    while (split_list.size() > 2) {
+        auto a = split_list[0]; split_list.erase(split_list.begin());
+        auto b = split_list[0]; split_list.erase(split_list.begin());
+        smt::TermVec ab;
+        ab.insert(ab.end(), a.begin(), a.end());
+        ab.insert(ab.end(), b.begin(), b.end());
+        smt::Term d = mk_def(mk_mul(_ctx, ab));
+        split_list.push_back({d});
+    }
+
+    assert(!split_list.empty() && split_list.size() <= 2);
+    smt::TermVec result_factors = {coeff};
+    for (auto& grp : split_list)
+        result_factors.insert(result_factors.end(), grp.begin(), grp.end());
+    return mk_mul(_ctx, result_factors);
+}
+
+std::pair<Prefix, smt::Term> MakeDefs::make(const Prefix& in_prefix,
+                                              const smt::Term& formula) {
+    smt::Term new_formula = (*this)(formula);
+    Prefix prefix = in_prefix;
+
+    // Build const2lev map from current prefix.
+    std::unordered_map<smt::Term, int> const2lev;
+    for (int lev = 0; lev < static_cast<int>(prefix.size()); ++lev)
+        for (auto& v : prefix[lev].vars)
+            const2lev[v] = lev;
+
+    GetLevel levs(_ctx, const2lev, new_formula);
+
+    for (auto& [t, v] : _definitions) {
+        int term_level = levs(t);
+        int new_level = -1;
+        for (int lev = term_level; lev < static_cast<int>(prefix.size()); ++lev) {
+            if (prefix[lev].is_exists()) {
+                prefix[lev].add_var(v);
+                new_level = lev;
+                break;
+            }
+        }
+        if (new_level < 0) {
+            new_level = static_cast<int>(prefix.size());
+            prefix.push_back(QLev(true, {v}));
+        }
+        const_cast<std::unordered_map<smt::Term, int>&>(
+            const2lev)[v] = new_level;
+    }
+
+    // new_body = new_formula AND (t == v for each definition)
+    smt::TermVec body_parts = {new_formula};
+    for (auto& [t, v] : _definitions)
+        body_parts.push_back(_ctx.solver->make_term(smt::Equal, t, v));
+    return {prefix, mk_and(_ctx, body_parts)};
+}
