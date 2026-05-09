@@ -213,3 +213,4 @@ sync.sh
 sync_main.sh
 logs/
 *svg
+build_noasan
