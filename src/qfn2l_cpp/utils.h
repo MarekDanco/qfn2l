@@ -23,6 +23,9 @@ struct Ctx {
     explicit Ctx(smt::SmtSolver s);
 
     smt::Term make_int(int64_t n) const;
+    // Create an integer term from a decimal string, including big integers.
+    // s must be in SMT-LIB sexpr format: "N" or "(- N)".
+    smt::Term make_int_str(const std::string& s) const;
     // Create a fresh symbol with the given sort (unique name, globally unique).
     smt::Term fresh_symbol(const smt::Sort& sort,
                            const std::string& prefix = "_p") const;
@@ -32,9 +35,11 @@ private:
 };
 
 // ── Numeral helpers ───────────────────────────────────────────────────────────
-// Extract integer value from a numeric constant term.
-// TODO: verify `to_int()` API name on AbsTerm; fallback: stoll(t->to_string())
+// Extract integer value from a numeric constant term. Throws on overflow.
 int64_t term_to_int64(const smt::Term& t);
+// Compute (val % k) for a numeral term val and small integer k.
+// Uses z3 simplify so works for big integers; result fits in int64_t (|result| < k).
+int64_t term_mod_int(const Ctx& ctx, const smt::Term& val, int64_t k);
 
 bool is_value(const smt::Term& t);         // concrete value (int or bool)
 bool is_int_value(const smt::Term& t);     // concrete integer

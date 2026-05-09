@@ -103,6 +103,9 @@ private:
     // Push depth on _ctx.solver: 1 when a solve session is active, 0 otherwise.
     int  _solver_pushed = 0;
     bool _lia_sat       = false;
+    // Set by incorporate_assumptions when it ends with a check_sat_assuming UNSAT.
+    // Signals that the solver state must be restored before get_value() is valid.
+    bool _heuristic_left_unsat = false;
 
     void add_axiom(const smt::Term& pure, const smt::Term& ax, const char* tag = "");
     void add_axioms(const smt::Term& pure, const smt::TermVec& axs,

@@ -37,27 +37,28 @@ CollectPures::CollectPures(
 
 void CollectPures::operator()(const smt::Term& t) { visit(t); }
 
-void CollectPures::visit(const smt::Term& t) {
-    if (!_visited.insert(t).second) return;
-    // Recurse into children first.
-    for (auto it = t->begin(); it != t->end(); ++it)
-        visit(*it);
+void CollectPures::visit(const smt::Term& root) {
+    std::vector<smt::Term> stk = {root};
+    while (!stk.empty()) {
+        smt::Term t = stk.back(); stk.pop_back();
+        if (!_visited.insert(t).second) continue;
 
-    // Check if this is a pure constant.
-    const smt::Term* orig = const_cast<Pures&>(_pures).find_t(t);
-    if (!orig) return;
-    if (collected.count(t)) return;
+        for (auto it = t->begin(); it != t->end(); ++it)
+            stk.push_back(*it);
 
-    collected.insert(t);
-    if (is_idiv(*orig)) idiv_collected.insert(t);
-    if (is_mod(*orig))  mod_collected.insert(t);
-    if (is_mul(*orig))  mul_collected.insert(t);
+        const smt::Term* orig = const_cast<Pures&>(_pures).find_t(t);
+        if (!orig || collected.count(t)) continue;
 
-    // Recurse into axioms associated with this pure.
-    auto ax_it = _axioms.find(t);
-    if (ax_it != _axioms.end())
-        for (auto& ax : ax_it->second)
-            visit(ax);
+        collected.insert(t);
+        if (is_idiv(*orig)) idiv_collected.insert(t);
+        if (is_mod(*orig))  mod_collected.insert(t);
+        if (is_mul(*orig))  mul_collected.insert(t);
+
+        auto ax_it = _axioms.find(t);
+        if (ax_it != _axioms.end())
+            for (auto& ax : ax_it->second)
+                stk.push_back(ax);
+    }
 }
 
 // ── CheckVal ──────────────────────────────────────────────────────────────────

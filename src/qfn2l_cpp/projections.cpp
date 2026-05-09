@@ -142,25 +142,21 @@ std::vector<smt::Term>
 mod_ax_mul(const Ctx& ctx, int max_modulus,
            const std::vector<std::tuple<smt::Term, int, smt::Term>>& factors,
            const smt::Term& pure, const smt::Term& pure_val) {
-    int64_t pure_int = term_to_int64(pure_val);
-
     for (int k = 2; k <= max_modulus; ++k) {
         int64_t expected_residue = 1;
         for (auto& [root, exp, val] : factors) {
-            int64_t v = term_to_int64(val);
-            int64_t rv = ((v % k) + k) % k;
+            int64_t rv = ((term_mod_int(ctx, val, k)) + k) % k;
             int64_t pwr = 1;
             for (int e = 0; e < exp; ++e) pwr = (pwr * rv) % k;
             expected_residue = (expected_residue * pwr) % k;
         }
-        int64_t actual_residue = ((pure_int % k) + k) % k;
+        int64_t actual_residue = ((term_mod_int(ctx, pure_val, k)) + k) % k;
         if (expected_residue == actual_residue) continue;
 
         smt::Term kz = ctx.make_int(k);
         smt::TermVec conditions;
         for (auto& [root, _exp, val] : factors) {
-            int64_t v = term_to_int64(val);
-            int64_t fr = ((v % k) + k) % k;
+            int64_t fr = ((term_mod_int(ctx, val, k)) + k) % k;
             smt::Term cond = ctx.solver->make_term(smt::Equal,
                 ctx.solver->make_term(smt::Mod, root, kz),
                 ctx.make_int(fr));

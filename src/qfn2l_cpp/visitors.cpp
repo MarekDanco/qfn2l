@@ -3,12 +3,36 @@
 #include <unordered_map>
 
 // ── TermTransformer ───────────────────────────────────────────────────────────
-smt::Term TermTransformer::operator()(const smt::Term& t) {
-    auto it = _memo.find(t);
-    if (it != _memo.end()) return it->second;
-    smt::Term res = visit_node(t);
-    _memo[t] = res;
-    return res;
+// Iterative post-order traversal: processes children before parents so that
+// visit_node() always sees its children already memoized.  visit_node() may
+// still call (*this) on freshly-built terms, but those complete in O(1) since
+// their children are already in _memo.
+smt::Term TermTransformer::operator()(const smt::Term& root) {
+    {
+        auto it = _memo.find(root);
+        if (it != _memo.end()) return it->second;
+    }
+    // Stack entries: (term, children_already_pushed)
+    std::vector<std::pair<smt::Term, bool>> stk;
+    stk.push_back({root, false});
+    while (!stk.empty()) {
+        smt::Term t    = stk.back().first;   // copy before possible realloc
+        bool     pushed = stk.back().second;
+        if (_memo.count(t)) { stk.pop_back(); continue; }
+        if (!pushed) {
+            stk.back().second = true;  // mark before push_back may reallocate
+            if (is_app(t)) {
+                for (auto it = t->begin(); it != t->end(); ++it)
+                    if (!_memo.count(*it))
+                        stk.push_back({*it, false});
+            }
+        } else {
+            stk.pop_back();
+            // All children are in _memo; visit_node calls to (*this) are O(1).
+            _memo[t] = visit_node(t);
+        }
+    }
+    return _memo.at(root);
 }
 
 smt::Term TermTransformer::recurse(const smt::Term& t) {
@@ -24,12 +48,28 @@ smt::Term TermTransformer::recurse(const smt::Term& t) {
 }
 
 // ── TermPredicate ─────────────────────────────────────────────────────────────
-bool TermPredicate::operator()(const smt::Term& t) {
-    auto it = _memo.find(t);
-    if (it != _memo.end()) return it->second;
-    bool res = visit_node(t);
-    _memo[t] = res;
-    return res;
+bool TermPredicate::operator()(const smt::Term& root) {
+    {
+        auto it = _memo.find(root);
+        if (it != _memo.end()) return it->second;
+    }
+    std::vector<std::pair<smt::Term, bool>> stk;
+    stk.push_back({root, false});
+    while (!stk.empty()) {
+        smt::Term t     = stk.back().first;
+        bool      pushed = stk.back().second;
+        if (_memo.count(t)) { stk.pop_back(); continue; }
+        if (!pushed) {
+            stk.back().second = true;
+            for (auto it = t->begin(); it != t->end(); ++it)
+                if (!_memo.count(*it))
+                    stk.push_back({*it, false});
+        } else {
+            stk.pop_back();
+            _memo[t] = visit_node(t);
+        }
+    }
+    return _memo.at(root);
 }
 
 // ── HasUninterpreted ──────────────────────────────────────────────────────────
@@ -237,7 +277,9 @@ smt::Term MakeDefs::mk_def(const smt::Term& t) {
 
 smt::Term MakeDefs::visit_node(const smt::Term& init_t) {
     smt::Term t = recurse(init_t);
-    if (t != init_t) return (*this)(t);
+    // Don't call (*this)(t) here: t is not yet in _memo so it would recurse
+    // infinitely. Children of t are already transformed by recurse(); apply
+    // the mul logic directly.
     if (!is_mul(t)) return t;
 
     smt::TermVec children = get_children(t);

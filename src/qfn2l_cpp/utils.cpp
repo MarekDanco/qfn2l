@@ -4,6 +4,11 @@
 #include <regex>
 #include <stdexcept>
 
+#ifdef BACKEND_Z3
+#  include "z3_solver.h"
+#  include "z3_term.h"
+#endif
+
 // ── Ctx ───────────────────────────────────────────────────────────────────────
 Ctx::Ctx(smt::SmtSolver s) : solver(std::move(s)) {
     int_sort  = solver->make_sort(smt::INT);
@@ -19,6 +24,16 @@ smt::Term Ctx::make_int(int64_t n) const {
     return solver->make_term(n, int_sort);
 }
 
+smt::Term Ctx::make_int_str(const std::string& s) const {
+    static const std::regex neg_re(R"(\(\s*-\s*(\d+)\s*\))");
+    std::smatch m;
+    if (std::regex_match(s, m, neg_re)) {
+        smt::Term pos = solver->make_term(m[1].str(), int_sort);
+        return solver->make_term(smt::Negate, pos);
+    }
+    return solver->make_term(s, int_sort);
+}
+
 smt::Term Ctx::fresh_symbol(const smt::Sort& sort,
                              const std::string& prefix) const {
     int id = _fresh_ctr.fetch_add(1);
@@ -27,15 +42,24 @@ smt::Term Ctx::fresh_symbol(const smt::Sort& sort,
 
 // ── Numeral helpers ───────────────────────────────────────────────────────────
 int64_t term_to_int64(const smt::Term& t) {
-    // TODO: if AbsTerm::to_int() is available, prefer t->to_int().
-    // Fallback: parse SMT-LIB string representation.
     std::string s = t->to_string();
-    // SMT-LIB negative integers are written as "(- N)"
     static const std::regex neg_re(R"(\(\s*-\s*(\d+)\s*\))");
     std::smatch m;
     if (std::regex_match(s, m, neg_re))
         return -static_cast<int64_t>(std::stoull(m[1].str()));
     return static_cast<int64_t>(std::stoull(s));
+}
+
+// Simplify a pure-numeral expression to a single numeral term via z3 constant folding.
+static smt::Term numeral_simplify(const Ctx& ctx, const smt::Term& t) {
+#ifdef BACKEND_Z3
+    auto* z3t = dynamic_cast<smt::Z3Term*>(t.get());
+    if (z3t) {
+        std::string s = z3t->get_z3_expr().simplify().to_string();
+        return ctx.make_int_str(s);
+    }
+#endif
+    return t;
 }
 
 bool is_value(const smt::Term& t)      { return t->is_value(); }
@@ -108,16 +132,22 @@ bool is_nnf_connective(const smt::Term& t) {
 bool is_true(const Ctx& ctx, const smt::Term& t)    { return t == ctx.TRUE_T; }
 bool is_false(const Ctx& ctx, const smt::Term& t)   { return t == ctx.FALSE_T; }
 bool is_zero(const Ctx& ctx, const smt::Term& t)    {
-    return t->is_value() && t->get_sort() == ctx.int_sort && term_to_int64(t) == 0;
+    return t->is_value() && t->get_sort() == ctx.int_sort && t->to_string() == "0";
 }
 bool is_one(const Ctx& ctx, const smt::Term& t)     {
-    return t->is_value() && t->get_sort() == ctx.int_sort && term_to_int64(t) == 1;
+    return t->is_value() && t->get_sort() == ctx.int_sort && t->to_string() == "1";
 }
 bool is_min_one(const Ctx& ctx, const smt::Term& t) {
-    return t->is_value() && t->get_sort() == ctx.int_sort && term_to_int64(t) == -1;
+    if (!t->is_value() || t->get_sort() != ctx.int_sort) return false;
+    std::string s = t->to_string();
+    static const std::regex neg_one_re(R"(\(\s*-\s*1\s*\))");
+    return std::regex_match(s, neg_one_re);
 }
 bool is_neg_val(const smt::Term& t) {
-    return t->is_value() && term_to_int64(t) < 0;
+    if (!t->is_value()) return false;
+    std::string s = t->to_string();
+    // SMT-LIB negative integers appear as "(- N)"
+    return !s.empty() && s[0] == '(';
 }
 
 // ── Term building ─────────────────────────────────────────────────────────────
@@ -140,10 +170,7 @@ smt::Term mk_and(const Ctx& ctx, const smt::TermVec& args) {
     }
     if (filtered.empty()) return ctx.TRUE_T;
     if (filtered.size() == 1) return filtered[0];
-    smt::Term r = ctx.solver->make_term(smt::And, filtered[0], filtered[1]);
-    for (size_t i = 2; i < filtered.size(); ++i)
-        r = ctx.solver->make_term(smt::And, r, filtered[i]);
-    return r;
+    return ctx.solver->make_term(smt::And, filtered);
 }
 
 smt::Term mk_or(const Ctx& ctx, const smt::TermVec& args) {
@@ -155,10 +182,7 @@ smt::Term mk_or(const Ctx& ctx, const smt::TermVec& args) {
     }
     if (filtered.empty()) return ctx.FALSE_T;
     if (filtered.size() == 1) return filtered[0];
-    smt::Term r = ctx.solver->make_term(smt::Or, filtered[0], filtered[1]);
-    for (size_t i = 2; i < filtered.size(); ++i)
-        r = ctx.solver->make_term(smt::Or, r, filtered[i]);
-    return r;
+    return ctx.solver->make_term(smt::Or, filtered);
 }
 
 smt::Term mk_and2(const Ctx& ctx, const smt::Term& a, const smt::Term& b) {
@@ -200,33 +224,58 @@ smt::Term mk_add(const Ctx& ctx, const smt::TermVec& args) {
     return r;
 }
 
+int64_t term_mod_int(const Ctx& ctx, const smt::Term& val, int64_t k) {
+    try {
+        int64_t v = term_to_int64(val);
+        return ((v % k) + k) % k;
+    } catch (const std::out_of_range&) {}
+    smt::Term modterm = ctx.solver->make_term(smt::Mod, val, ctx.make_int(k));
+    return term_to_int64(numeral_simplify(ctx, modterm));
+}
+
 smt::Term eval_mul(const Ctx& ctx, const smt::TermVec& args) {
     if (args.empty()) return ctx.ONE;
-    int64_t result = 1;
-    for (auto& a : args) {
-        assert(a->is_value());
-        result *= term_to_int64(a);
-    }
-    return ctx.make_int(result);
+    for (auto& a : args) assert(a->is_value());
+    if (args.size() == 1) return args[0];
+    try {
+        int64_t r = 1;
+        for (auto& a : args) r = r * term_to_int64(a);  // throws on overflow
+        return ctx.make_int(r);
+    } catch (const std::out_of_range&) {}
+    smt::Term t = ctx.solver->make_term(smt::Mult, args[0], args[1]);
+    for (size_t i = 2; i < args.size(); ++i)
+        t = ctx.solver->make_term(smt::Mult, t, args[i]);
+    return numeral_simplify(ctx, t);
 }
 
 smt::Term eval_sum(const Ctx& ctx, const smt::TermVec& args) {
     if (args.empty()) return ctx.ZERO;
-    int64_t result = 0;
-    for (auto& a : args) {
-        assert(a->is_value());
-        result += term_to_int64(a);
-    }
-    return ctx.make_int(result);
+    for (auto& a : args) assert(a->is_value());
+    if (args.size() == 1) return args[0];
+    try {
+        int64_t r = 0;
+        for (auto& a : args) r = r + term_to_int64(a);
+        return ctx.make_int(r);
+    } catch (const std::out_of_range&) {}
+    smt::Term t = ctx.solver->make_term(smt::Plus, args[0], args[1]);
+    for (size_t i = 2; i < args.size(); ++i)
+        t = ctx.solver->make_term(smt::Plus, t, args[i]);
+    return numeral_simplify(ctx, t);
 }
 
 smt::Term eval_exp(const Ctx& ctx, const smt::Term& x, int n) {
     assert(n >= 0);
     assert(x->is_value());
-    int64_t v = term_to_int64(x);
-    int64_t result = 1;
-    for (int i = 0; i < n; ++i) result *= v;
-    return ctx.make_int(result);
+    if (n == 0) return ctx.ONE;
+    try {
+        int64_t v = term_to_int64(x), r = 1;
+        for (int i = 0; i < n; ++i) r = r * v;
+        return ctx.make_int(r);
+    } catch (const std::out_of_range&) {}
+    smt::Term t = x;
+    for (int i = 1; i < n; ++i)
+        t = ctx.solver->make_term(smt::Mult, t, x);
+    return numeral_simplify(ctx, t);
 }
 
 smt::Term mk_pow(const Ctx& ctx, const smt::Term& x, int n) {
@@ -243,7 +292,8 @@ smt::Term eval_pow(const Ctx& ctx, const smt::Term& x, int n) {
 
 smt::Term negate_numeral(const Ctx& ctx, const smt::Term& n) {
     assert(n->is_value());
-    return ctx.make_int(-term_to_int64(n));
+    try { return ctx.make_int(-term_to_int64(n)); } catch (const std::out_of_range&) {}
+    return numeral_simplify(ctx, ctx.solver->make_term(smt::Negate, n));
 }
 
 // ── Child access ──────────────────────────────────────────────────────────────
@@ -267,19 +317,16 @@ smt::Term rebuild(const Ctx& ctx, const smt::Term& t,
 }
 
 // ── Variable collection ───────────────────────────────────────────────────────
-static void collect_vars_impl(const smt::Term& t,
-                               smt::UnorderedTermSet& vars,
-                               smt::UnorderedTermSet& visited) {
-    if (!visited.insert(t).second) return;
-    if (t->is_symbolic_const())
-        vars.insert(t);
-    for (auto it = t->begin(); it != t->end(); ++it)
-        collect_vars_impl(*it, vars, visited);
-}
-
-smt::TermVec get_vars(const smt::Term& t) {
+smt::TermVec get_vars(const smt::Term& root) {
     smt::UnorderedTermSet vars, visited;
-    collect_vars_impl(t, vars, visited);
+    std::vector<smt::Term> stk = {root};
+    while (!stk.empty()) {
+        smt::Term t = stk.back(); stk.pop_back();
+        if (!visited.insert(t).second) continue;
+        if (t->is_symbolic_const()) vars.insert(t);
+        for (auto it = t->begin(); it != t->end(); ++it)
+            stk.push_back(*it);
+    }
     return smt::TermVec(vars.begin(), vars.end());
 }
 

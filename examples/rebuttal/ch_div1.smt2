@@ -1,6 +1,0 @@
-(set-logic NIA)
-(assert (forall ((n Int)) (exists ((x Int)(y Int)(z Int))
-    (= n (+ (div (* x x x) (* z z)) (* 2 y)))
-  )
-))
-(check-sat)

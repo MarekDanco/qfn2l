@@ -6,9 +6,9 @@
 #include <iterator>
 #include <sstream>
 
-// TODO: include the correct smt-switch factory header for chosen backend.
 #ifdef BACKEND_Z3
 #  include "z3_factory.h"
+#  include "z3_solver.h"
 #endif
 #ifdef BACKEND_CVC5
 #  include "cvc5_factory.h"
@@ -16,13 +16,36 @@
 
 static const char* LOG_TAG = "abs";
 
-// No separate LIA solver: we use ctx.solver with push/pop.
+// Set the solver timeout. ms <= 0 means "no timeout".
+// The z3 backend's set_opt() doesn't support "timeout", so we use the C++ API.
+static void set_solver_timeout(const Ctx& ctx, int ms) {
+#ifdef BACKEND_Z3
+    if (auto* z3s = dynamic_cast<smt::Z3Solver*>(ctx.solver.get())) {
+        z3::params p(*z3s->get_z3_context());
+        // z3 timeout=0 means no limit; UINT_MAX is the documented default.
+        p.set("timeout", ms > 0 ? (unsigned)ms : (unsigned)UINT_MAX);
+        z3s->get_z3_solver()->set(p);
+        return;
+    }
+#endif
+    ctx.solver->set_opt("timeout", std::to_string(ms > 0 ? ms : 0));
+}
+
 // One-time solver initialisation for LIA options.
-static void init_lia_solver(const smt::SmtSolver& s, const Options& opts) {
-    s->set_logic("QF_NIA");  // permissive; the purified formula is LIA
-    s->set_opt("seed", std::to_string(opts.seed));
+static void init_lia_solver(const Ctx& ctx, const Options& opts) {
+    ctx.solver->set_logic("QF_NIA");  // permissive; the purified formula is LIA
+
+#ifdef BACKEND_Z3
+    // set_logic resets the z3::solver object, so seed must be set afterwards.
+    if (auto* z3s = dynamic_cast<smt::Z3Solver*>(ctx.solver.get())) {
+        z3::params p(*z3s->get_z3_context());
+        p.set("random_seed", (unsigned)opts.seed);
+        z3s->get_z3_solver()->set(p);
+    }
+#endif
 #ifdef BACKEND_CVC5
-    s->set_opt("produce-unsat-cores", "true");
+    ctx.solver->set_opt("seed", std::to_string(opts.seed));
+    ctx.solver->set_opt("produce-unsat-cores", "true");
 #endif
 }
 
@@ -69,11 +92,10 @@ smt::Term LiaAbstraction::Purifier::visit_mod(const smt::Term& t) {
 smt::Term LiaAbstraction::Purifier::visit_mul(const smt::Term& t) {
     assert(is_mul(t));
     auto chs = get_children(t);
-    // Sort children by hash for canonical form.
+    // Sort children by hash for a canonical form so that a*b and b*a map to
+    // the same pure constant. Work directly with the sorted children.
     std::sort(chs.begin(), chs.end(),
               [](auto& a, auto& b){ return a->hash() < b->hash(); });
-    auto sorted_t = mk_mul(_ctx, chs);
-    if (sorted_t != t) return (*this)(sorted_t);
 
     smt::TermVec coeffs, others;
     for (auto& c : chs) {
@@ -90,7 +112,6 @@ smt::Term LiaAbstraction::Purifier::visit_mul(const smt::Term& t) {
 
 smt::Term LiaAbstraction::Purifier::visit_node(const smt::Term& a) {
     smt::Term t = recurse(a);
-    if (t != a) return (*this)(t);
     if (is_idiv(t)) return visit_idiv(t);
     if (is_mod(t))  return visit_mod(t);
     if (is_mul(t))  return visit_mul(t);
@@ -110,7 +131,7 @@ LiaAbstraction::LiaAbstraction(const Ctx& ctx, const Options& opts,
     , _prefix(level_info.prefix)
     , _body(level_info.body)
 {
-    init_lia_solver(_ctx.solver, opts);
+    init_lia_solver(_ctx, opts);
     // Run purification pass to discover all pure constants.
     _purify(_body);
     LOG(LOG_TAG, 4, "pures discovered: %zu", _pures.term2pure().size());
@@ -285,14 +306,14 @@ void LiaAbstraction::_solve() {
             std::chrono::steady_clock::now().time_since_epoch()).count()
             - _opts.start_time;
         int remaining_ms = std::max(1, (int)((_opts.timeout - elapsed) * 1000));
-        _ctx.solver->set_opt("timeout", std::to_string(remaining_ms));
+        set_solver_timeout(_ctx, remaining_ms);
     }
 
     STATS.begin_phase(STATS.liatime);
     smt::Result res = _ctx.solver->check_sat();
     STATS.end_phase();
     STATS.liacalls += 1;
-    _ctx.solver->set_opt("timeout", "0");
+    set_solver_timeout(_ctx, 0);
 
     ALOG(4, "check done");
 
@@ -321,9 +342,19 @@ void LiaAbstraction::_solve() {
             cur_pures.insert(p);
     if (cur_pures.empty()) return;
 
+    _heuristic_left_unsat = false;
     smt::TermVec zero_assumptions;
     if (_opts.zeros) apply_zeros_heuristic(cur_pures, zero_assumptions);
     if (_opts.bounds) apply_bounds_heuristic(cur_pures, zero_assumptions);
+
+    // check_sat_assuming may have left the solver in UNSAT state.
+    // Re-run check_sat to restore model state so get_value() is valid.
+    if (_heuristic_left_unsat) {
+        STATS.begin_phase(STATS.liatime);
+        _ctx.solver->check_sat();
+        STATS.end_phase();
+        STATS.liacalls += 1;
+    }
 }
 
 std::optional<smt::UnorderedTermMap>
@@ -331,7 +362,7 @@ LiaAbstraction::incorporate_assumptions(smt::TermVec& assumptions,
                                          const char* msg) {
     while (!assumptions.empty()) {
         ALOG(3, "incorporating %s assumptions (%zu)", msg, assumptions.size());
-        _ctx.solver->set_opt("timeout", std::to_string(_opts.heur_to));
+        set_solver_timeout(_ctx, _opts.heur_to);
 
         STATS.begin_phase(STATS.liatime);
         smt::Result res = _ctx.solver->check_sat_assuming(
@@ -339,14 +370,16 @@ LiaAbstraction::incorporate_assumptions(smt::TermVec& assumptions,
         STATS.end_phase();
         STATS.liacalls += 1;
 
-        _ctx.solver->set_opt("timeout", "0");
+        set_solver_timeout(_ctx, 0);
 
         if (res.is_unknown()) {
             ALOG(2, "%s assumptions yielded unknown", msg);
+            _heuristic_left_unsat = true;
             return std::nullopt;
         }
         if (res.is_sat()) {
             ALOG(2, "successful %s assumptions", msg);
+            _heuristic_left_unsat = false;
             smt::UnorderedTermMap m;
             for (auto& p : assumptions) m[p] = _ctx.solver->get_value(p);
             return m;
@@ -359,6 +392,7 @@ LiaAbstraction::incorporate_assumptions(smt::TermVec& assumptions,
             if (it != assumptions.end()) assumptions.erase(it);
         }
     }
+    _heuristic_left_unsat = true;
     return std::nullopt;
 }
 
@@ -397,12 +431,12 @@ void LiaAbstraction::apply_bounds_heuristic(
         smt::TermVec combined = zero_assumptions;
         combined.insert(combined.end(), bounds.begin(), bounds.end());
 
-        _ctx.solver->set_opt("timeout", std::to_string(_opts.heur_to));
+        set_solver_timeout(_ctx, _opts.heur_to);
         STATS.begin_phase(STATS.liatime);
         smt::Result res = _ctx.solver->check_sat_assuming(combined);
         STATS.end_phase();
         STATS.liacalls += 1;
-        _ctx.solver->set_opt("timeout", "0");
+        set_solver_timeout(_ctx, 0);
 
         if (!res.is_sat()) return;
         ALOG(4, "bounds attempt %d succeeded", attempt);
@@ -450,7 +484,7 @@ smt::TermVec LiaAbstraction::mk_pow_axioms(const smt::Term& pure,
             rv.push_back(_ctx.solver->make_term(smt::Equal,
                 _ctx.solver->make_term(smt::Equal, pure, tval), premise));
             smt::Term rv1  = eval_exp(_ctx,
-                mk_add(_ctx, {root_val, _ctx.ONE}), exp);
+                eval_sum(_ctx, {root_val, _ctx.ONE}), exp);
             rv.push_back(mk_or2(_ctx,
                 _ctx.solver->make_term(smt::Le, pure, tval),
                 _ctx.solver->make_term(smt::Ge, pure, rv1)));
@@ -462,7 +496,7 @@ smt::TermVec LiaAbstraction::mk_pow_axioms(const smt::Term& pure,
                 mk_or2(_ctx, premise, premise1)));
             smt::Term ar = is_neg_val(root_val)
                 ? negate_numeral(_ctx, root_val) : root_val;
-            smt::Term ar1 = mk_add(_ctx, {ar, _ctx.ONE});
+            smt::Term ar1 = eval_sum(_ctx, {ar, _ctx.ONE});
             smt::Term tv1 = eval_exp(_ctx, ar1, exp);
             rv.push_back(mk_or2(_ctx,
                 _ctx.solver->make_term(smt::Le, pure, tval),
@@ -565,19 +599,19 @@ smt::TermVec LiaAbstraction::mk_mod_axiom(const smt::Term& t) {
 
     smt::TermVec axioms;
     if (xval && !_hu(xval)) {
-        int64_t xv = term_to_int64(xval);
         smt::Term abs_y = _ctx.solver->make_term(smt::Abs, tsubs_y);
-        if (xv >= 0) {
+        if (!is_neg_val(xval)) {
             axioms.push_back(mk_implies(_ctx,
                 mk_and2(_ctx,
                     _ctx.solver->make_term(smt::Equal, x, xval),
                     _ctx.solver->make_term(smt::Gt, abs_y, xval)),
                 _ctx.solver->make_term(smt::Equal, pure, xval)));
         } else {
+            smt::Term neg_xval = negate_numeral(_ctx, xval);
             axioms.push_back(mk_implies(_ctx,
                 mk_and2(_ctx,
                     _ctx.solver->make_term(smt::Equal, x, xval),
-                    _ctx.solver->make_term(smt::Gt, abs_y, _ctx.make_int(-xv))),
+                    _ctx.solver->make_term(smt::Gt, abs_y, neg_xval)),
                 _ctx.solver->make_term(smt::Equal, pure,
                     _ctx.solver->make_term(smt::Plus, xval, abs_y))));
         }
@@ -606,22 +640,22 @@ smt::TermVec LiaAbstraction::mk_idiv_axiom(const smt::Term& t) {
 
     smt::TermVec axioms;
     if (xval && !_hu(xval)) {
-        int64_t xv = term_to_int64(xval);
         smt::Term abs_y = _ctx.solver->make_term(smt::Abs, tsubs_y);
-        if (xv >= 0) {
+        if (!is_neg_val(xval)) {
             axioms.push_back(mk_implies(_ctx,
                 mk_and2(_ctx,
                     _ctx.solver->make_term(smt::Equal, x, xval),
                     _ctx.solver->make_term(smt::Gt, abs_y, xval)),
                 _ctx.solver->make_term(smt::Equal, pure, _ctx.ZERO)));
         } else {
+            smt::Term neg_xval = negate_numeral(_ctx, xval);
             smt::Term ite = _ctx.solver->make_term(smt::Ite,
                 _ctx.solver->make_term(smt::Gt, tsubs_y, _ctx.ZERO),
                 _ctx.MIN_ONE, _ctx.ONE);
             axioms.push_back(mk_implies(_ctx,
                 mk_and2(_ctx,
                     _ctx.solver->make_term(smt::Equal, x, xval),
-                    _ctx.solver->make_term(smt::Ge, abs_y, _ctx.make_int(-xv))),
+                    _ctx.solver->make_term(smt::Ge, abs_y, neg_xval)),
                 _ctx.solver->make_term(smt::Equal, pure, ite)));
         }
     }
