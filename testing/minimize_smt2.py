@@ -3,25 +3,38 @@
 Heuristic SMT2 minimizer.
 
 Repeatedly removes or replaces top-level assertions while the target command
-still triggers the same failure mode (detected by exit code and/or output
-pattern).  Uses a greedy delta-debugging approach: each pass tries dropping
-each remaining assertion; passes continue until stable.
+still triggers the same failure mode.  Uses a greedy delta-debugging approach:
+each pass tries dropping each remaining assertion; passes continue until stable.
+
+By default the oracle cross-checks against z3: the failure is considered
+present when --cmd and z3 give opposite definite answers (sat vs unsat).
+This is the right mode for soundness bugs found by the fuzzer.
 
 Usage:
-    python scripts/minimize_smt2.py \\
-        --cmd 'build-dbg/bin/llm2smt --preprocess-passes 1 --selectors' \\
-        --input fuzz_fails/error_000067.smt2 \\
+    # Minimize a fuzzer-found soundness bug (qfn2l says unsat, z3 says sat):
+    python3 testing/minimize_smt2.py \\
+        --cmd 'python3 src/qfn2l/qf_solver.py' \\
+        --input bugs/bug_123.smt2 \\
         --output minimal.smt2
 
-    # Match on a specific string in stderr (default: any non-zero exit code)
-    python scripts/minimize_smt2.py \\
-        --cmd 'build-dbg/bin/llm2smt' \\
-        --input fail.smt2 \\
-        --match 'SEGV'
+    # Use a different reference solver:
+    python3 testing/minimize_smt2.py \\
+        --cmd 'python3 src/qfn2l/qf_solver.py' \\
+        --ref-solver cvc5 \\
+        --input bugs/bug_123.smt2 \\
+        --output minimal.smt2
+
+    # Disable cross-checking and match on a string in stdout/stderr instead:
+    python3 testing/minimize_smt2.py \\
+        --cmd 'python3 src/qfn2l/qf_solver.py' \\
+        --ref-solver '' --match 'Traceback' \\
+        --input bugs/crash.smt2 \\
+        --output minimal.smt2
 """
 
 import argparse
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -100,15 +113,30 @@ def _run(cmd: list[str], content: str, timeout: float) -> tuple[int, str, str]:
             pass
 
 
-def make_oracle(cmd: list[str], match: str | None, timeout: float):
+def _classify(output: str) -> str:
+    o = output.lower()
+    if "unsat" in o:
+        return "unsat"
+    if "sat" in o:
+        return "sat"
+    return "unknown"
+
+
+def make_oracle(
+    cmd: list[str], ref_solver: list[str] | None, match: str | None, timeout: float
+):
     """Return a function content -> bool that is True when the failure is present."""
 
     def oracle(content: str) -> bool:
         rc, stdout, stderr = _run(cmd, content, timeout)
         combined = stdout + stderr
+        if ref_solver is not None:
+            our = _classify(combined)
+            _, ref_out, ref_err = _run(ref_solver, content, timeout)
+            ref = _classify(ref_out + ref_err)
+            return our in {"sat", "unsat"} and ref in {"sat", "unsat"} and our != ref
         if match:
             return match in combined
-        # Default: any non-zero exit (but not a parse error that hides the real crash)
         return rc != 0
 
     return oracle
@@ -227,10 +255,17 @@ def main() -> int:
         help="Output path for minimized file (default: print to stdout)",
     )
     ap.add_argument(
+        "--ref-solver",
+        default="z3",
+        help="Reference solver command to cross-check against; set to '' to disable. "
+        "When set, the oracle fires iff --cmd and --ref-solver give different "
+        "definite answers (sat/unsat). Overrides --match when active.",
+    )
+    ap.add_argument(
         "--match",
         default=None,
         help="String that must appear in combined stdout+stderr to "
-        "confirm the failure (default: any non-zero exit code)",
+        "confirm the failure (used only when --ref-solver is disabled).",
     )
     ap.add_argument(
         "--timeout", type=float, default=5.0, help="Per-run timeout in seconds"
@@ -240,9 +275,10 @@ def main() -> int:
     )
     args = ap.parse_args()
 
-    cmd = args.cmd.split()
+    cmd = shlex.split(args.cmd)
+    ref_solver = shlex.split(args.ref_solver) if args.ref_solver.strip() else None
     text = Path(args.input).read_text()
-    oracle = make_oracle(cmd, args.match, args.timeout)
+    oracle = make_oracle(cmd, ref_solver, args.match, args.timeout)
 
     # Confirm the original file triggers the failure.
     if not oracle(text):

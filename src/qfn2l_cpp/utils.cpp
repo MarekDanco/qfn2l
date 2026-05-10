@@ -239,7 +239,11 @@ smt::Term eval_mul(const Ctx& ctx, const smt::TermVec& args) {
     if (args.size() == 1) return args[0];
     try {
         int64_t r = 1;
-        for (auto& a : args) r = r * term_to_int64(a);  // throws on overflow
+        for (auto& a : args) {
+            int64_t v = term_to_int64(a);
+            if (__builtin_mul_overflow(r, v, &r))
+                throw std::out_of_range("overflow");
+        }
         return ctx.make_int(r);
     } catch (const std::out_of_range&) {}
     smt::Term t = ctx.solver->make_term(smt::Mult, args[0], args[1]);
@@ -269,7 +273,9 @@ smt::Term eval_exp(const Ctx& ctx, const smt::Term& x, int n) {
     if (n == 0) return ctx.ONE;
     try {
         int64_t v = term_to_int64(x), r = 1;
-        for (int i = 0; i < n; ++i) r = r * v;
+        for (int i = 0; i < n; ++i)
+            if (__builtin_mul_overflow(r, v, &r))
+                throw std::out_of_range("overflow");
         return ctx.make_int(r);
     } catch (const std::out_of_range&) {}
     smt::Term t = x;

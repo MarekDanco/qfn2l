@@ -42,6 +42,58 @@ product of reduced residues can still exceed k.
 
 ---
 
+## [FIXED] Signed integer overflow in `eval_exp` / `eval_mul` — utils.cpp:272,242
+
+**Introduced:** unknown
+**Fixed:** 2026-05-10
+**Severity:** Soundness — wrong NIA evaluations on large values; caused SAT timeout loop on STC_0019
+**Trigger:** Any formula where a pure's NIA value requires multiplying two large integers (e.g. 3054444803811²)
+
+### Root cause
+
+`eval_exp` and `eval_mul` tried to compute the result as `int64_t` and fall back to symbolic computation on overflow, but the fallback relied on `std::out_of_range` being thrown:
+
+```cpp
+int64_t v = term_to_int64(x), r = 1;
+for (int i = 0; i < n; ++i) r = r * v;  // silent UB on overflow
+```
+
+`term_to_int64` throws `std::out_of_range` for values that don't fit in uint64, but `int64_t * int64_t` overflow is undefined behavior in C++ — it does not throw. So the catch block was never reached and the wrapped garbage value was used as the NIA evaluation result.
+
+### Fix
+
+Use `__builtin_mul_overflow` to detect overflow and throw explicitly:
+
+```cpp
+for (int i = 0; i < n; ++i)
+    if (__builtin_mul_overflow(r, v, &r))
+        throw std::out_of_range("overflow");
+```
+
+Same fix applied to `eval_mul`.
+
+---
+
+## [OPEN] `--bounds` heuristic returns UNSAT for SAT formula — lia_abstraction.cpp
+
+**Introduced:** unknown (was masked by the overflow bug above)
+**Severity:** Soundness — `--bounds` can return incorrect UNSAT
+**Trigger:** `STC_0019.smt2` (and possibly others with large pure values)
+
+```
+build_noasan/qfn2l --bounds examples/STC_0019.smt2  →  unsat  (WRONG)
+z3 examples/STC_0019.smt2                            →  sat
+python3 src/qfn2l/qf_solver.py --bounds ...          →  sat  (~1s)
+```
+
+Without `--bounds`, the C++ solver returns `sat` correctly (374s on STC_0019).
+
+### How to investigate
+
+Diff `apply_bounds_heuristic` in `lia_abstraction.cpp` against `_apply_bounds_heuristic` in `src/qfn2l/lia_abstraction.py`. Run both at `-v 3` on `STC_0019` and find where they diverge — the Python solver converges in ~1s so the difference should appear early.
+
+---
+
 ## [NOT A BUG] `# continue` commented out after mod/idiv in `add_bt_axioms` — lia_abstraction.py:327,329
 
 **Verdict:** Intentional. The `# continue` was deliberately commented out.
