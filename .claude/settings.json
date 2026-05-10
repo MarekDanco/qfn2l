@@ -1,5 +1,12 @@
 {
   "permissions": {
-    "allow": []
+    "allow": [
+      "Bash(timeout *)",
+      "Bash(make *)",
+      "Bash(make)",
+      "Bash(for *)",
+      "Bash(grep *)",
+      "Bash(ls *)"
+    ]
   }
 }
