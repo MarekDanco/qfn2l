@@ -6,7 +6,8 @@
       "Bash(make)",
       "Bash(for *)",
       "Bash(grep *)",
-      "Bash(ls *)"
+      "Bash(ls *)",
+      "Bash(ruff check *)"
     ]
   }
 }
