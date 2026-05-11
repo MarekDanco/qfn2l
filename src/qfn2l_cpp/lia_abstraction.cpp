@@ -390,10 +390,23 @@ void LiaAbstraction::_solve() {
     _heuristic_left_unsat = false;
     smt::TermVec zero_assumptions;
     if (_opts.zeros) apply_zeros_heuristic(cur_pures, zero_assumptions);
+
+    // If zeros heuristic left the solver in UNSAT state (all assumptions
+    // failed), restore the model before running bounds — otherwise
+    // get_value() throws in apply_bounds_heuristic and bounds is silently
+    // skipped.  Python preserves current_model through zeros failure, so
+    // bounds always has a valid model; we mirror that here.
+    if (_heuristic_left_unsat) {
+        STATS.begin_phase(STATS.liatime);
+        _ctx.solver->check_sat();
+        STATS.end_phase();
+        STATS.liacalls += 1;
+        _heuristic_left_unsat = false;
+    }
+
     if (_opts.bounds) apply_bounds_heuristic(cur_pures, zero_assumptions);
 
-    // check_sat_assuming may have left the solver in UNSAT state.
-    // Re-run check_sat to restore model state so get_value() is valid.
+    // Bounds heuristic may have left the solver in UNSAT state.
     if (_heuristic_left_unsat) {
         STATS.begin_phase(STATS.liatime);
         _ctx.solver->check_sat();

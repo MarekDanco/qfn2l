@@ -1,5 +1,40 @@
 # Known Bugs / Bug History
 
+## [FIXED] Bounds heuristic skipped when zeros heuristic fails — lia_abstraction.cpp
+
+**Introduced:** initial C++ port
+**Fixed:** 2026-05-11
+**Severity:** Effectiveness — `--zeros --bounds` combination behaves like `--zeros` alone; `--zeros --bounds --modax 5` times out on STC_0019 and STC_0072
+**Trigger:** Any problem where `--zeros` fails (all zero assumptions are UNSAT, e.g. `x³+y³+z³=19` where no pure can be 0) and `--bounds` is also enabled.
+
+### Root cause
+
+When the zeros heuristic fails (every `check_sat_assuming({pure==0})` is UNSAT and all
+assumptions are removed by the unsat-core loop), the solver is left in UNSAT state.
+`apply_bounds_heuristic` is then called immediately. It tries to read `get_value(p)` for each
+pure to compute the maximum pure value, but since the solver is in UNSAT state these calls
+throw and the exception is silently caught. `mx` stays 0 < 20, and the bounds heuristic returns
+without doing anything.
+
+In Python, `current_model` is an independent z3 model object that persists through heuristic
+failures — bounds always has valid pure values to shrink. In C++, model values come from live
+`get_value()` queries on the solver, which requires the solver to be in a SAT state.
+
+### Fix
+
+Restore the solver to SAT state (call `check_sat()`) between the zeros and bounds heuristics
+when the zeros heuristic left the solver in UNSAT state:
+
+```cpp
+if (_heuristic_left_unsat) {
+    _ctx.solver->check_sat();  // restore valid model for bounds
+    _heuristic_left_unsat = false;
+}
+if (_opts.bounds) apply_bounds_heuristic(cur_pures, zero_assumptions);
+```
+
+---
+
 ## [FIXED] mod_ax_mul: `true_mod` not reduced mod `k` — projections.py:151
 
 **Introduced:** unknown
