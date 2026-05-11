@@ -320,6 +320,7 @@ std::optional<smt::UnorderedTermMap> LiaAbstraction::solve() {
     if (!_lia_sat) return std::nullopt;
 
     try {
+        // TODO: why exception at all?
         ScopedPhase sp_comp(STATS.complete_model_time);
         auto& lev_vars = _level_info.prefix[_current_level].vars;
         smt::UnorderedTermMap model;
@@ -329,6 +330,7 @@ std::optional<smt::UnorderedTermMap> LiaAbstraction::solve() {
         }
         return model;
     } catch (...) {
+        // TODO: better crash?
         return std::nullopt;
     }
 }
