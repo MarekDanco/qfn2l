@@ -91,14 +91,31 @@ smt::Term LiaAbstraction::Purifier::visit_mod(const smt::Term& t) {
 
 smt::Term LiaAbstraction::Purifier::visit_mul(const smt::Term& t) {
     assert(is_mul(t));
+    // Flatten: expand pures-for-muls and raw nested-mul children so that
+    // binary-nested x*(x*x) produces one pure for x^3 rather than two.
     auto chs = get_children(t);
-    // Sort children by hash for a canonical form so that a*b and b*a map to
-    // the same pure constant. Work directly with the sorted children.
-    std::sort(chs.begin(), chs.end(),
-              [](auto& a, auto& b){ return a->hash() < b->hash(); });
+    std::vector<smt::Term> to_expand(chs.begin(), chs.end());
+    smt::TermVec flat;
+    while (!to_expand.empty()) {
+        auto c = to_expand.back(); to_expand.pop_back();
+        const smt::Term* orig = _parent._pures.find_t(c);
+        if (orig && is_mul(*orig)) {
+            for (auto it = (*orig)->begin(); it != (*orig)->end(); ++it)
+                to_expand.push_back(*it);
+        } else if (is_mul(c)) {
+            for (auto it = c->begin(); it != c->end(); ++it)
+                to_expand.push_back(*it);
+        } else {
+            flat.push_back(c);
+        }
+    }
+    std::sort(flat.begin(), flat.end(),
+              [](const smt::Term& a, const smt::Term& b){
+                  return a->hash() < b->hash();
+              });
 
     smt::TermVec coeffs, others;
-    for (auto& c : chs) {
+    for (auto& c : flat) {
         if (_hu(c)) others.push_back(c);
         else         coeffs.push_back(c);
     }
@@ -185,18 +202,23 @@ smt::Term LiaAbstraction::make_pure_constant(const smt::Term& term) {
     _level_info.add_const(pure, new_level);
 
     if (is_mul(term)) {
-        auto chs_set = get_children(term);
-        // zero-ness axiom
-        smt::TermVec zero_disjs;
-        for (auto& c : chs_set)
-            zero_disjs.push_back(_ctx.solver->make_term(smt::Equal, c, _ctx.ZERO));
-        add_axiom(pure, _ctx.solver->make_term(smt::Equal,
-            mk_or(_ctx, zero_disjs),
-            _ctx.solver->make_term(smt::Equal, pure, _ctx.ZERO)), "smul");
-
-        // Sign axioms via split_mul.
+        // Use split_mul to produce purely-linear smul axioms. Using raw children
+        // would embed nonlinear subterms (e.g. (* x x)) when the term is binary-
+        // nested, forcing z3 out of its LIA solver into NIA.
         MulSplit spl = split_mul(term);
         assert(is_one(_ctx, spl.coeff));
+
+        // zero-ness axiom: pure=0 ↔ any root variable is 0
+        {
+            smt::TermVec zero_disjs;
+            for (auto& pw : spl.pows)
+                zero_disjs.push_back(
+                    _ctx.solver->make_term(smt::Equal, pw[0], _ctx.ZERO));
+            add_axiom(pure, _ctx.solver->make_term(smt::Equal,
+                mk_or(_ctx, zero_disjs),
+                _ctx.solver->make_term(smt::Equal, pure, _ctx.ZERO)), "smul");
+        }
+
         std::vector<smt::Term> oddroots, evenroots;
         for (auto& pw : spl.pows) {
             if (pw.size() % 2 != 0) oddroots.push_back(pw[0]);
@@ -258,10 +280,19 @@ void LiaAbstraction::set_level(int level,
     _current_pure_body = _purify(_current_body);
     assert(_current_pure_body != nullptr);
 
+    // Only include axioms for pures reachable from the purified body (and
+    // transitively from their own axioms). Intermediate pures created from
+    // binary-nested parsing (e.g. x^2 when the body only has x^3) are excluded
+    // — their axioms add free LIA variables that hurt search convergence.
+    CollectPures pcol(_ctx, _pures, _axioms);
+    pcol(_current_pure_body);
+
     smt::TermVec parts = {_current_pure_body};
-    for (auto& [_, axs] : _axioms)
+    for (auto& [pure, axs] : _axioms) {
+        if (!pcol.collected.count(pure)) continue;
         for (auto& ax : axs)
             parts.push_back(do_substitute(_ctx, ax, assignment));
+    }
     _current_instantiation = mk_and(_ctx, parts);
 
     ALOG(3, "instantiation done, level=%d", level);
@@ -438,7 +469,7 @@ void LiaAbstraction::apply_bounds_heuristic(
         STATS.liacalls += 1;
         set_solver_timeout(_ctx, 0);
 
-        if (!res.is_sat()) return;
+        if (!res.is_sat()) { _heuristic_left_unsat = true; return; }
         ALOG(4, "bounds attempt %d succeeded", attempt);
     }
 }
@@ -446,11 +477,27 @@ void LiaAbstraction::apply_bounds_heuristic(
 // ── split_mul ─────────────────────────────────────────────────────────────────
 LiaAbstraction::MulSplit LiaAbstraction::split_mul(const smt::Term& t) const {
     assert(is_mul(t));
+    // Flatten nested muls so that x*(x*x) is recognised as x^3, not x*(x^2).
     smt::TermVec coeffs;
     std::unordered_map<smt::Term, smt::TermVec> pows;
-    for (auto it = t->begin(); it != t->end(); ++it) {
-        if (_hu(*it)) pows[*it].push_back(*it);
-        else           coeffs.push_back(*it);
+    std::vector<smt::Term> stk;
+    for (auto it = t->begin(); it != t->end(); ++it) stk.push_back(*it);
+    while (!stk.empty()) {
+        auto c = stk.back(); stk.pop_back();
+        if (is_mul(c)) {
+            for (auto it = c->begin(); it != c->end(); ++it) stk.push_back(*it);
+        } else if (_hu(c)) {
+            // Look through pures-for-muls to recover original factors.
+            const smt::Term* orig = const_cast<Pures&>(_pures).find_t(c);
+            if (orig && is_mul(*orig)) {
+                for (auto it = (*orig)->begin(); it != (*orig)->end(); ++it)
+                    stk.push_back(*it);
+            } else {
+                pows[c].push_back(c);
+            }
+        } else {
+            coeffs.push_back(c);
+        }
     }
     MulSplit spl;
     spl.coeff = eval_mul(_ctx, coeffs);

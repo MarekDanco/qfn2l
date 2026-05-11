@@ -74,23 +74,41 @@ Same fix applied to `eval_mul`.
 
 ---
 
-## [OPEN] `--bounds` heuristic returns UNSAT for SAT formula — lia_abstraction.cpp
+## [FIXED] `--bounds` heuristic returns UNSAT for SAT formula — lia_abstraction.cpp
 
 **Introduced:** unknown (was masked by the overflow bug above)
+**Fixed:** 2026-05-11
 **Severity:** Soundness — `--bounds` can return incorrect UNSAT
 **Trigger:** `STC_0019.smt2` (and possibly others with large pure values)
 
 ```
-build_noasan/qfn2l --bounds examples/STC_0019.smt2  →  unsat  (WRONG)
-z3 examples/STC_0019.smt2                            →  sat
-python3 src/qfn2l/qf_solver.py --bounds ...          →  sat  (~1s)
+build_noasan/qfn2l --bounds examples/STC_0019.smt2  →  unsat  (WRONG, pre-fix)
+build_noasan/qfn2l --bounds examples/STC_0019.smt2  →  sat    (correct, post-fix)
 ```
 
-Without `--bounds`, the C++ solver returns `sat` correctly (374s on STC_0019).
+### Root cause
 
-### How to investigate
+In `apply_bounds_heuristic`, when `check_sat_assuming(bounds)` returned non-SAT
+(bounds too tight), the function returned early without setting
+`_heuristic_left_unsat = true`. This left the solver in UNSAT state.
+The recovery `check_sat()` in `_solve()` (which only fires when
+`_heuristic_left_unsat` is true) was never run. Subsequent `get_value()`
+calls in `solve()` on the UNSAT solver threw exceptions, were silently caught,
+and caused `solve()` to return `nullopt` — making the caller treat a SAT
+instance as UNSAT.
 
-Diff `apply_bounds_heuristic` in `lia_abstraction.cpp` against `_apply_bounds_heuristic` in `src/qfn2l/lia_abstraction.py`. Run both at `-v 3` on `STC_0019` and find where they diverge — the Python solver converges in ~1s so the difference should appear early.
+In Python, `current_model` is preserved through bounds failure (it's only
+updated on bounds *success*), so the old model is always available.
+In C++, the model is queried live from the solver, so the solver state must
+be restored after a failed `check_sat_assuming`.
+
+### Fix
+
+One line in `lia_abstraction.cpp` — set the flag before returning:
+
+```cpp
+if (!res.is_sat()) { _heuristic_left_unsat = true; return; }
+```
 
 ---
 

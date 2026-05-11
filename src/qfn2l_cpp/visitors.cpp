@@ -289,17 +289,23 @@ smt::Term MakeDefs::visit_node(const smt::Term& init_t) {
     if (usymbols < 2) return t;
 
     // Separate numeric coefficients from symbolic factors.
+    // Inline nested mul children to avoid creating intermediate definitions
+    // for powers of a single symbol (e.g. x*(x*x) -> group {x:[x,x,x]}).
     smt::TermVec coeffs;
-    // Map: symbol_term -> list of that symbol (to track power = repeated)
     std::unordered_map<smt::Term, smt::TermVec> splits;
-    for (auto& c : children) {
+    std::function<void(const smt::Term&)> add = [&](const smt::Term& c) {
         if (!_hu(c)) {
             coeffs.push_back(c);
+        } else if (is_symbol(c)) {
+            splits[c].push_back(c);
+        } else if (is_mul(c)) {
+            for (auto it = c->begin(); it != c->end(); ++it) add(*it);
         } else {
-            smt::Term x = is_symbol(c) ? c : mk_def(c);
+            smt::Term x = mk_def(c);
             splits[x].push_back(x);
         }
-    }
+    };
+    for (auto& c : children) add(c);
 
     smt::Term coeff = eval_mul(_ctx, coeffs);
     if (is_zero(_ctx, coeff)) return _ctx.ZERO;
