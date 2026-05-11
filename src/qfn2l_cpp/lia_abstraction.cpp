@@ -150,8 +150,22 @@ LiaAbstraction::LiaAbstraction(const Ctx& ctx, const Options& opts,
 {
     init_lia_solver(_ctx, opts);
     // Run purification pass to discover all pure constants.
-    _purify(_body);
-    LOG(LOG_TAG, 4, "pures discovered: %zu", _pures.term2pure().size());
+    smt::Term init_pure_body = _purify(_body);
+    // Intermediate pures (e.g. x² created while processing x³ from binary
+    // smt-switch parsing) are not reachable from the purified body.  Clear
+    // their useless axioms and correct the pures counter.
+    {
+        CollectPures pcol(_ctx, _pures, _axioms);
+        pcol(init_pure_body);
+        size_t n_intermediate = _pures.term2pure().size() - pcol.collected.size();
+        if (n_intermediate > 0) {
+            for (auto& [t, p] : _pures.term2pure())
+                if (!pcol.collected.count(p)) _axioms.erase(p);
+            STATS.pures.value -= static_cast<long>(n_intermediate);
+        }
+        LOG(LOG_TAG, 4, "pures discovered: %zu (%zu intermediate pruned)",
+            pcol.collected.size(), n_intermediate);
+    }
 }
 
 // ── Logging helper ────────────────────────────────────────────────────────────
@@ -823,15 +837,15 @@ void LiaAbstraction::add_lazy_congruence_axioms(const CollectPures& pcol) {
                 auto key = std::make_pair(std::min(id1,id2), std::max(id1,id2));
                 if (_congruence_pairs_added.count(key)) continue;
                 auto candidates = congruence_axioms_for_pair(*it1, *it2);
-                bool violated = false;
+                smt::TermVec violated_axs;
                 for (auto& ax : candidates) {
                     try {
                         smt::Term v = _ctx.solver->get_value(ax);
-                        if (is_false(_ctx, v)) { violated = true; break; }
+                        if (is_false(_ctx, v)) violated_axs.push_back(ax);
                     } catch (...) {}
                 }
-                if (violated) {
-                    add_axioms(*it1, candidates, "cong");
+                if (!violated_axs.empty()) {
+                    add_axioms(*it1, violated_axs, "cong");
                     _congruence_pairs_added.insert(key);
                 }
             }

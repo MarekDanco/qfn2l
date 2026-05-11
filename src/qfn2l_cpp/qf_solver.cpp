@@ -50,6 +50,11 @@ std::optional<bool> QfSolver::solve() {
 
         LOG(LOG_TAG, 2, "model: %s", model ? "sat" : "unsat");
         if (!model) return false;
+        if (g_verbosity >= 2) {
+            for (auto& [c, v] : *model)
+                LOG(LOG_TAG, 2, "  %s = %s",
+                    c->to_string().c_str(), v->to_string().c_str());
+        }
 
         bool nia_ok = _abstraction->check_nia();
         LOG(LOG_TAG, 2, "nia ok: %s", nia_ok ? "true" : "false");
