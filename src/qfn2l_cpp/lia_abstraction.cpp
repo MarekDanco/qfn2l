@@ -303,19 +303,13 @@ std::optional<smt::UnorderedTermMap> LiaAbstraction::solve() {
 
     if (!_lia_sat) return std::nullopt;
 
-    try {
-        // TODO: why exception at all?
-        ScopedPhase sp_comp(STATS.complete_model_time);
-        smt::UnorderedTermMap model;
-        for (auto& c : _orig_vars) {
-            smt::Term val = _ctx.solver->get_value(c);
-            model[c] = val;
-        }
-        return model;
-    } catch (...) {
-        // TODO: better crash?
-        return std::nullopt;
+    ScopedPhase sp_comp(STATS.complete_model_time);
+    smt::UnorderedTermMap model;
+    for (auto& c : _orig_vars) {
+        smt::Term val = _ctx.solver->get_value(c);
+        model[c] = val;
     }
+    return model;
 }
 
 void LiaAbstraction::_solve() {
