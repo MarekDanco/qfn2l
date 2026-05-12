@@ -23,14 +23,19 @@ log = tagged_logging.mk_logfn(LOG_TAG)
 
 
 _start_time = 0.0
+_print_stats = False
 _brief_stats = False
 
 
 def _handle_alarm(_signum, _frame):
     STATS.commit_phases()
     STATS.total_time += time.time() - _start_time
-    STATS.brief_prn() if _brief_stats else STATS.prn()
-    print()
+    if _brief_stats:
+        STATS.brief_prn()
+        print()
+    elif _print_stats:
+        STATS.prn()
+        print()
     print("unknown")
     sys.stdout.flush()
     os._exit(0)
@@ -101,7 +106,10 @@ def handle_shutdown(signum, _):
     print("\nShutdown signal received:", signum)
     STATS.commit_phases()
     STATS.total_time += time.time() - _start_time
-    STATS.brief_prn() if _brief_stats else STATS.prn()
+    if _brief_stats:
+        STATS.brief_prn()
+    elif _print_stats:
+        STATS.prn()
     sys.stdout.flush()
     os._exit(0)
 
@@ -244,6 +252,13 @@ def main():
         help="Python recursion limit",
     )
     parser.add_argument(
+        "--stats",
+        dest="print_stats",
+        default=False,
+        action=argparse.BooleanOptionalAction,
+        help="print full stats on exit",
+    )
+    parser.add_argument(
         "--brief-stats",
         dest="brief_stats",
         default=False,
@@ -253,7 +268,8 @@ def main():
 
     opts = parser.parse_args()
     sys.setrecursionlimit(opts.recursion_depth)
-    global _start_time, _brief_stats
+    global _start_time, _print_stats, _brief_stats
+    _print_stats = opts.print_stats
     _brief_stats = opts.brief_stats
     opts.start_time = time.time()
     _start_time = opts.start_time
@@ -306,8 +322,12 @@ def main():
             signal.setitimer(signal.ITIMER_REAL, 0)
 
     STATS.total_time += time.time() - opts.start_time
-    STATS.brief_prn() if opts.brief_stats else STATS.prn()
-    print()
+    if opts.brief_stats:
+        STATS.brief_prn()
+        print()
+    elif opts.print_stats:
+        STATS.prn()
+        print()
     if res is None:
         print("unknown")
     elif res:

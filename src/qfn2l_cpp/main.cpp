@@ -24,6 +24,7 @@
 
 // ── Signal handling ───────────────────────────────────────────────────────────
 static volatile sig_atomic_t g_shutdown = 0;
+static bool g_print_stats = false;
 static bool g_brief_stats = false;
 static double g_start_time = 0.0;
 
@@ -32,8 +33,9 @@ static void handle_signal(int) {
     STATS.total_time.value +=
         std::chrono::duration<double>(std::chrono::steady_clock::now()
             .time_since_epoch()).count() - g_start_time;
-    if (g_brief_stats) STATS.brief_prn(); else STATS.prn();
-    std::printf("\nunknown\n");
+    if (g_brief_stats) { STATS.brief_prn(); std::printf("\n"); }
+    else if (g_print_stats) { STATS.prn(); std::printf("\n"); }
+    std::printf("unknown\n");
     std::fflush(stdout);
     std::_Exit(0);
 }
@@ -52,6 +54,7 @@ static void print_usage(const char* prog) {
         "  --timeout N           Wall-clock timeout in seconds (-1 = none)\n"
         "  --heur-timeout N      Heuristic LIA timeout in ms (default 3000)\n"
         "  --print-model         Print SAT model as define-fun lines\n"
+        "  --stats               Print full stats on exit\n"
         "  --brief-stats         Print brief stats on exit\n"
         "  --backend NAME        Solver backend: z3 (default) | cvc5\n"
         "  --help                Show this help\n",
@@ -81,6 +84,7 @@ static Options parse_args(int argc, char** argv, std::string& filename) {
         else if (arg == "--timeout")  opts.timeout = std::stod(next());
         else if (arg == "--heur-timeout") opts.heur_to = std::stoi(next());
         else if (arg == "--print-model")  opts.print_model = true;
+        else if (arg == "--stats")        opts.print_stats = true;
         else if (arg == "--brief-stats")  opts.brief_stats = true;
         else if (arg == "--backend")  opts.backend = next();
         else if (arg == "--help")     { print_usage(argv[0]); std::exit(0); }
@@ -161,6 +165,7 @@ int main(int argc, char** argv) {
     std::string filename;
     Options opts = parse_args(argc, argv, filename);
 
+    g_print_stats = opts.print_stats;
     g_brief_stats = opts.brief_stats;
     g_start_time  = std::chrono::duration<double>(
         std::chrono::steady_clock::now().time_since_epoch()).count();
@@ -223,8 +228,8 @@ int main(int argc, char** argv) {
         double now = std::chrono::duration<double>(
             std::chrono::steady_clock::now().time_since_epoch()).count();
         STATS.total_time.value += now - g_start_time;
-        if (opts.brief_stats) STATS.brief_prn(); else STATS.prn();
-        std::printf("\n");
+        if (opts.brief_stats) { STATS.brief_prn(); std::printf("\n"); }
+        else if (opts.print_stats) { STATS.prn(); std::printf("\n"); }
 
         if (!res) {
             std::printf("unknown\n");

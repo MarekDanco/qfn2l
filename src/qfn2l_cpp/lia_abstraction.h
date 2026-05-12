@@ -20,6 +20,7 @@ struct Options {
     double start_time = 0.0;
     int  heur_to      = 3000;     // ms
     bool print_model  = false;
+    bool print_stats  = false;
     bool brief_stats  = false;
     bool preprocess   = false;
     int  preprocess_aggressive = 0;
