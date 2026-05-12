@@ -336,31 +336,8 @@ std::pair<Prefix, smt::Term> MakeDefs::make(const Prefix& in_prefix,
     smt::Term new_formula = (*this)(formula);
     Prefix prefix = in_prefix;
 
-    // Build const2lev map from current prefix.
-    std::unordered_map<smt::Term, int> const2lev;
-    for (int lev = 0; lev < static_cast<int>(prefix.size()); ++lev)
-        for (auto& v : prefix[lev].vars)
-            const2lev[v] = lev;
-
-    GetLevel levs(_ctx, const2lev, new_formula);
-
-    for (auto& [t, v] : _definitions) {
-        int term_level = levs(t);
-        int new_level = -1;
-        for (int lev = term_level; lev < static_cast<int>(prefix.size()); ++lev) {
-            if (prefix[lev].is_exists()) {
-                prefix[lev].add_var(v);
-                new_level = lev;
-                break;
-            }
-        }
-        if (new_level < 0) {
-            new_level = static_cast<int>(prefix.size());
-            prefix.push_back(QLev(true, {v}));
-        }
-        const_cast<std::unordered_map<smt::Term, int>&>(
-            const2lev)[v] = new_level;
-    }
+    for (auto& [t, v] : _definitions)
+        prefix[0].add_var(v);
 
     // new_body = new_formula AND (t == v for each definition)
     smt::TermVec body_parts = {new_formula};

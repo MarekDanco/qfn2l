@@ -137,16 +137,17 @@ smt::Term LiaAbstraction::Purifier::visit_node(const smt::Term& a) {
 
 // ── LiaAbstraction constructor ────────────────────────────────────────────────
 LiaAbstraction::LiaAbstraction(const Ctx& ctx, const Options& opts,
-                                const FormulaInfo& level_info, bool is_exists)
+                                const Prefix& prefix, const smt::Term& body,
+                                bool is_exists)
     : _ctx(ctx)
     , _opts(opts)
-    , _level_info(ctx, level_info.prefix, level_info.body)
     , _is_exists(is_exists)
+    , _orig_vars(prefix[0].vars)
     , _hu(ctx)
     , _purify(*this)
     , _prop(ctx)
-    , _prefix(level_info.prefix)
-    , _body(level_info.body)
+    , _prefix(prefix)
+    , _body(body)
 {
     init_lia_solver(_ctx, opts);
     // Run purification pass to discover all pure constants.
@@ -193,27 +194,12 @@ std::string LiaAbstraction::make_fancy_name(const smt::Term& term) const {
 smt::Term LiaAbstraction::make_pure_constant(const smt::Term& term) {
     if (auto* p = _pures.find_p(term)) return *p;
 
-    int term_level = _level_info.get_level(term);
     std::string fname = make_fancy_name(term);
     smt::Term pure = _ctx.fresh_symbol(term->get_sort(), fname);
     _pures.map_t2p(term, pure);
     STATS.pures += 1;
     ALOG(4, "mapping %s -> %s", term->to_string().c_str(), pure->to_string().c_str());
-
-    // Place in prefix.
-    int new_level = -1;
-    for (int lev = term_level; lev < static_cast<int>(_prefix.size()); ++lev) {
-        if (_prefix[lev].is_exists()) {
-            _prefix[lev].add_var(pure);
-            new_level = lev;
-            break;
-        }
-    }
-    if (new_level < 0) {
-        new_level = static_cast<int>(_prefix.size());
-        _prefix.push_back(QLev(true, {pure}));
-    }
-    _level_info.add_const(pure, new_level);
+    _prefix[0].add_var(pure);
 
     if (is_mul(term)) {
         // Use split_mul to produce purely-linear smul axioms. Using raw children
@@ -285,10 +271,8 @@ std::optional<smt::Term> LiaAbstraction::get_value(const smt::Term& t) const {
 }
 
 // ── set_level ─────────────────────────────────────────────────────────────────
-void LiaAbstraction::set_level(int level,
-                                const smt::UnorderedTermMap& assignment) {
+void LiaAbstraction::set_level(const smt::UnorderedTermMap& assignment) {
     ScopedPhase sp(STATS.set_level_time);
-    _current_level = level;
 
     _current_body = _prop(do_substitute(_ctx, _body, assignment));
     _current_pure_body = _purify(_current_body);
@@ -309,7 +293,7 @@ void LiaAbstraction::set_level(int level,
     }
     _current_instantiation = mk_and(_ctx, parts);
 
-    ALOG(3, "instantiation done, level=%d", level);
+    ALOG(3, "instantiation done");
 }
 
 // ── solve ─────────────────────────────────────────────────────────────────────
@@ -322,9 +306,8 @@ std::optional<smt::UnorderedTermMap> LiaAbstraction::solve() {
     try {
         // TODO: why exception at all?
         ScopedPhase sp_comp(STATS.complete_model_time);
-        auto& lev_vars = _level_info.prefix[_current_level].vars;
         smt::UnorderedTermMap model;
-        for (auto& c : lev_vars) {
+        for (auto& c : _orig_vars) {
             smt::Term val = _ctx.solver->get_value(c);
             model[c] = val;
         }
@@ -383,10 +366,7 @@ void LiaAbstraction::_solve() {
     // Collect pures for heuristics.
     CollectPures pcol(_ctx, _pures, _axioms);
     pcol(_current_pure_body);
-    smt::UnorderedTermSet cur_pures;
-    for (auto& p : pcol.collected)
-        if (_level_info.get_level(p) <= _current_level)
-            cur_pures.insert(p);
+    smt::UnorderedTermSet cur_pures(pcol.collected.begin(), pcol.collected.end());
     if (cur_pures.empty()) return;
 
     _heuristic_left_unsat = false;
@@ -924,7 +904,6 @@ bool LiaAbstraction::check_nia() {
 
     for (auto& pure : pcol.collected) {
         const smt::Term& t = _pures.get_t(pure);
-        if (_hu(t) && _level_info.get_level(t) != _current_level) continue;
         if (is_okay(pure, t)) continue;
 
         res = false;

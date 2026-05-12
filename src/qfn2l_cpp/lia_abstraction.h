@@ -1,5 +1,5 @@
 #pragma once
-#include "level_info.h"
+#include "prefix.h"
 #include "projections.h"
 #include "pures.h"
 #include "stats.h"
@@ -36,10 +36,10 @@ public:
 class LiaAbstraction {
 public:
     LiaAbstraction(const Ctx& ctx, const Options& opts,
-                   const FormulaInfo& level_info, bool is_exists);
+                   const Prefix& prefix, const smt::Term& body, bool is_exists);
 
     // Instantiate the abstraction under the given assignment (outer variables).
-    void set_level(int level, const smt::UnorderedTermMap& assignment);
+    void set_level(const smt::UnorderedTermMap& assignment);
 
     // Solve the current LIA instantiation.
     // Returns the model terms for the current level's variables, or empty on UNSAT.
@@ -76,9 +76,8 @@ private:
 
     const Ctx&  _ctx;
     const Options& _opts;
-    FormulaInfo _level_info;
     bool        _is_exists;
-    int         _current_level = -1;
+    smt::TermVec _orig_vars;
 
     Pures                    _pures;
     mutable HasUninterpreted _hu;

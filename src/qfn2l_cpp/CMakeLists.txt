@@ -47,7 +47,6 @@ set(SOURCES
   visitors.cpp
   converter.cpp
   prefix.cpp
-  level_info.cpp
   pures.cpp
   projections.cpp
   lia_abstraction.cpp

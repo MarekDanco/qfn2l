@@ -28,13 +28,12 @@ QfSolver::QfSolver(const Ctx& ctx, const Options& opts,
 
     LOG(LOG_TAG, 3, "input ready, %zu prefix levels", new_prefix.size());
 
-    _level_info  = std::make_unique<FormulaInfo>(ctx, std::move(new_prefix), new_f);
-    _abstraction = std::make_unique<LiaAbstraction>(ctx, opts, *_level_info,
+    _abstraction = std::make_unique<LiaAbstraction>(ctx, opts, new_prefix, new_f,
                                                     /*is_exists=*/true);
 }
 
 std::optional<bool> QfSolver::solve() {
-    _abstraction->set_level(0, {});
+    _abstraction->set_level({});
     while (true) {
         if (_opts.maxits >= 0 && STATS.its >= _opts.maxits)
             return std::nullopt;
@@ -60,6 +59,6 @@ std::optional<bool> QfSolver::solve() {
         LOG(LOG_TAG, 2, "nia ok: %s", nia_ok ? "true" : "false");
         if (nia_ok) return true;
 
-        _abstraction->set_level(0, {});
+        _abstraction->set_level({});
     }
 }
