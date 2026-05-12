@@ -3,7 +3,7 @@
 #include <memory>
 
 class QfSolver {
-public:
+  public:
     QfSolver(const Ctx& ctx, const Options& opts, const smt::Term& formula);
 
     // Returns true (sat), false (unsat), or nullopt (unknown/maxits reached).
@@ -11,8 +11,8 @@ public:
 
     const LiaAbstraction& abstraction() const { return *_abstraction; }
 
-private:
-    const Ctx&     _ctx;
-    const Options& _opts;
+  private:
+    const Ctx&                      _ctx;
+    const Options&                  _opts;
     std::unique_ptr<LiaAbstraction> _abstraction;
 };

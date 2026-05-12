@@ -4,13 +4,11 @@
 
 Stats STATS;
 
-void Stats::begin_phase(TimedStat& s) {
-    phase_stack.push_back({&s, Clock::now()});
-}
+void Stats::begin_phase(TimedStat& s) { phase_stack.push_back({&s, Clock::now()}); }
 
 void Stats::end_phase() {
-    auto& ph = phase_stack.back();
-    auto elapsed = std::chrono::duration<double>(Clock::now() - ph.start).count();
+    auto& ph      = phase_stack.back();
+    auto  elapsed = std::chrono::duration<double>(Clock::now() - ph.start).count();
     ph.stat->value += elapsed;
     phase_stack.pop_back();
 }
@@ -24,8 +22,12 @@ void Stats::commit_phases() {
 }
 
 void Stats::prn() const {
-    auto prn_count = [](const CountStat& s) { std::printf("%-24s %ld\n", s.name, s.value); };
-    auto prn_timed = [](const TimedStat& s)  { std::printf("%-24s %.2f\n", s.name, s.value); };
+    auto prn_count = [](const CountStat& s) {
+        std::printf("%-24s %ld\n", s.name, s.value);
+    };
+    auto prn_timed = [](const TimedStat& s) {
+        std::printf("%-24s %.2f\n", s.name, s.value);
+    };
     prn_count(its);
     prn_count(pures);
     prn_count(mul_axioms);
@@ -52,9 +54,9 @@ void Stats::brief_prn() const {
 
     // Find longest non-container timed stat with value > 0
     std::vector<const TimedStat*> timed = {
-        &liatime, &parse_time, &nnf_time, &simplify_time, &propagate_time,
-        &makedefs_time, &set_level_time, &check_nia_time, &complete_model_time
-    };
+        &liatime,        &parse_time,     &nnf_time,
+        &simplify_time,  &propagate_time, &makedefs_time,
+        &set_level_time, &check_nia_time, &complete_model_time};
     const TimedStat* longest = nullptr;
     for (auto* s : timed) {
         if (s->value > 0 && (!longest || s->value > longest->value))
