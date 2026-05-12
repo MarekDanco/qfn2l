@@ -1,6 +1,7 @@
 #include "utils.h"
 #include <algorithm>
 #include <cassert>
+#include <limits>
 #include <regex>
 #include <stdexcept>
 
@@ -8,6 +9,25 @@
 #  include "z3_solver.h"
 #  include "z3_term.h"
 #endif
+
+using boost::multiprecision::cpp_int;
+
+static std::string trim_copy(const std::string& s) {
+    const char* ws = " \t\n\r";
+    size_t b = s.find_first_not_of(ws);
+    if (b == std::string::npos) return "";
+    size_t e = s.find_last_not_of(ws);
+    return s.substr(b, e - b + 1);
+}
+
+static cpp_int parse_cpp_int(const std::string& raw) {
+    std::string s = trim_copy(raw);
+    static const std::regex sexpr_neg_re(R"(\(\s*-\s*(.+?)\s*\))");
+    std::smatch m;
+    if (std::regex_match(s, m, sexpr_neg_re))
+        return -parse_cpp_int(m[1].str());
+    return cpp_int(s);
+}
 
 // ── Ctx ───────────────────────────────────────────────────────────────────────
 Ctx::Ctx(smt::SmtSolver s) : solver(std::move(s)) {
@@ -25,13 +45,7 @@ smt::Term Ctx::make_int(int64_t n) const {
 }
 
 smt::Term Ctx::make_int_str(const std::string& s) const {
-    static const std::regex neg_re(R"(\(\s*-\s*(\d+)\s*\))");
-    std::smatch m;
-    if (std::regex_match(s, m, neg_re)) {
-        smt::Term pos = solver->make_term(m[1].str(), int_sort);
-        return solver->make_term(smt::Negate, pos);
-    }
-    return solver->make_term(s, int_sort);
+    return cpp_int_to_term(*this, parse_cpp_int(s));
 }
 
 smt::Term Ctx::fresh_symbol(const smt::Sort& sort,
@@ -41,25 +55,36 @@ smt::Term Ctx::fresh_symbol(const smt::Sort& sort,
 }
 
 // ── Numeral helpers ───────────────────────────────────────────────────────────
-int64_t term_to_int64(const smt::Term& t) {
-    std::string s = t->to_string();
-    static const std::regex neg_re(R"(\(\s*-\s*(\d+)\s*\))");
-    std::smatch m;
-    if (std::regex_match(s, m, neg_re))
-        return -static_cast<int64_t>(std::stoull(m[1].str()));
-    return static_cast<int64_t>(std::stoull(s));
-}
-
-// Simplify a pure-numeral expression to a single numeral term via z3 constant folding.
-static smt::Term numeral_simplify(const Ctx& ctx, const smt::Term& t) {
+cpp_int term_to_cpp_int(const smt::Term& t) {
 #ifdef BACKEND_Z3
     auto* z3t = dynamic_cast<smt::Z3Term*>(t.get());
     if (z3t) {
-        std::string s = z3t->get_z3_expr().simplify().to_string();
-        return ctx.make_int_str(s);
+        std::string s;
+        if (z3t->get_z3_expr().is_numeral(s))
+            return parse_cpp_int(s);
     }
 #endif
-    return t;
+    return parse_cpp_int(t->to_string());
+}
+
+smt::Term cpp_int_to_term(const Ctx& ctx, const cpp_int& v) {
+    if (v >= 0)
+        return ctx.solver->make_term(v.str(), ctx.int_sort);
+    cpp_int abs_v = -v;
+    smt::Term pos = ctx.solver->make_term(abs_v.str(), ctx.int_sort);
+    return ctx.solver->make_term(smt::Negate, pos);
+}
+
+int64_t cpp_int_to_int64(const cpp_int& v) {
+    static const cpp_int min = std::numeric_limits<int64_t>::min();
+    static const cpp_int max = std::numeric_limits<int64_t>::max();
+    if (v < min || v > max)
+        throw std::out_of_range("integer does not fit int64_t");
+    return v.convert_to<int64_t>();
+}
+
+int64_t term_to_int64(const smt::Term& t) {
+    return cpp_int_to_int64(term_to_cpp_int(t));
 }
 
 bool is_value(const smt::Term& t)      { return t->is_value(); }
@@ -224,64 +249,43 @@ smt::Term mk_add(const Ctx& ctx, const smt::TermVec& args) {
     return r;
 }
 
-int64_t term_mod_int(const Ctx& ctx, const smt::Term& val, int64_t k) {
-    try {
-        int64_t v = term_to_int64(val);
-        return ((v % k) + k) % k;
-    } catch (const std::out_of_range&) {}
-    smt::Term modterm = ctx.solver->make_term(smt::Mod, val, ctx.make_int(k));
-    return term_to_int64(numeral_simplify(ctx, modterm));
+int64_t term_mod_int(const Ctx&, const smt::Term& val, int64_t k) {
+    cpp_int v = term_to_cpp_int(val);
+    cpp_int kk = k;
+    cpp_int r = v % kk;
+    if (r < 0) r += kk;
+    return cpp_int_to_int64(r);
 }
 
 smt::Term eval_mul(const Ctx& ctx, const smt::TermVec& args) {
     if (args.empty()) return ctx.ONE;
-    for (auto& a : args) assert(a->is_value());
+    for (auto& a : args) { assert(a->is_value()); (void)a; }
     if (args.size() == 1) return args[0];
-    try {
-        int64_t r = 1;
-        for (auto& a : args) {
-            int64_t v = term_to_int64(a);
-            if (__builtin_mul_overflow(r, v, &r))
-                throw std::out_of_range("overflow");
-        }
-        return ctx.make_int(r);
-    } catch (const std::out_of_range&) {}
-    smt::Term t = ctx.solver->make_term(smt::Mult, args[0], args[1]);
-    for (size_t i = 2; i < args.size(); ++i)
-        t = ctx.solver->make_term(smt::Mult, t, args[i]);
-    return numeral_simplify(ctx, t);
+    cpp_int r = 1;
+    for (auto& a : args)
+        r *= term_to_cpp_int(a);
+    return cpp_int_to_term(ctx, r);
 }
 
 smt::Term eval_sum(const Ctx& ctx, const smt::TermVec& args) {
     if (args.empty()) return ctx.ZERO;
-    for (auto& a : args) assert(a->is_value());
+    for (auto& a : args) { assert(a->is_value()); (void)a; }
     if (args.size() == 1) return args[0];
-    try {
-        int64_t r = 0;
-        for (auto& a : args) r = r + term_to_int64(a);
-        return ctx.make_int(r);
-    } catch (const std::out_of_range&) {}
-    smt::Term t = ctx.solver->make_term(smt::Plus, args[0], args[1]);
-    for (size_t i = 2; i < args.size(); ++i)
-        t = ctx.solver->make_term(smt::Plus, t, args[i]);
-    return numeral_simplify(ctx, t);
+    cpp_int r = 0;
+    for (auto& a : args)
+        r += term_to_cpp_int(a);
+    return cpp_int_to_term(ctx, r);
 }
 
 smt::Term eval_exp(const Ctx& ctx, const smt::Term& x, int n) {
     assert(n >= 0);
     assert(x->is_value());
     if (n == 0) return ctx.ONE;
-    try {
-        int64_t v = term_to_int64(x), r = 1;
-        for (int i = 0; i < n; ++i)
-            if (__builtin_mul_overflow(r, v, &r))
-                throw std::out_of_range("overflow");
-        return ctx.make_int(r);
-    } catch (const std::out_of_range&) {}
-    smt::Term t = x;
-    for (int i = 1; i < n; ++i)
-        t = ctx.solver->make_term(smt::Mult, t, x);
-    return numeral_simplify(ctx, t);
+    cpp_int v = term_to_cpp_int(x);
+    cpp_int r = 1;
+    for (int i = 0; i < n; ++i)
+        r *= v;
+    return cpp_int_to_term(ctx, r);
 }
 
 smt::Term mk_pow(const Ctx& ctx, const smt::Term& x, int n) {
@@ -298,8 +302,7 @@ smt::Term eval_pow(const Ctx& ctx, const smt::Term& x, int n) {
 
 smt::Term negate_numeral(const Ctx& ctx, const smt::Term& n) {
     assert(n->is_value());
-    try { return ctx.make_int(-term_to_int64(n)); } catch (const std::out_of_range&) {}
-    return numeral_simplify(ctx, ctx.solver->make_term(smt::Negate, n));
+    return cpp_int_to_term(ctx, -term_to_cpp_int(n));
 }
 
 // ── Child access ──────────────────────────────────────────────────────────────

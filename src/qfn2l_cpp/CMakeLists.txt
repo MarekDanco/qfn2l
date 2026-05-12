@@ -3,6 +3,11 @@ project(qfn2l_cpp CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# ── Boost ───────────────────────────────────────────────────────────────────
+# boost::multiprecision::cpp_int is header-only, but require the headers at
+# configure time so missing dependencies fail clearly.
+find_package(Boost REQUIRED)
+
 # ── smt-switch ──────────────────────────────────────────────────────────────
 # Clone smt-switch into deps/smt-switch and configure it before running cmake.
 # Typical setup:
@@ -40,7 +45,7 @@ option(BACKEND_Z3   "Build with z3 backend"   ON)
 option(BACKEND_CVC5 "Build with CVC5 backend" OFF)
 
 # ── Sources ──────────────────────────────────────────────────────────────────
-set(SOURCES
+set(CORE_SOURCES
   tagged_logging.cpp
   stats.cpp
   utils.cpp
@@ -52,37 +57,64 @@ set(SOURCES
   projections.cpp
   lia_abstraction.cpp
   qf_solver.cpp
-  main.cpp
 )
 
-add_executable(qfn2l ${SOURCES})
-target_include_directories(qfn2l PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(qfn2l PRIVATE smt-switch::smt-switch)
+add_library(qfn2l_core STATIC ${CORE_SOURCES})
+
+function(configure_qfn2l_target target)
+  target_include_directories(${target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+  target_link_libraries(${target} PRIVATE smt-switch::smt-switch)
+  if(TARGET Boost::boost)
+    target_link_libraries(${target} PRIVATE Boost::boost)
+  else()
+    target_include_directories(${target} PRIVATE ${Boost_INCLUDE_DIRS})
+  endif()
+
+  if(BACKEND_Z3)
+    target_compile_definitions(${target} PRIVATE BACKEND_Z3)
+    # Z3 backend headers (z3_solver.h, z3_term.h, z3++.h).
+    target_include_directories(${target} PRIVATE
+      "${SMT_SWITCH_DIR}/../z3/include"
+      "${SMT_SWITCH_DIR}/../deps/z3/src/api/c++"
+      "${SMT_SWITCH_DIR}/../deps/z3/src/api"
+    )
+    if(Z3_LIB)
+      target_link_libraries(${target} PRIVATE "${Z3_LIB}")
+    endif()
+  endif()
+
+  if(BACKEND_CVC5)
+    target_compile_definitions(${target} PRIVATE BACKEND_CVC5)
+    if(CVC5_LIB)
+      target_link_libraries(${target} PRIVATE "${CVC5_LIB}")
+    endif()
+  endif()
+
+  target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+endfunction()
 
 if(BACKEND_Z3)
-  target_compile_definitions(qfn2l PRIVATE BACKEND_Z3)
-  # Z3 backend headers (z3_solver.h, z3_term.h, z3++.h).
-  target_include_directories(qfn2l PRIVATE
-    "${SMT_SWITCH_DIR}/../z3/include"
-    "${SMT_SWITCH_DIR}/../deps/z3/src/api/c++"
-    "${SMT_SWITCH_DIR}/../deps/z3/src/api"
-  )
   find_library(Z3_LIB z3
     PATHS "${SMT_SWITCH_DIR}/../deps/z3/build" "${SMT_SWITCH_DIR}/z3"
     NO_DEFAULT_PATH)
   if(NOT Z3_LIB)
     find_library(Z3_LIB z3)
   endif()
-  if(Z3_LIB)
-    target_link_libraries(qfn2l PRIVATE "${Z3_LIB}")
-  endif()
 endif()
 if(BACKEND_CVC5)
-  target_compile_definitions(qfn2l PRIVATE BACKEND_CVC5)
   find_library(CVC5_LIB cvc5)
-  if(CVC5_LIB)
-    target_link_libraries(qfn2l PRIVATE "${CVC5_LIB}")
-  endif()
 endif()
 
-target_compile_options(qfn2l PRIVATE -Wall -Wextra -Wpedantic)
+configure_qfn2l_target(qfn2l_core)
+
+add_executable(qfn2l main.cpp)
+target_link_libraries(qfn2l PRIVATE qfn2l_core)
+configure_qfn2l_target(qfn2l)
+
+include(CTest)
+if(BUILD_TESTING)
+  add_executable(qfn2l_numeric_tests tests/test_numerics.cpp)
+  target_link_libraries(qfn2l_numeric_tests PRIVATE qfn2l_core)
+  configure_qfn2l_target(qfn2l_numeric_tests)
+  add_test(NAME qfn2l_numeric_tests COMMAND qfn2l_numeric_tests)
+endif()

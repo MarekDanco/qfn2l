@@ -8,6 +8,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include <boost/multiprecision/cpp_int.hpp>
+
 #include "smt.h"  // smt-switch main header
 
 // ── Solver context ────────────────────────────────────────────────────────────
@@ -24,7 +26,7 @@ struct Ctx {
 
     smt::Term make_int(int64_t n) const;
     // Create an integer term from a decimal string, including big integers.
-    // s must be in SMT-LIB sexpr format: "N" or "(- N)".
+    // Accepts "N", "-N", or SMT-LIB sexpr form "(- N)".
     smt::Term make_int_str(const std::string& s) const;
     // Create a fresh symbol with the given sort (unique name, globally unique).
     smt::Term fresh_symbol(const smt::Sort& sort,
@@ -35,6 +37,12 @@ private:
 };
 
 // ── Numeral helpers ───────────────────────────────────────────────────────────
+// Extract an arbitrary-precision integer value from a numeric constant term.
+boost::multiprecision::cpp_int term_to_cpp_int(const smt::Term& t);
+// Build an integer term from an arbitrary-precision value.
+smt::Term cpp_int_to_term(const Ctx& ctx, const boost::multiprecision::cpp_int& v);
+// Narrow an arbitrary-precision integer to int64_t. Throws on overflow.
+int64_t cpp_int_to_int64(const boost::multiprecision::cpp_int& v);
 // Extract integer value from a numeric constant term. Throws on overflow.
 int64_t term_to_int64(const smt::Term& t);
 // Compute (val % k) for a numeral term val and small integer k.
