@@ -13,7 +13,6 @@ from itertools import combinations
 import stats
 import tagged_logging
 import z3
-from level_info import FormulaInfo
 from prefix import QLev
 from projections import (
     combine_lb,
@@ -80,10 +79,9 @@ class LiaAbstraction:
     """
 
     def log(self, log_lev: int, *args, **kwargs):
-        """Logging for this class, which also outputs the level."""
         module_log(
             log_lev,
-            f"<{'e' if self.is_exists else 'u'}@{self.current_level}>",
+            f"<{'e' if self.is_exists else 'u'}>",
             *args,
             **kwargs,
         )
@@ -153,22 +151,19 @@ class LiaAbstraction:
                 return self._visit_mul(t)
             return t
 
-    def __init__(self, opts, level_info: FormulaInfo, is_exists: bool):
+    def __init__(self, opts, prefix: list[QLev], body: BoolRef, is_exists: bool):
         self.opts = opts
-        self.level_info = FormulaInfo(prefix=level_info.prefix, body=level_info.body)
-        self.current_level = -1
         self.assignment = None
         self.axioms: defaultdict[ExprRef, list[BoolRef]] = defaultdict(list)
         self.pures = Pures()
         self.hu = HasUninterpreted()
-        # run purification on the body
         self.purify = self.Purifier(self)
-        # self.simpl = SimpleSimplify()
         self.prop = SimplePropagate()
         self.is_exists = is_exists
 
-        self.prefix = copy.deepcopy(self.level_info.prefix)
-        self.body = self.level_info.body
+        self._orig_vars = list(prefix[0].vars())
+        self.prefix = copy.deepcopy(prefix)
+        self.body = body
         self.purify(self.body)
         self.current_model: ModelRef | None = None
         self.current_solver: z3.Solver | None = None
@@ -357,9 +352,6 @@ class LiaAbstraction:
             + self._congruence_pow_order_axioms(_pures.mul_collected)
         )
 
-    def get_level(self, t: ExprRef) -> int:
-        return self.level_info.get_level(t)
-
     def make_pure_constant(self, term: ArithRef) -> ArithRef:
         """Creates a new constant for the given term and adds it to the prefix
         at the proper place."""
@@ -378,23 +370,12 @@ class LiaAbstraction:
         pure = self.pures.find_p(term)
         if pure is not None:
             return pure
-        term_level = self.get_level(term)
         pure = FreshConst(term.sort(), make_fancy_name(term))
         assert isinstance(pure, ArithRef)
         self.pures.map_t2p(term, pure)
         stats.STATS.pures += 1
         self.log(4, f"mapping {term} to {pure}")
-        new_level = -1
-        for lev in range(term_level, len(self.prefix)):
-            qlev = self.prefix[lev]
-            if qlev.is_exists():
-                qlev.add_var(pure)
-                new_level = lev
-                break
-        if new_level < 0:
-            new_level = len(self.prefix)
-            self.prefix.append(QLev(is_forall=False, vs=[pure]))
-        self.level_info.add_const(pure, new_level)
+        self.prefix[0].add_var(pure)
 
         if is_mul(term):
             chs = set(term.children())
@@ -439,12 +420,11 @@ class LiaAbstraction:
         for ax in axs:
             self.add_axiom(pure, ax, tag)
 
-    def set_level(self, level: int, assignment: dict[ExprRef, ExprRef]):
+    def set_level(self, assignment: dict[ExprRef, ExprRef]):
         """Instantiate the current abstraction under the given assignment."""
         stats.STATS.begin_phase(stats.STATS.set_level_time)
         assert isinstance(assignment, dict)
         self.assignment = assignment
-        self.current_level = level
         subs = list(self.assignment.items())
         self.current_body = self.prop(substitute(self.body, subs))  # self.simpl()
         self.current_pure_body = self.purify(self.current_body)
@@ -471,7 +451,7 @@ class LiaAbstraction:
         """
 
         def complete_model(model: ModelRef) -> None:
-            for c in self.level_info.prefix[self.current_level].vars():
+            for c in self._orig_vars:
                 if model[c] is not None:
                     continue
                 default_value = model.eval(c, model_completion=True)
@@ -550,9 +530,7 @@ class LiaAbstraction:
             return
         pcol = CollectPures(pures=self.pures, axioms=self.axioms)
         pcol(self.current_pure_body)
-        cur_pures = {
-            p for p in pcol.collected if self.get_level(p) <= self.current_level
-        }
+        cur_pures = set(pcol.collected)
         if not cur_pures:
             return
 
@@ -829,8 +807,6 @@ class LiaAbstraction:
 
         for pure in pcol.collected:
             t = self.pures.get_t(pure)
-            if self.hu(t) and self.get_level(t) != self.current_level:
-                continue
             is_okay = self.is_okay(pure, t, self.current_model)
             self.log(4, f"check_nia result: {is_okay}")
             if is_okay:

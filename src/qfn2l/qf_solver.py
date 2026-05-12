@@ -11,7 +11,6 @@ import lia_abstraction
 import tagged_logging
 import z3
 from converter import NNFConverter
-from level_info import FormulaInfo
 from lia_abstraction import LiaAbstraction
 from prefix import QLev
 from stats import STATS
@@ -62,12 +61,11 @@ class QfSolver:
         # f = SimpleSimplify()(f)
         # STATS.end_phase()
         log(3, "input:", prefix, f)
-        self.level_info = FormulaInfo(prefix, f)
-        self.abstraction = LiaAbstraction(opts, self.level_info, is_exists=True)
+        self.abstraction = LiaAbstraction(opts, prefix, f, is_exists=True)
 
     def solve(self) -> bool | None:
         """Returns True (sat), False (unsat), or None (unknown/timeout)."""
-        self.abstraction.set_level(0, {})
+        self.abstraction.set_level({})
         while True:
             if self.opts.maxits >= 0 and STATS.its >= self.opts.maxits:
                 return None
@@ -80,13 +78,13 @@ class QfSolver:
             log(2, "model:", model)
             if model is None:
                 return False
-            orig_vars = self.level_info.prefix[0].vars()
+            orig_vars = self.abstraction._orig_vars
             assignment = {v: model.eval(v) for v in orig_vars}
             nia_ok = self.abstraction.check_nia(z3.Model(eval=assignment))
             log(2, "nia ok:", nia_ok)
             if nia_ok:
                 return True
-            self.abstraction.set_level(0, {})
+            self.abstraction.set_level({})
 
 
 def _print_model(s: QfSolver, orig_consts):

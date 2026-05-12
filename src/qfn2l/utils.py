@@ -38,48 +38,6 @@ def print_smt2_formula(formula: ExprRef) -> None:
     print(ps.to_smt2())
 
 
-class GetLevel:
-    """Calculates a maximum level over a z3 term, given access to a mapping of
-    constants to their levels. It is memoized, so it's possible to get all the
-    terms in a formula, if needed (terms getter).
-
-    The call operator is overloaded to use the class. Defaults to -1 if
-    the the formula does not contain a constant.
-    """
-
-    def __init__(self, const2lev, a=None):
-        self._memo = {}
-        self._terms = {}
-        self.const2lev = const2lev
-        if a is not None:
-            self(a)
-
-    def terms(self) -> dict[ExprRef, int]:
-        """Terms getter."""
-        return self._terms
-
-    def __call__(self, e: ExprRef) -> int:
-        """Calculates the maximum level of the given Z3 term."""
-        if e in self._memo:
-            return self._memo[e]
-
-        level = self._calculate_max_level(e)
-        if level >= 0 and not is_nnf_connective(e):
-            self._terms[e] = level
-
-        self._memo[e] = level
-        return level
-
-    def _calculate_max_level(self, term):
-        if term.num_args() == 0:
-            return self.const2lev.get(term, -1)
-        max_level = 0
-        for arg in term.children():
-            arg_level = self(arg)
-            max_level = max(max_level, arg_level)
-        return max_level
-
-
 ZERO = z3.IntVal(0)
 ONE = z3.IntVal(1)
 FALSE = BoolVal(False)
