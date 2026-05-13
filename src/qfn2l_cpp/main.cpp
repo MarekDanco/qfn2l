@@ -30,6 +30,8 @@ static bool g_brief_stats = false;
 static double g_start_time = 0.0;
 
 static void handle_signal(int) {
+    // TODO: Make signal handling async-signal-safe: set a flag here and do
+    // stats/stdio work from normal control flow.
     STATS.commit_phases();
     STATS.total_time.value += std::chrono::duration<double>(
                                   std::chrono::steady_clock::now().time_since_epoch())
@@ -117,6 +119,7 @@ static Options parse_args(int argc, char** argv, std::string& filename) {
         } else if (arg[0] != '-')
             filename = arg;
         else {
+            // TODO: Accept explicit "-" as stdin; usage currently advertises it.
             std::fprintf(stderr, "Unknown option: %s\n", arg.c_str());
             print_usage(argv[0]);
             std::exit(1);
@@ -134,6 +137,8 @@ static smt::SmtSolver create_solver(const std::string& backend) {
     }
 #endif
 #ifdef BACKEND_Z3
+    // TODO: Reject unknown or unavailable backend names instead of silently
+    // falling back to Z3.
     {
         (void)backend;
         auto s = smt::Z3SolverFactory::create(false);

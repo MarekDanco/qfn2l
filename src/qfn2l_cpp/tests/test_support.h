@@ -40,6 +40,8 @@ inline smt::Result check_formula(Ctx& ctx, const smt::Term& formula) {
         auto* z3t = dynamic_cast<smt::Z3Term*>(formula.get());
         expect_true(z3t != nullptr, "expected a Z3-backed smt-switch term");
 
+        // Production LIA solving uses fresh z3::solver instances for Z3-backed
+        // terms, so tests use the same path instead of mutating ctx.solver.
         z3::solver slv(*z3s->get_z3_context());
         slv.add(z3t->get_z3_expr());
         z3::check_result res = slv.check();

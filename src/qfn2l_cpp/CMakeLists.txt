@@ -134,6 +134,9 @@ if(BUILD_TESTING)
     add_test(NAME ${test_target} COMMAND ${test_target})
   endforeach()
 
+  # Reproducer for an upstream smt-switch/Z3 term identity bug.  It is kept
+  # buildable, but excluded from the default check target until upstream fixes
+  # the expected failure: `build/qfn2l_smt_switch_identity_tests`.
   target_link_libraries(qfn2l_smt_switch_identity_tests PRIVATE qfn2l_core)
   configure_qfn2l_target(qfn2l_smt_switch_identity_tests)
 

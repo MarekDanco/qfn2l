@@ -46,6 +46,7 @@ int64_t cpp_int_to_int64(const boost::multiprecision::cpp_int& v);
 // Extract integer value from a numeric constant term. Throws on overflow.
 int64_t term_to_int64(const smt::Term& t);
 // Compute (val % k) for a numeral term val and small integer k.
+// TODO: Update this stale note; implementation uses cpp_int directly, not z3 simplify.
 // Uses z3 simplify so works for big integers; result fits in int64_t (|result| < k).
 int64_t term_mod_int(const Ctx& ctx, const smt::Term& val, int64_t k);
 

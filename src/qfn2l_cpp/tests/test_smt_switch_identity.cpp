@@ -23,6 +23,8 @@ static void expect_distinct_terms(const smt::Term& a, const smt::Term& b,
 }
 
 static void test_signed_numeral_identity(Ctx& ctx) {
+    // This is expected to fail with the current smt-switch Z3 backend because
+    // Z3Term::compare uses hash equality.  Keep it as a standalone repro.
     smt::Term pos9_i64 = ctx.make_int(9);
     smt::Term neg9_i64 = ctx.make_int(-9);
     smt::Term pos9_str = ctx.make_int_str("9");
