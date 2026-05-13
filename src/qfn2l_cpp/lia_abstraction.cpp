@@ -49,6 +49,8 @@ static void init_lia_solver(const Ctx& ctx, const Options& opts) {
 #endif
 }
 
+#define ALOG(lev, ...) LOG(LOG_TAG, lev, __VA_ARGS__)
+
 // ── Purifier ──────────────────────────────────────────────────────────────────
 LiaAbstraction::Purifier::Purifier(LiaAbstraction& parent)
     : TermTransformer(parent._ctx), _parent(parent), _hu(parent._ctx) {}
@@ -165,11 +167,16 @@ LiaAbstraction::LiaAbstraction(const Ctx& ctx, const Options& opts,
         }
         LOG(LOG_TAG, 4, "pures discovered: %zu (%zu intermediate pruned)",
             pcol.collected.size(), n_intermediate);
+        _in_init = false;
+        for (auto& [t, p] : _pures.term2pure()) {
+            if (!pcol.collected.count(p))
+                continue;
+            ALOG(4, "mapping %s -> %s", t->to_string().c_str(), p->to_string().c_str());
+            for (auto& ax : _axioms.at(p))
+                ALOG(4, "ax: %s smul", ax->to_string().c_str());
+        }
     }
 }
-
-// ── Logging helper ────────────────────────────────────────────────────────────
-#define ALOG(lev, ...) LOG(LOG_TAG, lev, __VA_ARGS__)
 
 // ── make_pure_constant ────────────────────────────────────────────────────────
 std::string LiaAbstraction::make_fancy_name(const smt::Term& term) const {
@@ -200,7 +207,9 @@ smt::Term LiaAbstraction::make_pure_constant(const smt::Term& term) {
     smt::Term pure = _ctx.fresh_symbol(term->get_sort(), fname);
     _pures.map_t2p(term, pure);
     STATS.pures += 1;
-    ALOG(4, "mapping %s -> %s", term->to_string().c_str(), pure->to_string().c_str());
+    if (!_in_init)
+        ALOG(4, "mapping %s -> %s", term->to_string().c_str(),
+             pure->to_string().c_str());
     _prefix[0].add_var(pure);
 
     if (is_mul(term)) {
@@ -263,7 +272,8 @@ smt::Term LiaAbstraction::make_pure_constant(const smt::Term& term) {
 
 void LiaAbstraction::add_axiom(const smt::Term& pure, const smt::Term& ax,
                                const char* tag) {
-    ALOG(4, "ax: %s %s", ax->to_string().c_str(), tag);
+    if (!_in_init)
+        ALOG(4, "ax: %s %s", ax->to_string().c_str(), tag);
     _axioms[pure].push_back(ax);
 }
 

@@ -102,6 +102,7 @@ class LiaAbstraction {
     // Track congruence pairs already added.
     std::set<std::pair<smt::Term, smt::Term>> _congruence_pairs_added;
 
+    bool _in_init = true; // suppresses logging until intermediate pures are pruned
     bool _lia_sat = false;
     // Set by incorporate_assumptions when it ends with a check_sat_assuming UNSAT.
     // Signals that the solver state must be restored before get_value() is valid.
