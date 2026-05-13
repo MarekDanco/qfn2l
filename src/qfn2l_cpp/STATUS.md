@@ -28,19 +28,7 @@ Run `examples/test_me_cpp.sh` from the `examples/` directory:
 
 ## Known Bugs / Open Issues
 
-### 1. ASAN build may crash on some inputs
-
-The `build/` (ASAN) binary has previously exited with a memory error on
-`hard-ll.c_*` and `STC_*` files.  Tests currently pass because the correct
-answer is emitted to stdout before the crash, and the test script discards
-stderr.  The underlying memory bug has not been diagnosed.
-
-To investigate:
-```bash
-./src/qfn2l_cpp/build/qfn2l examples/hard-ll.c_0.smt2 --timeout 10 2>&1 | grep -A5 "ERROR\|SUMMARY"
-```
-
-### 2. Intermediate pures not eliminated from prefix
+### 1. Intermediate pures not eliminated from prefix
 
 Even though `set_level` now excludes their axioms and the constructor prunes them from
 `_axioms`, intermediate pures (e.g. e_x4 for x² when the body only has x³) are still
@@ -55,6 +43,5 @@ it's part of `(* x x x)`. Options:
 
 ## Suggested Next Steps
 
-1. Fix the ASAN crash (captures a real memory error)
-2. Prevent intermediate pures from being created (two-pass purification or post-cleanup)
-3. Audit the `// TODO verify` smt-switch API calls in `NOTES.md`
+1. Prevent intermediate pures from being created (two-pass purification or post-cleanup)
+2. Audit the `// TODO verify` smt-switch API calls in `NOTES.md`
