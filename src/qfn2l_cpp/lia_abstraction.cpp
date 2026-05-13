@@ -1079,6 +1079,17 @@ bool LiaAbstraction::check_nia() {
     ScopedPhase sp(STATS.check_nia_time);
     ALOG(3, "check_nia");
 
+    CollectPures pcol(_ctx, _pures, _axioms);
+    pcol(_current_pure_body);
+
+    if (g_verbosity >= 3) {
+        for (auto& pure : pcol.collected) {
+            auto pv = get_value(pure);
+            ALOG(3, "  %s = %s", pure->to_string().c_str(),
+                 pv ? (*pv)->to_string().c_str() : "?");
+        }
+    }
+
     // Quick three-valued check.
     {
         HasUninterpreted hu(_ctx);
@@ -1090,8 +1101,6 @@ bool LiaAbstraction::check_nia() {
     }
 
     bool res = true;
-    CollectPures pcol(_ctx, _pures, _axioms);
-    pcol(_current_pure_body);
 
     size_t pairs_before = _congruence_pairs_added.size();
     add_lazy_congruence_axioms(pcol);
