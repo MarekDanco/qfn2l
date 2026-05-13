@@ -381,43 +381,52 @@ void LiaAbstraction::_solve() {
 
         z3::model opt_mdl = lia_slv.get_model();
 
-        // If the model has large values, try a bounded re-check over ALL constants
-        // (orig vars + pures).  Older z3 versions lack the LIA small-model
-        // preference of newer releases; bounding all constants forces small models
-        // when one exists, shrinking iteration counts dramatically.
+        // Adaptively shrink the model: mirror Python's --bounds heuristic.
+        // Each attempt bounds all int constants to ±(3/4 * current_max) and
+        // re-checks.  Stop when max < 20 or the bounded check is UNSAT.
         {
-            static constexpr int64_t SMALL_B = 1000;
-            bool                     has_large = false;
-            for (unsigned i = 0; i < opt_mdl.num_consts(); i++) {
-                z3::expr interp = opt_mdl.get_const_interp(opt_mdl.get_const_decl(i));
-                if (!interp.get_sort().is_int())
-                    continue;
-                int64_t v = 0;
-                if (!interp.is_numeral_i64(v) || std::abs(v) > SMALL_B) {
-                    has_large = true;
-                    break;
+            static constexpr int64_t TINY         = 20;
+            static constexpr int     MAX_ATTEMPTS = 5;
+            for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+                int64_t mx = 0;
+                for (unsigned i = 0; i < opt_mdl.num_consts(); i++) {
+                    z3::expr interp =
+                        opt_mdl.get_const_interp(opt_mdl.get_const_decl(i));
+                    if (!interp.get_sort().is_int())
+                        continue;
+                    int64_t v = 0;
+                    if (!interp.is_numeral_i64(v)) {
+                        mx = INT64_MAX;
+                        break;
+                    }
+                    mx = std::max(mx, std::abs(v));
                 }
-            }
-            if (has_large) {
-                ALOG(4, "large values in model; trying bounded re-check");
+                if (mx < TINY)
+                    break;
+                int64_t bound = 3 * mx / 4;
+                ALOG(4, "shrink attempt %d: ±%lld (max=%lld)", attempt, (long long)bound,
+                     (long long)mx);
                 lia_slv.push();
                 for (unsigned i = 0; i < opt_mdl.num_consts(); i++) {
                     z3::func_decl d = opt_mdl.get_const_decl(i);
                     if (!d.range().is_int())
                         continue;
                     z3::expr var = d();
-                    lia_slv.add(var >= z3ctx->int_val((int64_t)-SMALL_B));
-                    lia_slv.add(var <= z3ctx->int_val((int64_t)SMALL_B));
+                    lia_slv.add(var >= z3ctx->int_val(-bound));
+                    lia_slv.add(var <= z3ctx->int_val(bound));
                 }
                 STATS.begin_phase(STATS.liatime);
                 z3::check_result bres = lia_slv.check();
                 STATS.end_phase();
                 STATS.liacalls += 1;
                 if (bres == z3::sat) {
-                    ALOG(4, "bounded re-check succeeded");
+                    ALOG(4, "shrink attempt %d succeeded", attempt);
                     opt_mdl = lia_slv.get_model();
+                    lia_slv.pop();
+                } else {
+                    lia_slv.pop();
+                    break;
                 }
-                lia_slv.pop();
             }
         }
 
