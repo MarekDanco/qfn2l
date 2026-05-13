@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Default paths — override via --smt-switch-dir or SMT_SWITCH_DIR env var.
+DEFAULT_SMT_SWITCH_DIR="${SMT_SWITCH_DIR:-/home/marek/solvers/smt-switch/build}"
+
+usage() {
+    echo "Usage: $0 [--smt-switch-dir DIR] [--build-dir DIR] [--debug] [--cvc5] [--no-build] [cmake extra args...]"
+    echo
+    echo "  --smt-switch-dir DIR   Path to smt-switch build directory (default: $DEFAULT_SMT_SWITCH_DIR)"
+    echo "  --build-dir DIR        Build directory relative to src/qfn2l_cpp (default: build)"
+    echo "  --debug                Use Debug build type instead of Release"
+    echo "  --cvc5                 Also enable the CVC5 backend"
+    echo "  --no-build             Configure only; skip the build step"
+    echo "  Extra cmake args are passed through verbatim."
+    exit 0
+}
+
+SMT_SWITCH_DIR_ARG="$DEFAULT_SMT_SWITCH_DIR"
+BUILD_DIR="build"
+BUILD_TYPE="Release"
+EXTRA_ARGS=()
+BACKEND_CVC5="OFF"
+DO_BUILD=1
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --smt-switch-dir) SMT_SWITCH_DIR_ARG="$2"; shift 2 ;;
+        --build-dir)      BUILD_DIR="$2"; shift 2 ;;
+        --debug)          BUILD_TYPE="Debug"; shift ;;
+        --cvc5)           BACKEND_CVC5="ON"; shift ;;
+        --no-build)       DO_BUILD=0; shift ;;
+        -h|--help)        usage ;;
+        *)                EXTRA_ARGS+=("$1"); shift ;;
+    esac
+done
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BUILD_PATH="$SCRIPT_DIR/$BUILD_DIR"
+
+echo "==> Configuring qfn2l_cpp"
+echo "    smt-switch: $SMT_SWITCH_DIR_ARG"
+echo "    build dir:  $BUILD_PATH"
+echo "    build type: $BUILD_TYPE"
+
+mkdir -p "$BUILD_PATH"
+
+cmake -S "$SCRIPT_DIR" -B "$BUILD_PATH" \
+    -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+    -DSMT_SWITCH_DIR="$SMT_SWITCH_DIR_ARG" \
+    -DBACKEND_Z3=ON \
+    -DBACKEND_CVC5="$BACKEND_CVC5" \
+    "${EXTRA_ARGS[@]}"
+
+if [[ $DO_BUILD -eq 1 ]]; then
+    echo
+    echo "==> Building"
+    cmake --build "$BUILD_PATH" -j"$(nproc)"
+fi

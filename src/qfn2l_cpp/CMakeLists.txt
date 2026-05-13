@@ -117,4 +117,11 @@ if(BUILD_TESTING)
   target_link_libraries(qfn2l_numeric_tests PRIVATE qfn2l_core)
   configure_qfn2l_target(qfn2l_numeric_tests)
   add_test(NAME qfn2l_numeric_tests COMMAND qfn2l_numeric_tests)
+
+  # 'make check' builds and runs tests (unlike 'make test' which skips the build).
+  add_custom_target(check
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+    DEPENDS qfn2l_numeric_tests
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+  )
 endif()
