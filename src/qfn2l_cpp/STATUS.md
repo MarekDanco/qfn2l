@@ -2,16 +2,9 @@
 
 ## Build
 
-Two build directories:
+One configured build directory (`build/`, ASAN+debug):
 
 ```bash
-# Release (use for correctness testing)
-mkdir -p src/qfn2l_cpp/build_noasan && cd src/qfn2l_cpp/build_noasan
-cmake .. -DBACKEND_Z3=ON -DCMAKE_BUILD_TYPE=Release \
-         -DSMT_SWITCH_DIR=/home/marek/solvers/smt-switch/build
-make -j$(nproc)
-
-# ASAN/debug (use for memory debugging) — pre-configured
 cd src/qfn2l_cpp/build && make -j$(nproc)
 ```
 
@@ -19,7 +12,7 @@ smt-switch is at `/home/marek/solvers/smt-switch/`. See `NOTES.md` for full buil
 
 ## Test Results
 
-Run `examples/test_me_cpp.sh` from the `examples/` directory (uses `build_noasan`):
+Run `examples/test_me_cpp.sh` from the `examples/` directory:
 
 | File | Expected | `--zeros` | `--bounds` | `--zeros --bounds --modax 5` |
 |------|----------|-----------|------------|------------------------------|
@@ -28,16 +21,19 @@ Run `examples/test_me_cpp.sh` from the `examples/` directory (uses `build_noasan
 | `hard-ll.c_0..4.smt2` | unsat | ✓ | ✓ | ✓ |
 | `STC_0019.smt2` | sat | ✓ | ✓ | ✓ |
 | `STC_0072.smt2` | sat | ✓ | ✓ | ✓ |
+| `STC_0504.smt2` | sat | ✓ | ✓ | ✓ |
 
-**Note:** All tests now pass. The test script must be run from the `examples/` directory —
+**Note:** The test script must be run from the `examples/` directory —
 `bash examples/test_me_cpp.sh` run from the repo root uses a wrong relative path for the binary.
 
 ## Known Bugs / Open Issues
 
-### 1. ASAN build crashes on several inputs
+### 1. ASAN build may crash on some inputs
 
-The `build/` (ASAN) binary exits with code 1 (memory error) on `hard-ll.c_*` and `STC_*` files.
-The `build_noasan/` binary handles them correctly. The memory bug has not been diagnosed yet.
+The `build/` (ASAN) binary has previously exited with a memory error on
+`hard-ll.c_*` and `STC_*` files.  Tests currently pass because the correct
+answer is emitted to stdout before the crash, and the test script discards
+stderr.  The underlying memory bug has not been diagnosed.
 
 To investigate:
 ```bash

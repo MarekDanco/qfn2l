@@ -15,10 +15,10 @@
 // ── Solver context ────────────────────────────────────────────────────────────
 struct Ctx {
     smt::SmtSolver solver;
-    smt::Sort int_sort;
-    smt::Sort bool_sort;
-    smt::Term ZERO, ONE, MIN_ONE;
-    smt::Term TRUE_T, FALSE_T;
+    smt::Sort      int_sort;
+    smt::Sort      bool_sort;
+    smt::Term      ZERO, ONE, MIN_ONE;
+    smt::Term      TRUE_T, FALSE_T;
 
     // TODO: verify smt-switch factory header names for chosen backend.
     // Construct from a pre-created SmtSolver.
@@ -29,10 +29,10 @@ struct Ctx {
     // Accepts "N", "-N", or SMT-LIB sexpr form "(- N)".
     smt::Term make_int_str(const std::string& s) const;
     // Create a fresh symbol with the given sort (unique name, globally unique).
-    smt::Term fresh_symbol(const smt::Sort& sort,
+    smt::Term fresh_symbol(const smt::Sort&   sort,
                            const std::string& prefix = "_p") const;
 
-private:
+  private:
     mutable std::atomic<int> _fresh_ctr{0};
 };
 
@@ -49,9 +49,9 @@ int64_t term_to_int64(const smt::Term& t);
 // Uses z3 simplify so works for big integers; result fits in int64_t (|result| < k).
 int64_t term_mod_int(const Ctx& ctx, const smt::Term& val, int64_t k);
 
-bool is_value(const smt::Term& t);         // concrete value (int or bool)
-bool is_int_value(const smt::Term& t);     // concrete integer
-bool is_symbol(const smt::Term& t);        // symbolic constant (SYMBOL kind)
+bool is_value(const smt::Term& t);          // concrete value (int or bool)
+bool is_int_value(const smt::Term& t);      // concrete integer
+bool is_symbol(const smt::Term& t);         // symbolic constant (SYMBOL kind)
 bool is_symbolic_const(const smt::Term& t); // symbol that is not a numeral
 
 // ── Op-code predicates ────────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ bool is_mul(const smt::Term& t);
 bool is_add(const smt::Term& t);
 bool is_sub(const smt::Term& t);
 bool is_mod(const smt::Term& t);
-bool is_idiv(const smt::Term& t);  // integer div
+bool is_idiv(const smt::Term& t); // integer div
 bool is_and(const smt::Term& t);
 bool is_or(const smt::Term& t);
 bool is_not(const smt::Term& t);
@@ -82,8 +82,8 @@ bool is_exists(const smt::Term& t);
 bool is_int(const Ctx& ctx, const smt::Term& t);
 bool is_bool(const Ctx& ctx, const smt::Term& t);
 bool is_int_atom(const Ctx& ctx, const smt::Term& t);
-bool is_non_linear(const smt::Term& t);  // mul with 2+ symbolic children
-bool is_nnf_connective(const smt::Term& t);  // and / or / not
+bool is_non_linear(const smt::Term& t);     // mul with 2+ symbolic children
+bool is_nnf_connective(const smt::Term& t); // and / or / not
 
 // ── Value checks ─────────────────────────────────────────────────────────────
 bool is_true(const Ctx& ctx, const smt::Term& t);
@@ -91,7 +91,7 @@ bool is_false(const Ctx& ctx, const smt::Term& t);
 bool is_zero(const Ctx& ctx, const smt::Term& t);
 bool is_one(const Ctx& ctx, const smt::Term& t);
 bool is_min_one(const Ctx& ctx, const smt::Term& t);
-bool is_neg_val(const smt::Term& t);   // value < 0
+bool is_neg_val(const smt::Term& t); // value < 0
 
 // ── Term building helpers ─────────────────────────────────────────────────────
 smt::Term mk_true(const Ctx& ctx);
@@ -127,14 +127,14 @@ smt::Term    get_child(const smt::Term& t, size_t i);
 smt::Term rebuild(const Ctx& ctx, const smt::Term& t, const smt::TermVec& new_args);
 
 // ── Variable collection ───────────────────────────────────────────────────────
-smt::TermVec get_vars(const smt::Term& t);  // all SYMBOL-kind sub-terms
+smt::TermVec get_vars(const smt::Term& t); // all SYMBOL-kind sub-terms
 
 // ── Substitution wrapper ──────────────────────────────────────────────────────
 smt::Term do_substitute(const Ctx& ctx, const smt::Term& t,
                         const smt::UnorderedTermMap& subs);
-smt::Term do_substitute(const Ctx& ctx, const smt::Term& t,
-                        const smt::TermVec& from, const smt::TermVec& to);
+smt::Term do_substitute(const Ctx& ctx, const smt::Term& t, const smt::TermVec& from,
+                        const smt::TermVec& to);
 
 // pairs -> And(a == v, ...)
-smt::Term pairs2fla(const Ctx& ctx,
+smt::Term pairs2fla(const Ctx&                                          ctx,
                     const std::vector<std::pair<smt::Term, smt::Term>>& pairs);

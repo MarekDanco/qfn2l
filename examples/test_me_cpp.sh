@@ -30,7 +30,7 @@ run_and_check() {
     fi
 }
 
-S=../src/qfn2l_cpp/build_noasan/qfn2l
+S=../src/qfn2l_cpp/build/qfn2l
 for opts in "--zeros" "--bounds" "--zeros --bounds --modax 5" ; do
 	echo OPTS: ${opts}
 	run_and_check "${S}" "--timeout 10 ${opts}" ./hard.c_2.smt2 unsat
@@ -42,4 +42,5 @@ for opts in "--zeros" "--bounds" "--zeros --bounds --modax 5" ; do
 	run_and_check "${S}" "--timeout 10 ${opts}" ./hard-ll.c_4.smt2 unsat
 	run_and_check "${S}" "--timeout 10 ${opts}" ./STC_0019.smt2 sat
 	run_and_check "${S}" "--timeout 10 ${opts}" ./STC_0072.smt2 sat
+	run_and_check "${S}" "--timeout 10 ${opts}" ./STC_0504.smt2 sat
 done

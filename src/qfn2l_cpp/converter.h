@@ -13,17 +13,15 @@ class NNFConverter {
         }
     };
 
-public:
+  public:
     explicit NNFConverter(const Ctx& ctx) : _ctx(ctx) {}
 
-    smt::Term operator()(const smt::Term& f) {
-        return convert(f, /*negate=*/false);
-    }
+    smt::Term operator()(const smt::Term& f) { return convert(f, /*negate=*/false); }
 
     smt::Term convert(const smt::Term& f, bool negate);
 
-private:
-    const Ctx& _ctx;
+  private:
+    const Ctx&                                                          _ctx;
     std::unordered_map<std::pair<smt::Term, bool>, smt::Term, PairHash> _cache;
 
     smt::Term to_nnf(const smt::Term& f, bool negate);

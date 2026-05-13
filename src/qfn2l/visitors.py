@@ -13,7 +13,6 @@ from utils import (
     ZERO,
     FALSE,
     TRUE,
-    GetLevel,
     eval_mul,
     eval_sum,
     is_ite,
@@ -341,21 +340,8 @@ class MakeDefs(SimpleVisit):
     def make(self, in_prefix, formula) -> tuple[list[QLev], ExprRef]:
         new_formula = self(formula)
         prefix = in_prefix[:]
-        const2lev = {v: lev for lev, qlev in enumerate(prefix) for v in qlev.vars()}
-        levs = GetLevel(const2lev)
         for t, v in self._definitions.items():
-            new_level = -1
-            term_level = levs(t)
-            for lev in range(term_level, len(prefix)):
-                qlev = prefix[lev]
-                if qlev.is_exists():
-                    qlev.add_var(v)
-                    new_level = lev
-                    break
-            if new_level < 0:
-                new_level = len(prefix)
-                prefix.append(QLev(is_forall=False, vs=[v]))
-            const2lev[v] = new_level
+            prefix[0].add_var(v)
         return prefix, mk_and(
             new_formula, *[k == v for k, v in self._definitions.items()]
         )

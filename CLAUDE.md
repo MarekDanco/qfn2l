@@ -33,6 +33,7 @@ Key options:
 - `-pat N` / `--preprocess-aggressive-timeout N` — timeout for aggressive preprocessing in ms (default 5000)
 - `--heur-timeout N` — timeout for heuristic LIA calls in ms (default 3000)
 - `--print-model` — print SAT model as SMT2 define-fun lines
+- `--stats` — print full stats on exit (default: silent)
 - `--brief-stats` — on exit print only: terminated phase, longest phase, iteration count, pures count
 - `--recursion-depth N` — set Python recursion limit (default 100000)
 
