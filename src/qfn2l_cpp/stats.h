@@ -6,13 +6,13 @@
 
 struct TimedStat {
     const char* name;
-    double      value = 0.0;
+    double value = 0.0;
 };
 
 struct CountStat {
     const char* name;
-    long        value = 0;
-    CountStat&  operator+=(long n) {
+    long value = 0;
+    CountStat& operator+=(long n) {
         value += n;
         return *this;
     }
@@ -43,11 +43,11 @@ struct Stats {
     TimedStat total_time{"total_time"};
 
     using Clock = std::chrono::steady_clock;
-    using TP    = std::chrono::time_point<Clock>;
+    using TP = std::chrono::time_point<Clock>;
 
     struct Phase {
         TimedStat* stat;
-        TP         start;
+        TP start;
     };
     std::vector<Phase> phase_stack;
 

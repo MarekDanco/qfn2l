@@ -17,8 +17,8 @@ smt::Term TermTransformer::operator()(const smt::Term& root) {
     std::vector<std::pair<smt::Term, bool>> stk;
     stk.push_back({root, false});
     while (!stk.empty()) {
-        smt::Term t      = stk.back().first; // copy before possible realloc
-        bool      pushed = stk.back().second;
+        smt::Term t = stk.back().first; // copy before possible realloc
+        bool pushed = stk.back().second;
         if (_memo.count(t)) {
             stk.pop_back();
             continue;
@@ -43,7 +43,7 @@ smt::Term TermTransformer::recurse(const smt::Term& t) {
     if (!is_app(t) || t->begin() == t->end())
         return t;
     smt::TermVec new_args;
-    bool         changed = false;
+    bool changed = false;
     for (auto it = t->begin(); it != t->end(); ++it) {
         smt::Term nc = (*this)(*it);
         if (nc != *it)
@@ -63,8 +63,8 @@ bool TermPredicate::operator()(const smt::Term& root) {
     std::vector<std::pair<smt::Term, bool>> stk;
     stk.push_back({root, false});
     while (!stk.empty()) {
-        smt::Term t      = stk.back().first;
-        bool      pushed = stk.back().second;
+        smt::Term t = stk.back().first;
+        bool pushed = stk.back().second;
         if (_memo.count(t)) {
             stk.pop_back();
             continue;
@@ -106,7 +106,7 @@ bool Contains::visit_node(const smt::Term& t) {
 smt::Term SimpleSimplify::visit_add(const smt::Term& t) {
     // Flatten and collect numerals.
     std::vector<smt::Term> stack = get_children(t);
-    smt::TermVec           coeffs, others;
+    smt::TermVec coeffs, others;
     while (!stack.empty()) {
         auto c = stack.back();
         stack.pop_back();
@@ -131,7 +131,7 @@ smt::Term SimpleSimplify::visit_add(const smt::Term& t) {
 
 smt::Term SimpleSimplify::visit_mul(const smt::Term& t) {
     std::vector<smt::Term> stack = get_children(t);
-    smt::TermVec           coeffs, others;
+    smt::TermVec coeffs, others;
     while (!stack.empty()) {
         auto c = stack.back();
         stack.pop_back();
@@ -162,7 +162,7 @@ smt::Term SimpleSimplify::visit_mul(const smt::Term& t) {
 
 smt::Term SimpleSimplify::visit_or(const smt::Term& t) {
     std::vector<smt::Term> stack = get_children(t);
-    smt::TermVec           nchs;
+    smt::TermVec nchs;
     while (!stack.empty()) {
         auto c = stack.back();
         stack.pop_back();
@@ -181,7 +181,7 @@ smt::Term SimpleSimplify::visit_or(const smt::Term& t) {
 
 smt::Term SimpleSimplify::visit_and(const smt::Term& t) {
     std::vector<smt::Term> stack = get_children(t);
-    smt::TermVec           nchs;
+    smt::TermVec nchs;
     while (!stack.empty()) {
         auto c = stack.back();
         stack.pop_back();
@@ -284,7 +284,7 @@ smt::Term SimplePropagate::propagate(bool pos, const smt::Term& node) {
     smt::UnorderedTermMap subst;
     for (auto& [lhs, rhs] : eqs) {
         smt::Term new_rhs = do_substitute(_ctx, rhs, subst);
-        subst[lhs]        = new_rhs;
+        subst[lhs] = new_rhs;
     }
 
     // Apply substitution to remaining children.
@@ -323,7 +323,7 @@ smt::Term MakeDefs::mk_def(const smt::Term& t) {
     auto it = _definitions.find(t);
     if (it != _definitions.end())
         return it->second;
-    smt::Term nc    = _ctx.fresh_symbol(t->get_sort());
+    smt::Term nc = _ctx.fresh_symbol(t->get_sort());
     _definitions[t] = nc;
     return nc;
 }
@@ -337,7 +337,7 @@ smt::Term MakeDefs::visit_node(const smt::Term& init_t) {
         return t;
 
     smt::TermVec children = get_children(t);
-    int          usymbols = 0;
+    int usymbols = 0;
     for (auto& c : children)
         if (_hu(c))
             ++usymbols;
@@ -347,9 +347,9 @@ smt::Term MakeDefs::visit_node(const smt::Term& init_t) {
     // Separate numeric coefficients from symbolic factors.
     // Inline nested mul children to avoid creating intermediate definitions
     // for powers of a single symbol (e.g. x*(x*x) -> group {x:[x,x,x]}).
-    smt::TermVec                                coeffs;
+    smt::TermVec coeffs;
     std::unordered_map<smt::Term, smt::TermVec> splits;
-    std::function<void(const smt::Term&)>       add = [&](const smt::Term& c) {
+    std::function<void(const smt::Term&)> add = [&](const smt::Term& c) {
         if (!_hu(c)) {
             coeffs.push_back(c);
         } else if (is_symbol(c)) {
@@ -393,10 +393,10 @@ smt::Term MakeDefs::visit_node(const smt::Term& init_t) {
     return mk_mul(_ctx, result_factors);
 }
 
-std::pair<Prefix, smt::Term> MakeDefs::make(const Prefix&    in_prefix,
+std::pair<Prefix, smt::Term> MakeDefs::make(const Prefix& in_prefix,
                                             const smt::Term& formula) {
     smt::Term new_formula = (*this)(formula);
-    Prefix    prefix      = in_prefix;
+    Prefix prefix = in_prefix;
 
     for (auto& [t, v] : _definitions)
         prefix[0].add_var(v);

@@ -32,7 +32,7 @@ smt::Term to_fla(const Ctx& ctx, const Prefix& prefix, const smt::Term& body) {
         const auto& qlev = prefix[lev];
         if (qlev.vars.empty())
             continue;
-        smt::PrimOp  qop  = qlev.is_exists_q ? smt::Exists : smt::Forall;
+        smt::PrimOp qop = qlev.is_exists_q ? smt::Exists : smt::Forall;
         smt::TermVec args = qlev.vars;
         args.push_back(fla);
         fla = ctx.solver->make_term(qop, args);

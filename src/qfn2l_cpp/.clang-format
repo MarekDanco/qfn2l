@@ -3,11 +3,3 @@ BasedOnStyle: LLVM
 IndentWidth: 4
 PointerAlignment: Left
 ColumnLimit: 88
-AlignConsecutiveAssignments:
-  Enabled: true
-  AcrossEmptyLines: false
-  AcrossComments: false
-AlignConsecutiveDeclarations:
-  Enabled: true
-  AcrossEmptyLines: false
-  AcrossComments: false

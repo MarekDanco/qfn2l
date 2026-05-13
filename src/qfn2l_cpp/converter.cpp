@@ -7,11 +7,11 @@ smt::Term NNFConverter::convert(const smt::Term& f, bool negate) {
 
 smt::Term NNFConverter::to_nnf(const smt::Term& f, bool negate) {
     auto key = std::make_pair(f, negate);
-    auto it  = _cache.find(key);
+    auto it = _cache.find(key);
     if (it != _cache.end())
         return it->second;
     smt::Term res = to_nnf_inner(f, negate);
-    _cache[key]   = res;
+    _cache[key] = res;
     return res;
 }
 
@@ -40,7 +40,7 @@ smt::Term NNFConverter::unchained(const smt::Term& t) {
     auto chs = get_children(t);
     if (chs.size() <= 2)
         return t;
-    auto         op = t->get_op();
+    auto op = t->get_op();
     smt::TermVec conjs;
     for (size_t i = 0; i + 1 < chs.size(); ++i)
         conjs.push_back(_ctx.solver->make_term(op, chs[i], chs[i + 1]));
@@ -50,7 +50,7 @@ smt::Term NNFConverter::unchained(const smt::Term& t) {
 smt::Term NNFConverter::to_nnf_inner(const smt::Term& expr, bool negate) {
     // distinct -> not-equalities
     if (is_distinct(expr)) {
-        auto         chs = get_children(expr);
+        auto chs = get_children(expr);
         smt::TermVec neqs;
         for (size_t i = 0; i < chs.size(); ++i)
             for (size_t j = i + 1; j < chs.size(); ++j)
@@ -89,9 +89,9 @@ smt::Term NNFConverter::to_nnf_inner(const smt::Term& expr, bool negate) {
     // The approach below uses get_children to get [var1, var2, ..., body].
     if (is_forall(expr) || is_exists(expr)) {
         bool expr_is_forall = is_forall(expr);
-        auto all_chs        = get_children(expr);
+        auto all_chs = get_children(expr);
         assert(!all_chs.empty());
-        smt::Term    body = all_chs.back();
+        smt::Term body = all_chs.back();
         smt::TermVec bound_vars(all_chs.begin(), all_chs.end() - 1);
 
         // Create fresh symbols for bound vars and substitute.
@@ -100,18 +100,18 @@ smt::Term NNFConverter::to_nnf_inner(const smt::Term& expr, bool negate) {
             fresh.push_back(_ctx.fresh_symbol(v->get_sort(), v->to_string() + "_"));
 
         NNFConverter inner(_ctx);
-        smt::Term    new_body =
+        smt::Term new_body =
             inner.convert(do_substitute(_ctx, body, bound_vars, fresh), negate);
 
-        bool         result_is_forall = negate ? !expr_is_forall : expr_is_forall;
-        smt::PrimOp  qop              = result_is_forall ? smt::Forall : smt::Exists;
-        smt::TermVec qargs            = fresh;
+        bool result_is_forall = negate ? !expr_is_forall : expr_is_forall;
+        smt::PrimOp qop = result_is_forall ? smt::Forall : smt::Exists;
+        smt::TermVec qargs = fresh;
         qargs.push_back(new_body);
         return _ctx.solver->make_term(qop, qargs);
     }
 
     // Chained comparisons: a <= b <= c has >2 children for some backends.
-    auto op           = expr->get_op().prim_op;
+    auto op = expr->get_op().prim_op;
     bool is_chainable = (op == smt::Equal || op == smt::Le || op == smt::Lt ||
                          op == smt::Ge || op == smt::Gt);
     if (is_chainable && num_children(expr) > 2)

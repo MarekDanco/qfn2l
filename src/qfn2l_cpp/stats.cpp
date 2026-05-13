@@ -7,8 +7,8 @@ Stats STATS;
 void Stats::begin_phase(TimedStat& s) { phase_stack.push_back({&s, Clock::now()}); }
 
 void Stats::end_phase() {
-    auto& ph      = phase_stack.back();
-    auto  elapsed = std::chrono::duration<double>(Clock::now() - ph.start).count();
+    auto& ph = phase_stack.back();
+    auto elapsed = std::chrono::duration<double>(Clock::now() - ph.start).count();
     ph.stat->value += elapsed;
     phase_stack.pop_back();
 }

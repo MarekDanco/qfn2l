@@ -21,7 +21,7 @@ class NNFConverter {
     smt::Term convert(const smt::Term& f, bool negate);
 
   private:
-    const Ctx&                                                          _ctx;
+    const Ctx& _ctx;
     std::unordered_map<std::pair<smt::Term, bool>, smt::Term, PairHash> _cache;
 
     smt::Term to_nnf(const smt::Term& f, bool negate);

@@ -9,8 +9,8 @@ class Pures {
   public:
     void map_t2p(const smt::Term& t, const smt::Term& p);
 
-    smt::Term*       find_p(const smt::Term& t); // nullptr if not found
-    smt::Term*       find_t(const smt::Term& p); // nullptr if not found
+    smt::Term* find_p(const smt::Term& t); // nullptr if not found
+    smt::Term* find_t(const smt::Term& p); // nullptr if not found
     const smt::Term& get_p(const smt::Term& t) const;
     const smt::Term& get_t(const smt::Term& p) const;
 
@@ -36,10 +36,10 @@ class CollectPures {
     smt::UnorderedTermSet mul_collected;
 
   private:
-    const Ctx&                                         _ctx;
-    const Pures&                                       _pures;
+    const Ctx& _ctx;
+    const Pures& _pures;
     const std::unordered_map<smt::Term, smt::TermVec>& _axioms;
-    smt::UnorderedTermSet                              _visited;
+    smt::UnorderedTermSet _visited;
 
     void visit(const smt::Term& t);
 };
@@ -61,10 +61,10 @@ class CheckVal {
     std::optional<smt::Term> operator()(const smt::Term& t);
 
   private:
-    const Ctx&                                              _ctx;
-    HasUninterpreted&                                       _hu;
-    const Pures&                                            _pures;
-    const smt::SmtSolver&                                   _lia_solver;
+    const Ctx& _ctx;
+    HasUninterpreted& _hu;
+    const Pures& _pures;
+    const smt::SmtSolver& _lia_solver;
     std::unordered_map<smt::Term, std::optional<smt::Term>> _memo;
 
     std::optional<smt::Term> visit(const smt::Term& t);

@@ -10,15 +10,15 @@
 
 #include <boost/multiprecision/cpp_int.hpp>
 
-#include "smt.h"  // smt-switch main header
+#include "smt.h" // smt-switch main header
 
 // ── Solver context ────────────────────────────────────────────────────────────
 struct Ctx {
     smt::SmtSolver solver;
-    smt::Sort      int_sort;
-    smt::Sort      bool_sort;
-    smt::Term      ZERO, ONE, MIN_ONE;
-    smt::Term      TRUE_T, FALSE_T;
+    smt::Sort int_sort;
+    smt::Sort bool_sort;
+    smt::Term ZERO, ONE, MIN_ONE;
+    smt::Term TRUE_T, FALSE_T;
 
     // TODO: verify smt-switch factory header names for chosen backend.
     // Construct from a pre-created SmtSolver.
@@ -29,7 +29,7 @@ struct Ctx {
     // Accepts "N", "-N", or SMT-LIB sexpr form "(- N)".
     smt::Term make_int_str(const std::string& s) const;
     // Create a fresh symbol with the given sort (unique name, globally unique).
-    smt::Term fresh_symbol(const smt::Sort&   sort,
+    smt::Term fresh_symbol(const smt::Sort& sort,
                            const std::string& prefix = "_p") const;
 
   private:
@@ -120,8 +120,8 @@ smt::Term negate_numeral(const Ctx& ctx, const smt::Term& n);
 
 // ── Child access ──────────────────────────────────────────────────────────────
 smt::TermVec get_children(const smt::Term& t);
-size_t       num_children(const smt::Term& t);
-smt::Term    get_child(const smt::Term& t, size_t i);
+size_t num_children(const smt::Term& t);
+smt::Term get_child(const smt::Term& t, size_t i);
 
 // Rebuild t with new children (same op).
 smt::Term rebuild(const Ctx& ctx, const smt::Term& t, const smt::TermVec& new_args);
@@ -136,5 +136,5 @@ smt::Term do_substitute(const Ctx& ctx, const smt::Term& t, const smt::TermVec& 
                         const smt::TermVec& to);
 
 // pairs -> And(a == v, ...)
-smt::Term pairs2fla(const Ctx&                                          ctx,
+smt::Term pairs2fla(const Ctx& ctx,
                     const std::vector<std::pair<smt::Term, smt::Term>>& pairs);

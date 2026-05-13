@@ -12,7 +12,7 @@ class QfSolver {
     const LiaAbstraction& abstraction() const { return *_abstraction; }
 
   private:
-    const Ctx&                      _ctx;
-    const Options&                  _opts;
+    const Ctx& _ctx;
+    const Options& _opts;
     std::unique_ptr<LiaAbstraction> _abstraction;
 };

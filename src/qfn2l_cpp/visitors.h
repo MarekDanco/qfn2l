@@ -17,7 +17,7 @@ class TermTransformer {
 
   protected:
     virtual smt::Term visit_node(const smt::Term& t) = 0;
-    const Ctx&        _ctx;
+    const Ctx& _ctx;
 
   private:
     smt::UnorderedTermMap _memo;
@@ -33,7 +33,7 @@ class TermPredicate {
 
   protected:
     virtual bool visit_node(const smt::Term& t) = 0;
-    const Ctx&   _ctx;
+    const Ctx& _ctx;
 
   private:
     std::unordered_map<smt::Term, bool> _memo;
@@ -97,7 +97,7 @@ class MakeDefs : public TermTransformer {
 
     // Apply to a formula and update the prefix with fresh existential vars.
     // Returns {new_prefix, new_body}.
-    std::pair<Prefix, smt::Term> make(const Prefix&    in_prefix,
+    std::pair<Prefix, smt::Term> make(const Prefix& in_prefix,
                                       const smt::Term& formula);
 
     const std::unordered_map<smt::Term, smt::Term>& definitions() const {
@@ -108,7 +108,7 @@ class MakeDefs : public TermTransformer {
     smt::Term visit_node(const smt::Term& t) override;
 
   private:
-    HasUninterpreted                         _hu;
+    HasUninterpreted _hu;
     std::unordered_map<smt::Term, smt::Term> _definitions;
 
     smt::Term mk_def(const smt::Term& t);

@@ -15,7 +15,8 @@ using boost::multiprecision::cpp_int;
 static std::string trim_copy(const std::string& s) {
     const char* ws = " \t\n\r";
     size_t b = s.find_first_not_of(ws);
-    if (b == std::string::npos) return "";
+    if (b == std::string::npos)
+        return "";
     size_t e = s.find_last_not_of(ws);
     return s.substr(b, e - b + 1);
 }
@@ -31,13 +32,13 @@ static cpp_int parse_cpp_int(const std::string& raw) {
 
 // ── Ctx ───────────────────────────────────────────────────────────────────────
 Ctx::Ctx(smt::SmtSolver s) : solver(std::move(s)) {
-    int_sort  = solver->make_sort(smt::INT);
+    int_sort = solver->make_sort(smt::INT);
     bool_sort = solver->make_sort(smt::BOOL);
-    ZERO      = solver->make_term(int64_t(0), int_sort);
-    ONE       = solver->make_term(int64_t(1), int_sort);
-    MIN_ONE   = solver->make_term(int64_t(-1), int_sort);
-    TRUE_T    = solver->make_term(true);
-    FALSE_T   = solver->make_term(false);
+    ZERO = solver->make_term(int64_t(0), int_sort);
+    ONE = solver->make_term(int64_t(1), int_sort);
+    MIN_ONE = solver->make_term(int64_t(-1), int_sort);
+    TRUE_T = solver->make_term(true);
+    FALSE_T = solver->make_term(false);
 }
 
 smt::Term Ctx::make_int(int64_t n) const { return solver->make_term(n, int_sort); }
@@ -162,7 +163,7 @@ bool is_one(const Ctx& ctx, const smt::Term& t) {
 bool is_min_one(const Ctx& ctx, const smt::Term& t) {
     if (!t->is_value() || t->get_sort() != ctx.int_sort)
         return false;
-    std::string             s = t->to_string();
+    std::string s = t->to_string();
     static const std::regex neg_one_re(R"(\(\s*-\s*1\s*\))");
     return std::regex_match(s, neg_one_re);
 }
@@ -274,14 +275,20 @@ int64_t term_mod_int(const Ctx&, const smt::Term& val, int64_t k) {
     cpp_int v = term_to_cpp_int(val);
     cpp_int kk = k;
     cpp_int r = v % kk;
-    if (r < 0) r += kk;
+    if (r < 0)
+        r += kk;
     return cpp_int_to_int64(r);
 }
 
 smt::Term eval_mul(const Ctx& ctx, const smt::TermVec& args) {
-    if (args.empty()) return ctx.ONE;
-    for (auto& a : args) { assert(a->is_value()); (void)a; }
-    if (args.size() == 1) return args[0];
+    if (args.empty())
+        return ctx.ONE;
+    for (auto& a : args) {
+        assert(a->is_value());
+        (void)a;
+    }
+    if (args.size() == 1)
+        return args[0];
     cpp_int r = 1;
     for (auto& a : args)
         r *= term_to_cpp_int(a);
@@ -289,9 +296,14 @@ smt::Term eval_mul(const Ctx& ctx, const smt::TermVec& args) {
 }
 
 smt::Term eval_sum(const Ctx& ctx, const smt::TermVec& args) {
-    if (args.empty()) return ctx.ZERO;
-    for (auto& a : args) { assert(a->is_value()); (void)a; }
-    if (args.size() == 1) return args[0];
+    if (args.empty())
+        return ctx.ZERO;
+    for (auto& a : args) {
+        assert(a->is_value());
+        (void)a;
+    }
+    if (args.size() == 1)
+        return args[0];
     cpp_int r = 0;
     for (auto& a : args)
         r += term_to_cpp_int(a);
@@ -301,7 +313,8 @@ smt::Term eval_sum(const Ctx& ctx, const smt::TermVec& args) {
 smt::Term eval_exp(const Ctx& ctx, const smt::Term& x, int n) {
     assert(n >= 0);
     assert(x->is_value());
-    if (n == 0) return ctx.ONE;
+    if (n == 0)
+        return ctx.ONE;
     cpp_int v = term_to_cpp_int(x);
     cpp_int r = 1;
     for (int i = 0; i < n; ++i)
@@ -346,7 +359,7 @@ smt::Term rebuild(const Ctx& ctx, const smt::Term& t, const smt::TermVec& new_ar
 
 // ── Variable collection ───────────────────────────────────────────────────────
 smt::TermVec get_vars(const smt::Term& root) {
-    smt::UnorderedTermSet  vars, visited;
+    smt::UnorderedTermSet vars, visited;
     std::vector<smt::Term> stk = {root};
     while (!stk.empty()) {
         smt::Term t = stk.back();
@@ -380,7 +393,7 @@ smt::Term do_substitute(const Ctx& ctx, const smt::Term& t, const smt::TermVec& 
     return ctx.solver->substitute(t, subs);
 }
 
-smt::Term pairs2fla(const Ctx&                                          ctx,
+smt::Term pairs2fla(const Ctx& ctx,
                     const std::vector<std::pair<smt::Term, smt::Term>>& pairs) {
     smt::TermVec eqs;
     for (auto& [e, v] : pairs)

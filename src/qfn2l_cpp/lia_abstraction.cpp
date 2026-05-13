@@ -93,9 +93,9 @@ smt::Term LiaAbstraction::Purifier::visit_mul(const smt::Term& t) {
     assert(is_mul(t));
     // Flatten: expand pures-for-muls and raw nested-mul children so that
     // binary-nested x*(x*x) produces one pure for x^3 rather than two.
-    auto                   chs = get_children(t);
+    auto chs = get_children(t);
     std::vector<smt::Term> to_expand(chs.begin(), chs.end());
-    smt::TermVec           flat;
+    smt::TermVec flat;
     while (!to_expand.empty()) {
         auto c = to_expand.back();
         to_expand.pop_back();
@@ -181,7 +181,7 @@ std::string LiaAbstraction::make_fancy_name(const smt::Term& term) const {
         return pfx;
     // Collect distinct symbolic bases.
     smt::UnorderedTermSet seen;
-    std::ostringstream    oss;
+    std::ostringstream oss;
     oss << pfx;
     for (auto& c : chs) {
         if (!c->is_value() && !seen.count(c)) {
@@ -197,7 +197,7 @@ smt::Term LiaAbstraction::make_pure_constant(const smt::Term& term) {
         return *p;
 
     std::string fname = make_fancy_name(term);
-    smt::Term   pure  = _ctx.fresh_symbol(term->get_sort(), fname);
+    smt::Term pure = _ctx.fresh_symbol(term->get_sort(), fname);
     _pures.map_t2p(term, pure);
     STATS.pures += 1;
     ALOG(4, "mapping %s -> %s", term->to_string().c_str(), pure->to_string().c_str());
@@ -233,8 +233,8 @@ smt::Term LiaAbstraction::make_pure_constant(const smt::Term& term) {
         smt::Term pure_gt0 = _ctx.solver->make_term(smt::Gt, pure, _ctx.ZERO);
         if (oddroots.size() == 2) {
             assert(evenroots.empty());
-            auto&     r0 = oddroots[0];
-            auto&     r1 = oddroots[1];
+            auto& r0 = oddroots[0];
+            auto& r1 = oddroots[1];
             smt::Term both_pos =
                 mk_and2(_ctx, _ctx.solver->make_term(smt::Gt, r1, _ctx.ZERO),
                         _ctx.solver->make_term(smt::Gt, r0, _ctx.ZERO));
@@ -287,7 +287,7 @@ std::optional<smt::Term> LiaAbstraction::get_value(const smt::Term& t) const {
 void LiaAbstraction::set_level(const smt::UnorderedTermMap& assignment) {
     ScopedPhase sp(STATS.set_level_time);
 
-    _current_body      = _prop(do_substitute(_ctx, _body, assignment));
+    _current_body = _prop(do_substitute(_ctx, _body, assignment));
     _current_pure_body = _purify(_current_body);
     assert(_current_pure_body != nullptr);
 
@@ -331,11 +331,11 @@ std::optional<smt::UnorderedTermMap> LiaAbstraction::solve() {
     if (!_lia_sat)
         return std::nullopt;
 
-    ScopedPhase           sp_comp(STATS.complete_model_time);
+    ScopedPhase sp_comp(STATS.complete_model_time);
     smt::UnorderedTermMap model;
     for (auto& c : _orig_vars) {
         smt::Term val = _ctx.solver->get_value(c);
-        model[c]      = val;
+        model[c] = val;
     }
     return model;
 }
@@ -385,8 +385,8 @@ void LiaAbstraction::_solve() {
         // Each attempt bounds all int constants to ±(3/4 * current_max) and
         // re-checks.  Stop when max < 20 or the bounded check is UNSAT.
         {
-            static constexpr int64_t TINY         = 20;
-            static constexpr int     MAX_ATTEMPTS = 5;
+            static constexpr int64_t TINY = 20;
+            static constexpr int MAX_ATTEMPTS = 5;
             for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
                 int64_t mx = 0;
                 for (unsigned i = 0; i < opt_mdl.num_consts(); i++) {
@@ -404,8 +404,8 @@ void LiaAbstraction::_solve() {
                 if (mx < TINY)
                     break;
                 int64_t bound = 3 * mx / 4;
-                ALOG(4, "shrink attempt %d: ±%lld (max=%lld)", attempt, (long long)bound,
-                     (long long)mx);
+                ALOG(4, "shrink attempt %d: ±%lld (max=%lld)", attempt,
+                     (long long)bound, (long long)mx);
                 lia_slv.push();
                 for (unsigned i = 0; i < opt_mdl.num_consts(); i++) {
                     z3::func_decl d = opt_mdl.get_const_decl(i);
@@ -433,12 +433,12 @@ void LiaAbstraction::_solve() {
         // SAT: replicate the model into _ctx.solver so that get_value() and
         // heuristics (which call check_sat_assuming on _ctx.solver) work normally.
         const z3::model& mdl = opt_mdl;
-        z3::solver&      slv = *z3s->get_z3_solver();
+        z3::solver& slv = *z3s->get_z3_solver();
         slv.reset();
         slv.add(z3t->get_z3_expr());
         for (unsigned i = 0; i < mdl.num_consts(); i++) {
-            z3::func_decl d      = mdl.get_const_decl(i);
-            z3::expr      interp = mdl.get_const_interp(d);
+            z3::func_decl d = mdl.get_const_decl(i);
+            z3::expr interp = mdl.get_const_interp(d);
             slv.add(d() == interp);
         }
         slv.check(); // trivially SAT; makes the model available via get_value()
@@ -484,11 +484,11 @@ void LiaAbstraction::_solve() {
     ALOG(4, "SAT? checking LIA");
 
     if (_opts.timeout > 0) {
-        double elapsed      = std::chrono::duration<double>(
-                                  std::chrono::steady_clock::now().time_since_epoch())
-                                  .count() -
-                              _opts.start_time;
-        int    remaining_ms = std::max(1, (int)((_opts.timeout - elapsed) * 1000));
+        double elapsed = std::chrono::duration<double>(
+                             std::chrono::steady_clock::now().time_since_epoch())
+                             .count() -
+                         _opts.start_time;
+        int remaining_ms = std::max(1, (int)((_opts.timeout - elapsed) * 1000));
         set_solver_timeout(_ctx, remaining_ms);
     }
 
@@ -581,7 +581,7 @@ LiaAbstraction::incorporate_assumptions(smt::TermVec& assumptions, const char* m
 }
 
 void LiaAbstraction::apply_zeros_heuristic(const smt::UnorderedTermSet& cur_pures,
-                                           smt::TermVec&                assumptions) {
+                                           smt::TermVec& assumptions) {
     for (auto& p : cur_pures)
         if (is_mul(_pures.get_t(p)))
             assumptions.push_back(_ctx.solver->make_term(smt::Equal, p, _ctx.ZERO));
@@ -590,23 +590,26 @@ void LiaAbstraction::apply_zeros_heuristic(const smt::UnorderedTermSet& cur_pure
 
 void LiaAbstraction::apply_bounds_heuristic(const smt::UnorderedTermSet& cur_pures,
                                             const smt::TermVec& zero_assumptions) {
+    using boost::multiprecision::cpp_int;
     for (int attempt = 0; attempt < 5; ++attempt) {
-        int64_t mx = 0;
+        cpp_int mx = 0;
         for (auto& p : cur_pures) {
-            try {
-                int64_t v = std::abs(term_to_int64(_ctx.solver->get_value(p)));
+            auto val = get_value(p);
+            if (val) {
+                cpp_int v = boost::multiprecision::abs(term_to_cpp_int(*val));
                 if (v > mx)
                     mx = v;
-            } catch (...) {
             }
         }
         if (mx < 20)
             return;
 
-        int64_t   lb_v = -(3 * mx / 4), ub_v = 3 * mx / 4;
-        smt::Term lb = _ctx.make_int(lb_v), ub = _ctx.make_int(ub_v);
-        ALOG(3, "bounds attempt %d: [%lld, %lld]", attempt, (long long)lb_v,
-             (long long)ub_v);
+        cpp_int bound = 3 * mx / 4;
+        cpp_int neg_bound = -bound;
+        smt::Term lb = cpp_int_to_term(_ctx, neg_bound);
+        smt::Term ub = cpp_int_to_term(_ctx, bound);
+        ALOG(3, "bounds attempt %d: [%s, %s]", attempt, neg_bound.str().c_str(),
+             bound.str().c_str());
 
         smt::TermVec bounds;
         for (auto& p : cur_pures) {
@@ -635,9 +638,9 @@ void LiaAbstraction::apply_bounds_heuristic(const smt::UnorderedTermSet& cur_pur
 LiaAbstraction::MulSplit LiaAbstraction::split_mul(const smt::Term& t) const {
     assert(is_mul(t));
     // Flatten nested muls so that x*(x*x) is recognised as x^3, not x*(x^2).
-    smt::TermVec                                coeffs;
+    smt::TermVec coeffs;
     std::unordered_map<smt::Term, smt::TermVec> pows;
-    std::vector<smt::Term>                      stk;
+    std::vector<smt::Term> stk;
     for (auto it = t->begin(); it != t->end(); ++it)
         stk.push_back(*it);
     while (!stk.empty()) {
@@ -669,11 +672,11 @@ LiaAbstraction::MulSplit LiaAbstraction::split_mul(const smt::Term& t) const {
 
 // ── Axiom generation ──────────────────────────────────────────────────────────
 smt::TermVec LiaAbstraction::mk_pow_axioms(const smt::Term& pure,
-                                           const MulSplit&  split) {
+                                           const MulSplit& split) {
     assert(split.pows.size() == 1);
-    auto& pw   = split.pows[0];
+    auto& pw = split.pows[0];
     auto& root = pw[0];
-    int   exp  = static_cast<int>(pw.size());
+    int exp = static_cast<int>(pw.size());
 
     std::optional<smt::Term> root_val_opt = get_value(root);
     if (!root_val_opt)
@@ -686,9 +689,9 @@ smt::TermVec LiaAbstraction::mk_pow_axioms(const smt::Term& pure,
             smt::Equal, _ctx.solver->make_term(smt::Equal, pure, _ctx.ZERO),
             _ctx.solver->make_term(smt::Equal, root, _ctx.ZERO)));
     } else {
-        bool      odd     = (exp % 2 == 1);
+        bool odd = (exp % 2 == 1);
         smt::Term premise = _ctx.solver->make_term(smt::Equal, root, root_val);
-        smt::Term tval    = eval_exp(_ctx, root_val, exp);
+        smt::Term tval = eval_exp(_ctx, root_val, exp);
         if (odd) {
             rv.push_back(_ctx.solver->make_term(
                 smt::Equal, _ctx.solver->make_term(smt::Equal, pure, tval), premise));
@@ -728,28 +731,28 @@ smt::TermVec LiaAbstraction::mk_pow_axioms(const smt::Term& pure,
 
 smt::TermVec LiaAbstraction::mk_mixed_mul_axioms(const smt::Term& t,
                                                  const smt::Term& pure,
-                                                 const MulSplit&  split) {
+                                                 const MulSplit& split) {
     assert(split.pows.size() == 2);
     auto pw1 = split.pows[0], pw2 = split.pows[1];
     if (!get_value(pw1[0]))
         std::swap(pw1, pw2);
     auto& root1 = pw1[0];
     auto& root2 = pw2[0];
-    int   exp1  = static_cast<int>(pw1.size());
-    int   exp2  = static_cast<int>(pw2.size());
+    int exp1 = static_cast<int>(pw1.size());
+    int exp2 = static_cast<int>(pw2.size());
 
     auto root1_val_opt = get_value(root1);
     if (!root1_val_opt)
         return {};
-    smt::Term root1_val     = *root1_val_opt;
-    auto      root2_val_opt = get_value(root2);
+    smt::Term root1_val = *root1_val_opt;
+    auto root2_val_opt = get_value(root2);
 
     std::vector<std::pair<smt::Term, smt::Term>> premise_pairs;
     premise_pairs.push_back({root1, root1_val});
     if (root2_val_opt)
         premise_pairs.push_back({root2, *root2_val_opt});
 
-    smt::Term             cond = pairs2fla(_ctx, premise_pairs);
+    smt::Term cond = pairs2fla(_ctx, premise_pairs);
     smt::UnorderedTermMap subst;
     for (auto& [k, v] : premise_pairs)
         subst[k] = v;
@@ -795,16 +798,9 @@ smt::TermVec LiaAbstraction::mk_mul_axioms(const smt::Term& t) {
 }
 
 smt::TermVec LiaAbstraction::mk_mod_axiom(const smt::Term& t) {
-    auto      x = get_child(t, 0), y = get_child(t, 1);
-    smt::Term xval, yval;
-    try {
-        xval = _ctx.solver->get_value(x);
-    } catch (...) {
-    }
-    try {
-        yval = _ctx.solver->get_value(y);
-    } catch (...) {
-    }
+    auto x = get_child(t, 0), y = get_child(t, 1);
+    smt::Term xval = get_value(x).value_or(smt::Term{});
+    smt::Term yval = get_value(y).value_or(smt::Term{});
     smt::Term pure = _pures.get_p(t);
 
     smt::UnorderedTermMap sx, sy;
@@ -843,16 +839,9 @@ smt::TermVec LiaAbstraction::mk_mod_axiom(const smt::Term& t) {
 }
 
 smt::TermVec LiaAbstraction::mk_idiv_axiom(const smt::Term& t) {
-    auto      x = get_child(t, 0), y = get_child(t, 1);
-    smt::Term xval, yval;
-    try {
-        xval = _ctx.solver->get_value(x);
-    } catch (...) {
-    }
-    try {
-        yval = _ctx.solver->get_value(y);
-    } catch (...) {
-    }
+    auto x = get_child(t, 0), y = get_child(t, 1);
+    smt::Term xval = get_value(x).value_or(smt::Term{});
+    smt::Term yval = get_value(y).value_or(smt::Term{});
     smt::Term pure = _pures.get_p(t);
 
     smt::UnorderedTermMap sx, sy;
@@ -874,7 +863,7 @@ smt::TermVec LiaAbstraction::mk_idiv_axiom(const smt::Term& t) {
                            _ctx.solver->make_term(smt::Equal, pure, _ctx.ZERO)));
         } else {
             smt::Term neg_xval = negate_numeral(_ctx, xval);
-            smt::Term ite      = _ctx.solver->make_term(
+            smt::Term ite = _ctx.solver->make_term(
                 smt::Ite, _ctx.solver->make_term(smt::Gt, tsubs_y, _ctx.ZERO),
                 _ctx.MIN_ONE, _ctx.ONE);
             axioms.push_back(
@@ -898,8 +887,8 @@ smt::TermVec LiaAbstraction::congruence_axioms_for_pair(const smt::Term& a,
     const smt::Term& ta = _pures.get_t(a);
     if (is_idiv(ta) || is_mod(ta)) {
         const smt::Term& tb = _pures.get_t(b);
-        auto             ax = get_child(ta, 0), ay = get_child(ta, 1);
-        auto             bx = get_child(tb, 0), by = get_child(tb, 1);
+        auto ax = get_child(ta, 0), ay = get_child(ta, 1);
+        auto bx = get_child(tb, 0), by = get_child(tb, 1);
         if (auto* p = _pures.find_p(ax))
             ax = *p;
         if (auto* p = _pures.find_p(ay))
@@ -914,8 +903,8 @@ smt::TermVec LiaAbstraction::congruence_axioms_for_pair(const smt::Term& a,
                            _ctx.solver->make_term(smt::Equal, a, b))};
     }
     if (is_mul(ta)) {
-        MulSplit     spla = split_mul(ta);
-        MulSplit     splb = split_mul(_pures.get_t(b));
+        MulSplit spla = split_mul(ta);
+        MulSplit splb = split_mul(_pures.get_t(b));
         smt::TermVec axioms;
         if (spla.pows.size() == 2 && splb.pows.size() == 2 &&
             is_one(_ctx, spla.coeff) && is_one(_ctx, splb.coeff)) {
@@ -939,9 +928,9 @@ smt::TermVec LiaAbstraction::congruence_axioms_for_pair(const smt::Term& a,
         if (spla.pows.size() == 1 && splb.pows.size() == 1 &&
             is_one(_ctx, spla.coeff) && is_one(_ctx, splb.coeff)) {
             auto& ra = spla.pows[0][0];
-            int   ea = static_cast<int>(spla.pows[0].size());
+            int ea = static_cast<int>(spla.pows[0].size());
             auto& rb = splb.pows[0][0];
-            int   eb = static_cast<int>(splb.pows[0].size());
+            int eb = static_cast<int>(splb.pows[0].size());
             if (ea == eb) {
                 smt::Term nra = _ctx.solver->make_term(smt::Negate, ra);
                 smt::Term nrb = _ctx.solver->make_term(smt::Negate, rb);
@@ -997,24 +986,21 @@ smt::TermVec LiaAbstraction::congruence_axioms_for_pair(const smt::Term& a,
 }
 
 void LiaAbstraction::add_lazy_congruence_axioms(const CollectPures& pcol) {
-    using It     = smt::UnorderedTermSet::const_iterator;
+    using It = smt::UnorderedTermSet::const_iterator;
     auto process = [&](const smt::UnorderedTermSet& collection) {
         for (auto it1 = collection.begin(); it1 != collection.end(); ++it1) {
             for (auto it2 = std::next(it1); it2 != collection.end(); ++it2) {
-                auto lo  = std::min(*it1, *it2);
-                auto hi  = std::max(*it1, *it2);
+                auto lo = std::min(*it1, *it2);
+                auto hi = std::max(*it1, *it2);
                 auto key = std::make_pair(lo, hi);
                 if (_congruence_pairs_added.count(key))
                     continue;
-                auto         candidates = congruence_axioms_for_pair(*it1, *it2);
+                auto candidates = congruence_axioms_for_pair(*it1, *it2);
                 smt::TermVec violated_axs;
                 for (auto& ax : candidates) {
-                    try {
-                        smt::Term v = _ctx.solver->get_value(ax);
-                        if (is_false(_ctx, v))
-                            violated_axs.push_back(ax);
-                    } catch (...) {
-                    }
+                    auto v = get_value(ax);
+                    if (v && is_false(_ctx, *v))
+                        violated_axs.push_back(ax);
                 }
                 if (!violated_axs.empty()) {
                     add_axioms(*it1, violated_axs, "cong");
@@ -1031,26 +1017,16 @@ void LiaAbstraction::add_lazy_congruence_axioms(const CollectPures& pcol) {
 // ── is_okay ───────────────────────────────────────────────────────────────────
 bool LiaAbstraction::is_okay(const smt::Term& pure, const smt::Term& t) {
     ALOG(4, "check_nia: %s == %s", pure->to_string().c_str(), t->to_string().c_str());
-    smt::Term pure_val;
-    try {
-        pure_val = _ctx.solver->get_value(pure);
-    } catch (...) {
+    auto pure_val_opt = get_value(pure);
+    if (!pure_val_opt)
         return true;
-    }
+    smt::Term pure_val = *pure_val_opt;
 
     // Division by zero: keep the current interpretation.
     if ((is_mod(t) || is_idiv(t))) {
-        smt::Term den;
-        try {
-            den = _ctx.solver->get_value(get_child(t, 1));
-        } catch (...) {
-        }
+        smt::Term den = get_value(get_child(t, 1)).value_or(smt::Term{});
         if (den && is_zero(_ctx, den)) {
-            smt::Term num;
-            try {
-                num = _ctx.solver->get_value(get_child(t, 0));
-            } catch (...) {
-            }
+            smt::Term num = get_value(get_child(t, 0)).value_or(smt::Term{});
             if (is_mod(t) && num)
                 _mod_zero_interp[num] = pure_val;
             if (is_idiv(t) && num)
@@ -1059,12 +1035,10 @@ bool LiaAbstraction::is_okay(const smt::Term& pure, const smt::Term& t) {
         }
     }
 
-    smt::Term tval;
-    try {
-        tval = _ctx.solver->get_value(t);
-    } catch (...) {
+    auto tval_opt = get_value(t);
+    if (!tval_opt)
         return true;
-    }
+    smt::Term tval = *tval_opt;
     ALOG(4, "check_nia: --> %s == %s", pure_val->to_string().c_str(),
          tval->to_string().c_str());
     return pure_val == tval;
@@ -1079,14 +1053,14 @@ bool LiaAbstraction::check_nia() {
     // Quick three-valued check.
     {
         HasUninterpreted hu(_ctx);
-        CheckVal         cv(_ctx, hu, _pures, _ctx.solver);
+        CheckVal cv(_ctx, hu, _pures, _ctx.solver);
         if (cv.check(_current_pure_body)) {
             ALOG(2, "check_nia quick ok");
             return true;
         }
     }
 
-    bool         res = true;
+    bool res = true;
     CollectPures pcol(_ctx, _pures, _axioms);
     pcol(_current_pure_body);
 

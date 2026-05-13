@@ -1,6 +1,15 @@
 #include "pures.h"
 #include <cassert>
 
+static std::optional<smt::Term> try_get_value(const smt::SmtSolver& s,
+                                              const smt::Term& t) {
+    try {
+        return s->get_value(t);
+    } catch (...) {
+        return std::nullopt;
+    }
+}
+
 // ── Pures ─────────────────────────────────────────────────────────────────────
 void Pures::map_t2p(const smt::Term& t, const smt::Term& p) {
     _term2pure[t] = p;
@@ -88,7 +97,10 @@ std::optional<smt::Term> CheckVal::operator()(const smt::Term& t) {
 std::optional<smt::Term> CheckVal::visit_purified(const smt::Term& orig,
                                                   const smt::Term& pure) {
     // Get the value of the pure from the LIA model.
-    smt::Term pv = _lia_solver->get_value(pure);
+    auto pv_opt = try_get_value(_lia_solver, pure);
+    if (!pv_opt)
+        return std::nullopt;
+    smt::Term pv = *pv_opt;
     // Get the actual NIA value of the original term.
     auto tv = visit(orig);
     if (!tv)
@@ -99,20 +111,13 @@ std::optional<smt::Term> CheckVal::visit_purified(const smt::Term& orig,
 std::optional<smt::Term> CheckVal::visit_leaf(const smt::Term& t) {
     if (t->is_value())
         return t;
-    if (is_symbolic_const(t)) {
-        // Look up in the LIA model.
-        // TODO: get_value may throw if t has no value; wrap in try/catch.
-        try {
-            return _lia_solver->get_value(t);
-        } catch (...) {
-            return std::nullopt;
-        }
-    }
+    if (is_symbolic_const(t))
+        return try_get_value(_lia_solver, t);
     return std::nullopt;
 }
 
 std::optional<smt::Term>
-CheckVal::visit_prop(const smt::Term&                             t,
+CheckVal::visit_prop(const smt::Term& t,
                      const std::vector<std::optional<smt::Term>>& cvs) {
     auto has_none = [&] {
         for (auto& v : cvs)
@@ -163,7 +168,7 @@ CheckVal::visit_prop(const smt::Term&                             t,
 }
 
 std::optional<smt::Term>
-CheckVal::visit_complex(const smt::Term&                             t,
+CheckVal::visit_complex(const smt::Term& t,
                         const std::vector<std::optional<smt::Term>>& cvs) {
     bool has_none = false;
     for (auto& v : cvs)
@@ -193,11 +198,7 @@ CheckVal::visit_complex(const smt::Term&                             t,
     // All children have values — evaluate via the solver.
     // TODO: rebuild with concrete child values and call solver->get_value or
     // solver->simplify.  For now, use get_value on the original term.
-    try {
-        return _lia_solver->get_value(t);
-    } catch (...) {
-        return std::nullopt;
-    }
+    return try_get_value(_lia_solver, t);
 }
 
 std::optional<smt::Term> CheckVal::visit(const smt::Term& t) {

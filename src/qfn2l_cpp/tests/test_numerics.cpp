@@ -7,7 +7,7 @@
 #include <string>
 
 #ifdef BACKEND_Z3
-#  include "z3_factory.h"
+#include "z3_factory.h"
 #endif
 
 using boost::multiprecision::cpp_int;
@@ -23,8 +23,8 @@ static Ctx make_test_ctx() {
 static void expect_cpp_int(const smt::Term& t, const cpp_int& expected) {
     cpp_int actual = term_to_cpp_int(t);
     if (actual != expected) {
-        std::cerr << "expected " << expected << ", got " << actual
-                  << " from " << t->to_string() << "\n";
+        std::cerr << "expected " << expected << ", got " << actual << " from "
+                  << t->to_string() << "\n";
         std::exit(1);
     }
 }
@@ -51,12 +51,12 @@ static void test_checked_int64_narrowing(Ctx& ctx) {
     cpp_int max64 = std::numeric_limits<int64_t>::max();
     cpp_int min64 = std::numeric_limits<int64_t>::min();
 
-    expect_true(
-        term_to_int64(cpp_int_to_term(ctx, max64)) == std::numeric_limits<int64_t>::max(),
-        "max int64_t did not round trip");
-    expect_true(
-        term_to_int64(cpp_int_to_term(ctx, min64)) == std::numeric_limits<int64_t>::min(),
-        "min int64_t did not round trip");
+    expect_true(term_to_int64(cpp_int_to_term(ctx, max64)) ==
+                    std::numeric_limits<int64_t>::max(),
+                "max int64_t did not round trip");
+    expect_true(term_to_int64(cpp_int_to_term(ctx, min64)) ==
+                    std::numeric_limits<int64_t>::min(),
+                "min int64_t did not round trip");
 
     bool threw = false;
     try {

@@ -23,10 +23,10 @@
 #endif
 
 // ── Signal handling ───────────────────────────────────────────────────────────
-static volatile sig_atomic_t g_shutdown    = 0;
-static bool                  g_print_stats = false;
-static bool                  g_brief_stats = false;
-static double                g_start_time  = 0.0;
+static volatile sig_atomic_t g_shutdown = 0;
+static bool g_print_stats = false;
+static bool g_brief_stats = false;
+static double g_start_time = 0.0;
 
 static void handle_signal(int) {
     STATS.commit_phases();
@@ -72,8 +72,8 @@ static Options parse_args(int argc, char** argv, std::string& filename) {
     Options opts;
     filename = "-";
     for (int i = 1; i < argc; ++i) {
-        std::string arg  = argv[i];
-        auto        next = [&]() -> std::string {
+        std::string arg = argv[i];
+        auto next = [&]() -> std::string {
             if (i + 1 >= argc) {
                 std::fprintf(stderr, "Missing argument for %s\n", arg.c_str());
                 std::exit(1);
@@ -148,7 +148,7 @@ static smt::Term parse_input(const Ctx& ctx, const std::string& filename) {
         std::fprintf(stderr, "parse_input: expected Z3Solver\n");
         std::exit(1);
     }
-    z3::context&    zctx = *z3s->get_z3_context();
+    z3::context& zctx = *z3s->get_z3_context();
     z3::expr_vector assertions(zctx);
     if (filename == "-") {
         std::string content((std::istreambuf_iterator<char>(std::cin)),
@@ -184,13 +184,13 @@ static void print_model(const Ctx& ctx, const LiaAbstraction& abstr,
 // ── main ─────────────────────────────────────────────────────────────────────
 int main(int argc, char** argv) {
     std::string filename;
-    Options     opts = parse_args(argc, argv, filename);
+    Options opts = parse_args(argc, argv, filename);
 
-    g_print_stats   = opts.print_stats;
-    g_brief_stats   = opts.brief_stats;
-    g_start_time    = std::chrono::duration<double>(
-                          std::chrono::steady_clock::now().time_since_epoch())
-                          .count();
+    g_print_stats = opts.print_stats;
+    g_brief_stats = opts.brief_stats;
+    g_start_time = std::chrono::duration<double>(
+                       std::chrono::steady_clock::now().time_since_epoch())
+                       .count();
     opts.start_time = g_start_time;
 
     std::signal(SIGTERM, handle_signal);
@@ -212,7 +212,7 @@ int main(int argc, char** argv) {
 
     // ── Create solver and context ─────────────────────────────────────────────
     smt::SmtSolver raw_solver = create_solver(opts.backend);
-    Ctx            ctx(raw_solver);
+    Ctx ctx(raw_solver);
 
     // ── Parse ─────────────────────────────────────────────────────────────────
     STATS.begin_phase(STATS.parse_time);

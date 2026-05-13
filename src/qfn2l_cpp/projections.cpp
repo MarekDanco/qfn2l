@@ -80,12 +80,12 @@ std::pair<smt::Term, smt::Term> lin_ub_pow(const Ctx& ctx, const smt::Term& x, i
 static std::vector<std::pair<smt::Term, smt::Term>>
 combine_lb_left(const Ctx& ctx, const smt::Term& x, int x_exp, const smt::Term& x_val,
                 const smt::Term& y, int y_exp, const smt::Term& y_val) {
-    bool neg_x             = is_negative_power(x_val, x_exp);
-    bool neg_y             = is_negative_power(y_val, y_exp);
+    bool neg_x = is_negative_power(x_val, x_exp);
+    bool neg_y = is_negative_power(y_val, y_exp);
     auto [x_cond, x_bound] = (neg_y ? lin_ub_pow : lin_lb_pow)(ctx, x, x_exp, x_val);
     auto [y_cond, y_bound] =
         (neg_x ? const_ub_pow : const_lb_pow)(ctx, y, y_exp, y_val);
-    smt::Term cond  = mk_and2(ctx, x_cond, y_cond);
+    smt::Term cond = mk_and2(ctx, x_cond, y_cond);
     smt::Term bound = mk_mul(ctx, {x_bound, y_bound});
     return {{cond, bound}};
 }
@@ -102,12 +102,12 @@ combine_lb(const Ctx& ctx, const smt::Term& x, int x_exp, const smt::Term& x_val
 static std::vector<std::pair<smt::Term, smt::Term>>
 combine_ub_left(const Ctx& ctx, const smt::Term& x, int x_exp, const smt::Term& x_val,
                 const smt::Term& y, int y_exp, const smt::Term& y_val) {
-    bool neg_x             = is_negative_power(x_val, x_exp);
-    bool neg_y             = is_negative_power(y_val, y_exp);
+    bool neg_x = is_negative_power(x_val, x_exp);
+    bool neg_y = is_negative_power(y_val, y_exp);
     auto [x_cond, x_bound] = (neg_y ? lin_lb_pow : lin_ub_pow)(ctx, x, x_exp, x_val);
     auto [y_cond, y_bound] =
         (neg_x ? const_lb_pow : const_ub_pow)(ctx, y, y_exp, y_val);
-    smt::Term cond  = mk_and2(ctx, x_cond, y_cond);
+    smt::Term cond = mk_and2(ctx, x_cond, y_cond);
     smt::Term bound = mk_mul(ctx, {x_bound, y_bound});
     return {{cond, bound}};
 }
@@ -134,7 +134,7 @@ mod_ax_mul(const Ctx& ctx, int max_modulus,
     for (int k = 2; k <= max_modulus; ++k) {
         int64_t expected_residue = 1;
         for (auto& [root, exp, val] : factors) {
-            int64_t rv  = ((term_mod_int(ctx, val, k)) + k) % k;
+            int64_t rv = ((term_mod_int(ctx, val, k)) + k) % k;
             int64_t pwr = 1;
             for (int e = 0; e < exp; ++e)
                 pwr = (pwr * rv) % k;
@@ -144,10 +144,10 @@ mod_ax_mul(const Ctx& ctx, int max_modulus,
         if (expected_residue == actual_residue)
             continue;
 
-        smt::Term    kz = ctx.make_int(k);
+        smt::Term kz = ctx.make_int(k);
         smt::TermVec conditions;
         for (auto& [root, _exp, val] : factors) {
-            int64_t   fr   = ((term_mod_int(ctx, val, k)) + k) % k;
+            int64_t fr = ((term_mod_int(ctx, val, k)) + k) % k;
             smt::Term cond = ctx.solver->make_term(
                 smt::Equal, ctx.solver->make_term(smt::Mod, root, kz),
                 ctx.make_int(fr));
@@ -172,7 +172,7 @@ project_y(const Ctx& ctx, const smt::Term& x, int x_exp, const smt::Term& y, int
           const smt::Term& y_val, const smt::Term& pure_xm, const smt::Term& pure_res) {
     auto [lb_cond, lb_bound] = const_lb_pow(ctx, y, y_exp, y_val);
     auto [ub_cond, ub_bound] = const_ub_pow(ctx, y, y_exp, y_val);
-    smt::Term zero           = ctx.ZERO;
+    smt::Term zero = ctx.ZERO;
 
     smt::Term lb_xm = mk_mul(ctx, {lb_bound, pure_xm});
     smt::Term ub_xm = mk_mul(ctx, {ub_bound, pure_xm});

@@ -17,7 +17,7 @@ QfSolver::QfSolver(const Ctx& ctx, const Options& opts, const smt::Term& formula
     STATS.end_phase();
 
     smt::TermVec free_vars = get_vars(f);
-    Prefix       prefix    = {QLev(true, free_vars)};
+    Prefix prefix = {QLev(true, free_vars)};
 
     STATS.begin_phase(STATS.makedefs_time);
     auto [new_prefix, new_f] = MakeDefs(ctx).make(prefix, f);
