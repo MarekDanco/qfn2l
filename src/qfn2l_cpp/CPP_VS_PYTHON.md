@@ -1,6 +1,6 @@
 # C++ vs Python: known gaps and divergences
 
-Status as of 2026-05-13.  Update this file when gaps are closed.
+Status as of 2026-05-14.  Update this file when gaps are closed.
 
 ---
 
@@ -50,9 +50,11 @@ dramatically (188 iterations vs Python's 6 for STC_0019).
 1. Main per-call solver changed to `z3::solver(*z3ctx, "LIA")` — mirrors
    Python's `SolverFor("LIA")`.
 2. Removed bounded pre-check (bounding only orig vars was counterproductive).
-3. Added a bounded re-check over **all** model constants (orig vars + pures)
-   when the unconstrained model has any |value| > 1000.  If the bounded check
-   is SAT it replaces the large model; if UNSAT the original model is kept.
+3. Added an adaptive post-SAT shrinking loop over **all** model constants
+   (orig vars + pures): each attempt bounds every int constant to
+   `±(3/4 * current_max)` and re-checks, up to 5 times, stopping when all
+   values are below 20 or the bounded check is UNSAT.  Mirrors Python's
+   `--bounds` heuristic but applied unconditionally.
 
 **Result** (2026-05-13):
 
@@ -112,5 +114,5 @@ a different simplified formula for certain inputs.
 
 | Feature | Python | C++ |
 |---------|--------|-----|
-| Bounded re-check (all vars, `[-1000,+1000]`) | No | Yes — post-SAT, compensates for z3 4.14 small-model gap |
+| Adaptive model shrinking (all vars, ×3/4 per round until < 20) | `--bounds` option only | Yes — always on, compensates for z3 4.14 small-model gap |
 | Visitor traversal | Recursive (needs `--recursion-depth`) | Iterative post-order |
