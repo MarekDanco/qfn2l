@@ -148,7 +148,7 @@ LiaAbstraction::LiaAbstraction(const Ctx& ctx, const Options& opts,
                                const Prefix& prefix, const smt::Term& body,
                                bool is_exists)
     : _ctx(ctx), _opts(opts), _is_exists(is_exists), _orig_vars(prefix[0].vars),
-      _hu(ctx), _purify(*this), _prop(ctx), _prefix(prefix), _body(body) {
+      _hu(ctx), _purify(*this), _prefix(prefix), _body(body) {
     init_lia_solver(_ctx, opts);
     // Pre-flatten nested muls so z3's binary-nested (* x (* x x)) becomes the
     // flat (* x x x) before purification.  This prevents the purifier from
@@ -316,7 +316,12 @@ std::optional<smt::Term> LiaAbstraction::get_value(const smt::Term& t) const {
 void LiaAbstraction::set_level(const smt::UnorderedTermMap& assignment) {
     ScopedPhase sp(STATS.set_level_time);
 
-    _current_body = _prop(do_substitute(_ctx, _body, assignment));
+    // Do NOT run SimplePropagate here: it would substitute MakeDefs definition
+    // equalities (e.g. _p_0 = x0-9) back into the formula, undoing the binary
+    // factoring that MakeDefs introduced and creating 3+-factor pures that
+    // split_mul cannot handle. The definition equalities stay in _current_body
+    // as plain linear LIA constraints for the solver.
+    _current_body = do_substitute(_ctx, _body, assignment);
     _current_pure_body = _purify(_current_body);
     assert(_current_pure_body != nullptr);
 
@@ -394,6 +399,7 @@ void LiaAbstraction::_solve() {
         assert(z3t);
         lia_slv.add(z3t->get_z3_expr());
 
+        ALOG(5, "LIA formula:\n%s", z3t->get_z3_expr().to_string().c_str());
         ALOG(4, "SAT? checking LIA");
         STATS.begin_phase(STATS.liatime);
         z3::check_result res = lia_slv.check();

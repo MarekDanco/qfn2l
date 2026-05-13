@@ -84,7 +84,6 @@ class LiaAbstraction {
     Pures _pures;
     mutable HasUninterpreted _hu;
     Purifier _purify;
-    SimplePropagate _prop;
 
     Prefix _prefix;
     smt::Term _body;
