@@ -1021,7 +1021,6 @@ smt::TermVec LiaAbstraction::congruence_axioms_for_pair(const smt::Term& a,
 }
 
 void LiaAbstraction::add_lazy_congruence_axioms(const CollectPures& pcol) {
-    using It = smt::UnorderedTermSet::const_iterator;
     auto process = [&](const smt::UnorderedTermSet& collection) {
         for (auto it1 = collection.begin(); it1 != collection.end(); ++it1) {
             for (auto it2 = std::next(it1); it2 != collection.end(); ++it2) {

@@ -73,7 +73,7 @@ function(configure_qfn2l_target target)
   if(BACKEND_Z3)
     target_compile_definitions(${target} PRIVATE BACKEND_Z3)
     # Z3 backend headers (z3_solver.h, z3_term.h, z3++.h).
-    target_include_directories(${target} PRIVATE
+    target_include_directories(${target} SYSTEM PRIVATE
       "${SMT_SWITCH_DIR}/../z3/include"
       "${SMT_SWITCH_DIR}/../deps/z3/src/api/c++"
       "${SMT_SWITCH_DIR}/../deps/z3/src/api"
@@ -113,15 +113,34 @@ configure_qfn2l_target(qfn2l)
 
 include(CTest)
 if(BUILD_TESTING)
+  set(TEST_TARGETS
+    qfn2l_numeric_tests
+    qfn2l_solver_smoke_tests
+    qfn2l_visitors_tests
+    qfn2l_pures_tests
+    qfn2l_projections_tests
+  )
+
   add_executable(qfn2l_numeric_tests tests/test_numerics.cpp)
-  target_link_libraries(qfn2l_numeric_tests PRIVATE qfn2l_core)
-  configure_qfn2l_target(qfn2l_numeric_tests)
-  add_test(NAME qfn2l_numeric_tests COMMAND qfn2l_numeric_tests)
+  add_executable(qfn2l_solver_smoke_tests tests/test_solver_smoke.cpp)
+  add_executable(qfn2l_smt_switch_identity_tests tests/test_smt_switch_identity.cpp)
+  add_executable(qfn2l_visitors_tests tests/test_visitors.cpp)
+  add_executable(qfn2l_pures_tests tests/test_pures.cpp)
+  add_executable(qfn2l_projections_tests tests/test_projections.cpp)
+
+  foreach(test_target IN LISTS TEST_TARGETS)
+    target_link_libraries(${test_target} PRIVATE qfn2l_core)
+    configure_qfn2l_target(${test_target})
+    add_test(NAME ${test_target} COMMAND ${test_target})
+  endforeach()
+
+  target_link_libraries(qfn2l_smt_switch_identity_tests PRIVATE qfn2l_core)
+  configure_qfn2l_target(qfn2l_smt_switch_identity_tests)
 
   # 'make check' builds and runs tests (unlike 'make test' which skips the build).
   add_custom_target(check
     COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-    DEPENDS qfn2l_numeric_tests
+    DEPENDS ${TEST_TARGETS}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
   )
 endif()
