@@ -49,7 +49,7 @@ smt::Term Ctx::make_int_str(const std::string& s) const {
 
 smt::Term Ctx::fresh_symbol(const smt::Sort& sort, const std::string& prefix) const {
     int id = _fresh_ctr.fetch_add(1);
-    return solver->make_symbol(prefix + std::to_string(id), sort);
+    return solver->make_symbol(prefix + "_" + std::to_string(id), sort);
 }
 
 // ── Numeral helpers ───────────────────────────────────────────────────────────

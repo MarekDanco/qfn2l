@@ -183,18 +183,37 @@ std::string LiaAbstraction::make_fancy_name(const smt::Term& term) const {
     std::string pfx = (_is_exists ? "e_" : "u_");
     if (!is_mul(term))
         return pfx;
-    auto chs = get_children(term);
-    if (chs.empty())
-        return pfx;
-    // Collect distinct symbolic bases.
-    smt::UnorderedTermSet seen;
+
+    // Flatten nested muls (z3 binary-nests n-ary products) and count occurrences.
+    std::vector<smt::Term> stk;
+    for (auto it = term->begin(); it != term->end(); ++it)
+        stk.push_back(*it);
+    std::vector<smt::Term> leaves;
+    while (!stk.empty()) {
+        auto c = stk.back();
+        stk.pop_back();
+        if (is_mul(c)) {
+            for (auto it = c->begin(); it != c->end(); ++it)
+                stk.push_back(*it);
+        } else if (!c->is_value()) {
+            leaves.push_back(c);
+        }
+    }
+    std::sort(leaves.begin(), leaves.end(), [](const smt::Term& a, const smt::Term& b) {
+        return a->hash() < b->hash();
+    });
+
     std::ostringstream oss;
     oss << pfx;
-    for (auto& c : chs) {
-        if (!c->is_value() && !seen.count(c)) {
-            oss << c->to_string();
-            seen.insert(c);
-        }
+    for (size_t i = 0; i < leaves.size();) {
+        size_t j = i + 1;
+        while (j < leaves.size() && leaves[j] == leaves[i])
+            ++j;
+        int exp = static_cast<int>(j - i);
+        oss << leaves[i]->to_string();
+        if (exp > 1)
+            oss << "^" << exp;
+        i = j;
     }
     return oss.str();
 }
