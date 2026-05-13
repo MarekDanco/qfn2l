@@ -261,10 +261,14 @@ def main():
         dest="brief_stats",
         default=False,
         action=argparse.BooleanOptionalAction,
-        help="on exit print only: terminated phase, longest phase, iteration count, pures count",
+        help="on exit print only: terminated phase, longest phase,"
+        " iteration count, pures count",
     )
 
     opts = parser.parse_args()
+    if opts.filename == "-" and sys.stdin.isatty():
+        parser.print_usage()
+        sys.exit(0)
     sys.setrecursionlimit(opts.recursion_depth)
     global _start_time, _print_stats, _brief_stats
     _print_stats = opts.print_stats

@@ -12,6 +12,7 @@
 #include <sstream>
 #include <string>
 #include <sys/time.h>
+#include <unistd.h>
 
 #ifdef BACKEND_Z3
 #include "z3_factory.h"
@@ -71,6 +72,10 @@ static void print_usage(const char* prog) {
 static Options parse_args(int argc, char** argv, std::string& filename) {
     Options opts;
     filename = "-";
+    if (argc == 1 && isatty(STDIN_FILENO)) {
+        print_usage(argv[0]);
+        std::exit(0);
+    }
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         auto next = [&]() -> std::string {
