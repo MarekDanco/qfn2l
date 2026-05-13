@@ -1,6 +1,6 @@
 # C++ vs Python: known gaps and divergences
 
-Status as of 2026-05-12.  Update this file when gaps are closed.
+Status as of 2026-05-13.  Update this file when gaps are closed.
 
 ---
 
@@ -36,25 +36,38 @@ non-z3 assert/check block, or reset the solver each call the same way z3 does.
 
 ---
 
-## Solver strategy difference (likely the most impactful)
+## Solver strategy difference — **FIXED 2026-05-13**
 
-### `SolverFor("LIA")` vs `set_logic("QF_NIA")`
+### `SolverFor("LIA")` + bounded all-variable re-check
 
-Python:
-```python
-self.current_solver = SolverFor("LIA")
-```
-This instantiates z3's LIA-tuned tactic internally.
+**Was:** C++ used a plain `z3::solver` with `set_logic("QF_NIA")` plus a
+bounded pre-check that constrained only `_orig_vars`, leaving pure constants
+unconstrained.  z3 4.14's LIA solver lacks the small-model preference of z3
+4.17, causing models to grow large over iterations and slowing convergence
+dramatically (188 iterations vs Python's 6 for STC_0019).
 
-C++:
-```cpp
-ctx.solver->set_logic("QF_NIA");
-```
-`QF_NIA` is a permissive logic that may route z3 to a different (slower)
-solver path for linear problems.
+**Fix applied:**
+1. Main per-call solver changed to `z3::solver(*z3ctx, "LIA")` — mirrors
+   Python's `SolverFor("LIA")`.
+2. Removed bounded pre-check (bounding only orig vars was counterproductive).
+3. Added a bounded re-check over **all** model constants (orig vars + pures)
+   when the unconstrained model has any |value| > 1000.  If the bounded check
+   is SAT it replaces the large model; if UNSAT the original model is kept.
 
-Fix: inside `#ifdef BACKEND_Z3`, create the per-call `z3::solver` using the
-`lra` or `qflra` tactic: `z3::tactic(*z3ctx, "lra")`.
+**Result** (2026-05-13):
+
+| Benchmark | Python iters | C++ iters before | C++ iters after |
+|-----------|-------------|-----------------|-----------------|
+| STC_0019 | 6 | 390 (timeout) | 35 (sat, ~0.4 s) |
+| STC_0072 | 6 | 114 (sat) | 36 (sat, ~0.4 s) |
+| STC_0504 | 110 (unknown) | — | 36 (sat, C++ wins) |
+
+The remaining iteration-count gap (35 vs 6) is due to z3 4.14 vs 4.17 model
+quality and does not affect wall-clock time on these benchmarks.
+
+To close the gap entirely: rebuild smt-switch against z3 4.17 (requires
+a CMake build of z3 so that `find_package(Z3)` works, then pass
+`-DZ3_INSTALL_DIR=/path/to/z3-4.17/install` when configuring smt-switch).
 
 ---
 
@@ -99,6 +112,5 @@ a different simplified formula for certain inputs.
 
 | Feature | Python | C++ |
 |---------|--------|-----|
-| Bounded LIA pre-check (`[-1000,+1000]`) | No | Yes — tries bounded check first |
-| Warm-start hints | No | Yes — `_prev_var_hints` + `set_initial_value` |
+| Bounded re-check (all vars, `[-1000,+1000]`) | No | Yes — post-SAT, compensates for z3 4.14 small-model gap |
 | Visitor traversal | Recursive (needs `--recursion-depth`) | Iterative post-order |

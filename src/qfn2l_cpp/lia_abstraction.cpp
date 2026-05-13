@@ -347,82 +347,29 @@ void LiaAbstraction::_solve() {
     if (auto* z3s = dynamic_cast<smt::Z3Solver*>(_ctx.solver.get())) {
         z3::context* z3ctx = z3s->get_z3_context();
 
-        // Use a fresh solver each call.  Assert the formula, then try a bounded
-        // check first (variables in [-B,+B]).  If the bounded check is SAT, use
-        // that small model.  If UNSAT (only possible when every satisfying
-        // assignment has some |x|>B), fall back to the unconstrained check.
-        // This replicates Python's SolverFor("LIA") small-value preference for
-        // z3 versions that lack the built-in small-model heuristic.
-        z3::solver lia_slv(*z3ctx);
+        // Fresh solver per call, tuned for LIA — mirrors Python's SolverFor("LIA").
+        z3::solver lia_slv(*z3ctx, "LIA");
         z3::params p(*z3ctx);
         p.set("random_seed", (unsigned)_opts.seed);
+        if (_opts.timeout > 0) {
+            double elapsed = std::chrono::duration<double>(
+                                 std::chrono::steady_clock::now().time_since_epoch())
+                                 .count() -
+                             _opts.start_time;
+            int remaining_ms = std::max(1, (int)((_opts.timeout - elapsed) * 1000));
+            p.set("timeout", (unsigned)remaining_ms);
+        }
         lia_slv.set(p);
 
         auto* z3t = dynamic_cast<smt::Z3Term*>(_current_instantiation.get());
         assert(z3t);
         lia_slv.add(z3t->get_z3_expr());
 
-        // Build variable-bound expressions for the bounded check.
-        static constexpr int64_t BOUND_B = 1000;
-        z3::expr_vector          bound_exprs(*z3ctx);
-        for (auto& v : _orig_vars) {
-            auto* vt = dynamic_cast<smt::Z3Term*>(v.get());
-            if (!vt)
-                continue;
-            z3::expr var = vt->get_z3_expr();
-            bound_exprs.push_back(var >= z3ctx->int_val((int64_t)-BOUND_B));
-            bound_exprs.push_back(var <= z3ctx->int_val((int64_t)BOUND_B));
-        }
-
-        // Warm-start: apply previous model values to encourage variable stability.
-        for (auto& [v, hint] : _prev_var_hints) {
-            auto* vt = dynamic_cast<smt::Z3Term*>(v.get());
-            auto* ht = dynamic_cast<smt::Z3Term*>(hint.get());
-            if (vt && ht) {
-                try {
-                    lia_slv.set_initial_value(vt->get_z3_expr(), ht->get_z3_expr());
-                } catch (...) {
-                }
-            }
-        }
-
-        if (_opts.timeout > 0) {
-            double elapsed = std::chrono::duration<double>(
-                                 std::chrono::steady_clock::now().time_since_epoch())
-                                 .count() -
-                             _opts.start_time;
-            int    remaining_ms = std::max(1, (int)((_opts.timeout - elapsed) * 1000));
-            z3::params tp(*z3ctx);
-            tp.set("timeout", (unsigned)remaining_ms);
-            lia_slv.set(tp);
-        }
-
-        // Try bounded check first (variables in [-BOUND_B, +BOUND_B]).
-        // If bounded is UNSAT, fall back to unconstrained.
-        lia_slv.push();
-        for (unsigned i = 0; i < bound_exprs.size(); i++)
-            lia_slv.add(bound_exprs[i]);
-        ALOG(4, "SAT? checking LIA (bounded)");
+        ALOG(4, "SAT? checking LIA");
         STATS.begin_phase(STATS.liatime);
         z3::check_result res = lia_slv.check();
         STATS.end_phase();
         STATS.liacalls += 1;
-
-        // Capture model before pop (model is ref-counted, safe to hold across pop).
-        std::optional<z3::model> opt_mdl;
-        if (res == z3::sat)
-            opt_mdl = lia_slv.get_model();
-        lia_slv.pop();
-
-        if (res == z3::unsat) {
-            ALOG(4, "bounded UNSAT; trying unconstrained LIA");
-            STATS.begin_phase(STATS.liatime);
-            res = lia_slv.check();
-            STATS.end_phase();
-            STATS.liacalls += 1;
-            if (res == z3::sat)
-                opt_mdl = lia_slv.get_model();
-        }
         ALOG(4, "check done");
 
         if (res == z3::unknown) {
@@ -432,9 +379,51 @@ void LiaAbstraction::_solve() {
         if (res == z3::unsat)
             return;
 
+        z3::model opt_mdl = lia_slv.get_model();
+
+        // If the model has large values, try a bounded re-check over ALL constants
+        // (orig vars + pures).  Older z3 versions lack the LIA small-model
+        // preference of newer releases; bounding all constants forces small models
+        // when one exists, shrinking iteration counts dramatically.
+        {
+            static constexpr int64_t SMALL_B = 1000;
+            bool                     has_large = false;
+            for (unsigned i = 0; i < opt_mdl.num_consts(); i++) {
+                z3::expr interp = opt_mdl.get_const_interp(opt_mdl.get_const_decl(i));
+                if (!interp.get_sort().is_int())
+                    continue;
+                int64_t v = 0;
+                if (!interp.is_numeral_i64(v) || std::abs(v) > SMALL_B) {
+                    has_large = true;
+                    break;
+                }
+            }
+            if (has_large) {
+                ALOG(4, "large values in model; trying bounded re-check");
+                lia_slv.push();
+                for (unsigned i = 0; i < opt_mdl.num_consts(); i++) {
+                    z3::func_decl d = opt_mdl.get_const_decl(i);
+                    if (!d.range().is_int())
+                        continue;
+                    z3::expr var = d();
+                    lia_slv.add(var >= z3ctx->int_val((int64_t)-SMALL_B));
+                    lia_slv.add(var <= z3ctx->int_val((int64_t)SMALL_B));
+                }
+                STATS.begin_phase(STATS.liatime);
+                z3::check_result bres = lia_slv.check();
+                STATS.end_phase();
+                STATS.liacalls += 1;
+                if (bres == z3::sat) {
+                    ALOG(4, "bounded re-check succeeded");
+                    opt_mdl = lia_slv.get_model();
+                }
+                lia_slv.pop();
+            }
+        }
+
         // SAT: replicate the model into _ctx.solver so that get_value() and
         // heuristics (which call check_sat_assuming on _ctx.solver) work normally.
-        const z3::model& mdl = *opt_mdl;
+        const z3::model& mdl = opt_mdl;
         z3::solver&      slv = *z3s->get_z3_solver();
         slv.reset();
         slv.add(z3t->get_z3_expr());
@@ -445,14 +434,6 @@ void LiaAbstraction::_solve() {
         }
         slv.check(); // trivially SAT; makes the model available via get_value()
         _lia_sat = true;
-
-        // Update warm-start hints: store current model values for original vars.
-        for (auto& v : _orig_vars) {
-            try {
-                _prev_var_hints[v] = _ctx.solver->get_value(v);
-            } catch (...) {
-            }
-        }
 
         if (!(_opts.bounds || _opts.zeros))
             return;
