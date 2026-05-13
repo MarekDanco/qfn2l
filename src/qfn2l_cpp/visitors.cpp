@@ -53,6 +53,25 @@ smt::Term TermTransformer::recurse(const smt::Term& t) {
     return changed ? rebuild(_ctx, t, new_args) : t;
 }
 
+// ── FlattenMul ────────────────────────────────────────────────────────────────
+smt::Term FlattenMul::visit_node(const smt::Term& t) {
+    smt::Term t2 = recurse(t);
+    if (!is_mul(t2))
+        return t2;
+    smt::TermVec flat;
+    bool has_mul_child = false;
+    for (auto it = t2->begin(); it != t2->end(); ++it) {
+        if (is_mul(*it)) {
+            has_mul_child = true;
+            for (auto jt = (*it)->begin(); jt != (*it)->end(); ++jt)
+                flat.push_back(*jt);
+        } else {
+            flat.push_back(*it);
+        }
+    }
+    return has_mul_child ? mk_mul(_ctx, flat) : t2;
+}
+
 // ── TermPredicate ─────────────────────────────────────────────────────────────
 bool TermPredicate::operator()(const smt::Term& root) {
     {

@@ -90,6 +90,15 @@ class SimplePropagate : public TermTransformer {
     smt::Term propagate(bool pos, const smt::Term& t);
 };
 
+// ── FlattenMul: replace binary-nested (* a (* b c)) with flat (* a b c) ────────
+class FlattenMul : public TermTransformer {
+  public:
+    explicit FlattenMul(const Ctx& ctx) : TermTransformer(ctx) {}
+
+  protected:
+    smt::Term visit_node(const smt::Term& t) override;
+};
+
 // ── MakeDefs: introduce fresh constants for nonlinear mul sub-terms ───────────
 class MakeDefs : public TermTransformer {
   public:

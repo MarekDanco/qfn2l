@@ -150,11 +150,11 @@ LiaAbstraction::LiaAbstraction(const Ctx& ctx, const Options& opts,
     : _ctx(ctx), _opts(opts), _is_exists(is_exists), _orig_vars(prefix[0].vars),
       _hu(ctx), _purify(*this), _prop(ctx), _prefix(prefix), _body(body) {
     init_lia_solver(_ctx, opts);
-    // Run purification pass to discover all pure constants.
-    smt::Term init_pure_body = _purify(_body);
-    // Intermediate pures (e.g. x² created while processing x³ from binary
-    // smt-switch parsing) are not reachable from the purified body.  Clear
-    // their useless axioms and correct the pures counter.
+    // Pre-flatten nested muls so z3's binary-nested (* x (* x x)) becomes the
+    // flat (* x x x) before purification.  This prevents the purifier from
+    // creating intermediate pures (e.g. x²) that would immediately be discarded.
+    smt::Term flat_body = FlattenMul(_ctx)(_body);
+    smt::Term init_pure_body = _purify(flat_body);
     {
         CollectPures pcol(_ctx, _pures, _axioms);
         pcol(init_pure_body);

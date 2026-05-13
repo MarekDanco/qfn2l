@@ -247,10 +247,7 @@ smt::Term mk_mul(const Ctx& ctx, const smt::TermVec& args) {
         return ctx.ONE;
     if (filtered.size() == 1)
         return filtered[0];
-    smt::Term r = ctx.solver->make_term(smt::Mult, filtered[0], filtered[1]);
-    for (size_t i = 2; i < filtered.size(); ++i)
-        r = ctx.solver->make_term(smt::Mult, r, filtered[i]);
-    return r;
+    return ctx.solver->make_term(smt::Mult, filtered);
 }
 
 smt::Term mk_add(const Ctx& ctx, const smt::TermVec& args) {
