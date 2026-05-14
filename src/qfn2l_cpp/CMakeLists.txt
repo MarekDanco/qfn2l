@@ -21,8 +21,8 @@ find_package(Boost REQUIRED)
 
 find_package(smt-switch QUIET)
 if(NOT smt-switch_FOUND)
-  # Fallback: look for a local build in deps/
-  set(SMT_SWITCH_DIR "${CMAKE_SOURCE_DIR}/../../deps/smt-switch/build"
+  # Fallback: look for a local build in deps/ (relative to this CMakeLists.txt)
+  set(SMT_SWITCH_DIR "${CMAKE_SOURCE_DIR}/deps/smt-switch/build"
       CACHE PATH "Path to smt-switch build directory")
   find_library(SMT_SWITCH_LIB smt-switch PATHS "${SMT_SWITCH_DIR}" NO_DEFAULT_PATH)
   find_library(SMT_SWITCH_Z3_LIB smt-switch-z3
