@@ -82,7 +82,7 @@ CheckVal::CheckVal(const Ctx& ctx, HasUninterpreted& hu, const Pures& pures,
 
 bool CheckVal::check(const smt::Term& formula) {
     auto res = (*this)(formula);
-    return res && (is_true(_ctx, *res) || *res == _ctx.TRUE_T);
+    return res && is_true(_ctx, *res);
 }
 
 std::optional<smt::Term> CheckVal::operator()(const smt::Term& t) {
@@ -141,10 +141,6 @@ CheckVal::visit_prop(const smt::Term& t,
             return _ctx.TRUE_T;
         return std::nullopt;
     }
-    if (is_true(_ctx, t))
-        return _ctx.TRUE_T;
-    if (is_false(_ctx, t))
-        return _ctx.FALSE_T;
     if (is_or(t)) {
         if (in_cvs(_ctx.TRUE_T))
             return _ctx.TRUE_T;

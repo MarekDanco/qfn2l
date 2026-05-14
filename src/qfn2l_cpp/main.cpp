@@ -24,7 +24,6 @@
 #endif
 
 // ── Signal handling ───────────────────────────────────────────────────────────
-static volatile sig_atomic_t g_shutdown = 0;
 static bool g_print_stats = false;
 static bool g_brief_stats = false;
 static double g_start_time = 0.0;

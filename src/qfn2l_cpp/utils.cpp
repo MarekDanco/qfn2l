@@ -160,13 +160,6 @@ bool is_zero(const Ctx& ctx, const smt::Term& t) {
 bool is_one(const Ctx& ctx, const smt::Term& t) {
     return t->is_value() && t->get_sort() == ctx.int_sort && t->to_string() == "1";
 }
-bool is_min_one(const Ctx& ctx, const smt::Term& t) {
-    if (!t->is_value() || t->get_sort() != ctx.int_sort)
-        return false;
-    std::string s = t->to_string();
-    static const std::regex neg_one_re(R"(\(\s*-\s*1\s*\))");
-    return std::regex_match(s, neg_one_re);
-}
 bool is_neg_val(const smt::Term& t) {
     if (!t->is_value())
         return false;

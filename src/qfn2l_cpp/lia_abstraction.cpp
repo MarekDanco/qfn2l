@@ -172,8 +172,9 @@ LiaAbstraction::LiaAbstraction(const Ctx& ctx, const Options& opts,
             if (!pcol.collected.count(p))
                 continue;
             ALOG(4, "mapping %s -> %s", t->to_string().c_str(), p->to_string().c_str());
-            for (auto& ax : _axioms.at(p))
-                ALOG(4, "ax: %s smul", ax->to_string().c_str());
+            if (auto ait = _axioms.find(p); ait != _axioms.end())
+                for (auto& ax : ait->second)
+                    ALOG(4, "ax: %s smul", ax->to_string().c_str());
         }
     }
 }
@@ -434,9 +435,10 @@ void LiaAbstraction::_solve() {
                         mx = INT64_MAX;
                         break;
                     }
-                    mx = std::max(mx, std::abs(v));
+                    // Guard against std::abs(INT64_MIN) UB.
+                    mx = std::max(mx, v == INT64_MIN ? INT64_MAX : std::abs(v));
                 }
-                if (mx < TINY)
+                if (mx == INT64_MAX || mx < TINY)
                     break;
                 int64_t bound = 3 * mx / 4;
                 ALOG(4, "shrink attempt %d: ±%lld (max=%lld)", attempt,
@@ -505,7 +507,8 @@ void LiaAbstraction::_solve() {
     }
 #endif
 
-    // Non-z3 fallback: push/assert/check/pop.
+    // Non-z3 fallback: reset before each call so axioms don't accumulate.
+    _ctx.solver->reset();
     _ctx.solver->assert_formula(_current_instantiation);
     ALOG(4, "SAT? checking LIA");
 

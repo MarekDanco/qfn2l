@@ -91,7 +91,6 @@ bool is_true(const Ctx& ctx, const smt::Term& t);
 bool is_false(const Ctx& ctx, const smt::Term& t);
 bool is_zero(const Ctx& ctx, const smt::Term& t);
 bool is_one(const Ctx& ctx, const smt::Term& t);
-bool is_min_one(const Ctx& ctx, const smt::Term& t);
 bool is_neg_val(const smt::Term& t); // value < 0
 
 // ── Term building helpers ─────────────────────────────────────────────────────
