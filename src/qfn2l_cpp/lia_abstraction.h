@@ -12,7 +12,6 @@ struct Options {
     int verbose = 0;
     int maxits = -1;
     int modax = 2;
-    bool bounds = false;
     bool zeros = false;
     bool static_ax = false;
     int seed = 7;
@@ -126,8 +125,6 @@ class LiaAbstraction {
     incorporate_assumptions(smt::TermVec& assumptions, const char* msg);
     void apply_zeros_heuristic(const smt::UnorderedTermSet& cur_pures,
                                smt::TermVec& assumptions);
-    void apply_bounds_heuristic(const smt::UnorderedTermSet& cur_pures,
-                                const smt::TermVec& zero_assumptions);
 
     // Axiom generation.
     struct MulSplit {

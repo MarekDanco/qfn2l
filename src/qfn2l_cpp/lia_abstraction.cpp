@@ -479,7 +479,7 @@ void LiaAbstraction::_solve() {
         slv.check(); // trivially SAT; makes the model available via get_value()
         _lia_sat = true;
 
-        if (!(_opts.bounds || _opts.zeros))
+        if (!_opts.zeros)
             return;
 
         CollectPures pcol(_ctx, _pures, _axioms);
@@ -501,15 +501,6 @@ void LiaAbstraction::_solve() {
             _heuristic_left_unsat = false;
         }
 
-        if (_opts.bounds)
-            apply_bounds_heuristic(cur_pures, zero_assumptions);
-
-        if (_heuristic_left_unsat) {
-            STATS.begin_phase(STATS.liatime);
-            _ctx.solver->check_sat();
-            STATS.end_phase();
-            STATS.liacalls += 1;
-        }
         return;
     }
 #endif
@@ -542,7 +533,7 @@ void LiaAbstraction::_solve() {
         return;
     _lia_sat = true;
 
-    if (!(_opts.bounds || _opts.zeros))
+    if (!_opts.zeros)
         return;
 
     CollectPures pcol(_ctx, _pures, _axioms);
@@ -564,15 +555,6 @@ void LiaAbstraction::_solve() {
         _heuristic_left_unsat = false;
     }
 
-    if (_opts.bounds)
-        apply_bounds_heuristic(cur_pures, zero_assumptions);
-
-    if (_heuristic_left_unsat) {
-        STATS.begin_phase(STATS.liatime);
-        _ctx.solver->check_sat();
-        STATS.end_phase();
-        STATS.liacalls += 1;
-    }
 }
 
 std::optional<smt::UnorderedTermMap>
@@ -621,52 +603,6 @@ void LiaAbstraction::apply_zeros_heuristic(const smt::UnorderedTermSet& cur_pure
         if (is_mul(_pures.get_t(p)))
             assumptions.push_back(_ctx.solver->make_term(smt::Equal, p, _ctx.ZERO));
     incorporate_assumptions(assumptions, "zeros");
-}
-
-void LiaAbstraction::apply_bounds_heuristic(const smt::UnorderedTermSet& cur_pures,
-                                            const smt::TermVec& zero_assumptions) {
-    using boost::multiprecision::cpp_int;
-    for (int attempt = 0; attempt < 5; ++attempt) {
-        cpp_int mx = 0;
-        for (auto& p : cur_pures) {
-            auto val = get_value(p);
-            if (val) {
-                cpp_int v = boost::multiprecision::abs(term_to_cpp_int(*val));
-                if (v > mx)
-                    mx = v;
-            }
-        }
-        if (mx < 20)
-            return;
-
-        cpp_int bound = 3 * mx / 4;
-        cpp_int neg_bound = -bound;
-        smt::Term lb = cpp_int_to_term(_ctx, neg_bound);
-        smt::Term ub = cpp_int_to_term(_ctx, bound);
-        ALOG(3, "bounds attempt %d: [%s, %s]", attempt, neg_bound.str().c_str(),
-             bound.str().c_str());
-
-        smt::TermVec bounds;
-        for (auto& p : cur_pures) {
-            bounds.push_back(_ctx.solver->make_term(smt::Lt, lb, p));
-            bounds.push_back(_ctx.solver->make_term(smt::Lt, p, ub));
-        }
-        smt::TermVec combined = zero_assumptions;
-        combined.insert(combined.end(), bounds.begin(), bounds.end());
-
-        set_solver_timeout(_ctx, _opts.heur_to);
-        STATS.begin_phase(STATS.liatime);
-        smt::Result res = _ctx.solver->check_sat_assuming(combined);
-        STATS.end_phase();
-        STATS.liacalls += 1;
-        set_solver_timeout(_ctx, 0);
-
-        if (!res.is_sat()) {
-            _heuristic_left_unsat = true;
-            return;
-        }
-        ALOG(4, "bounds attempt %d succeeded", attempt);
-    }
 }
 
 // ── split_mul ─────────────────────────────────────────────────────────────────
