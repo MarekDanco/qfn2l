@@ -290,7 +290,7 @@ smt::Term SimplePropagate::propagate(bool pos, const smt::Term& node) {
             continue;
         if (!is_symbolic_const(lhs))
             std::swap(lhs, rhs);
-        if (!is_symbolic_const(lhs))
+        if (!is_symbolic_const(lhs) || !is_symbolic_const(rhs))
             continue;
         eqs.push_back({lhs, rhs});
         // Swap-remove.
