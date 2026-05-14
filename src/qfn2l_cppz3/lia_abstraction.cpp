@@ -173,6 +173,7 @@ Term LiaAbstraction::make_pure_constant(const Term& term) {
     std::string fname = make_fancy_name(term);
     Term pure = _ctx.fresh_symbol(term.get_sort(), fname);
     _pures.map_t2p(term, pure);
+    _axioms.emplace(pure, TermVec{});  // ensure key exists even before axioms are added
     STATS.pures += 1;
     if (!_in_init)
         ALOG(4, "mapping %s -> %s", term.to_string().c_str(), pure.to_string().c_str());

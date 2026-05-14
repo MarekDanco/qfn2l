@@ -176,8 +176,14 @@ int main(int argc, char** argv) {
     Term formula(ctx.zctx);
     try {
         formula = parse_input(ctx, filename);
+    } catch (const z3::exception& e) {
+        std::fprintf(stderr, "Parse error: %s\n", e.msg());
+        return 1;
     } catch (const std::exception& e) {
         std::fprintf(stderr, "Parse error: %s\n", e.what());
+        return 1;
+    } catch (...) {
+        std::fprintf(stderr, "Parse error: unknown exception from Z3\n");
         return 1;
     }
     STATS.end_phase();
@@ -224,8 +230,14 @@ int main(int argc, char** argv) {
         } else {
             std::printf("unsat\n");
         }
+    } catch (const z3::exception& e) {
+        std::fprintf(stderr, "Error: %s\n", e.msg());
+        return 1;
     } catch (const std::exception& e) {
         std::fprintf(stderr, "Error: %s\n", e.what());
+        return 1;
+    } catch (...) {
+        std::fprintf(stderr, "Error: unknown exception from Z3\n");
         return 1;
     }
 
