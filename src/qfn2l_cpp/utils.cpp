@@ -172,6 +172,12 @@ bool is_neg_val(const smt::Term& t) {
 smt::Term mk_true(const Ctx& ctx) { return ctx.TRUE_T; }
 smt::Term mk_false(const Ctx& ctx) { return ctx.FALSE_T; }
 
+smt::Term mk_int_abs(const Ctx& ctx, const smt::Term& t) {
+    return ctx.solver->make_term(
+        smt::Ite, ctx.solver->make_term(smt::Ge, t, ctx.ZERO), t,
+        ctx.solver->make_term(smt::Negate, t));
+}
+
 smt::Term mk_not(const Ctx& ctx, const smt::Term& a) {
     if (is_not(a))
         return get_child(a, 0);

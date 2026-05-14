@@ -62,8 +62,8 @@ smt::Term LiaAbstraction::Purifier::visit_idiv(const smt::Term& t) {
         smt::Term p = _parent.make_pure_constant(t);
         if (_parent._opts.static_ax && !is_zero(_ctx, y)) {
             // |p| <= |x|  when y != 0
-            smt::Term abs_p = _ctx.solver->make_term(smt::Abs, p);
-            smt::Term abs_x = _ctx.solver->make_term(smt::Abs, x);
+            smt::Term abs_p = mk_int_abs(_ctx,p);
+            smt::Term abs_x = mk_int_abs(_ctx,x);
             _parent.add_axiom(
                 p, mk_implies(_ctx, _ctx.solver->make_term(smt::Distinct, y, _ctx.ZERO),
                               _ctx.solver->make_term(smt::Le, abs_p, abs_x)));
@@ -79,7 +79,7 @@ smt::Term LiaAbstraction::Purifier::visit_mod(const smt::Term& t) {
     if (_hu(y) || is_zero(_ctx, y)) {
         smt::Term p = _parent.make_pure_constant(t);
         if (_parent._opts.static_ax && !is_zero(_ctx, y)) {
-            smt::Term abs_y = _ctx.solver->make_term(smt::Abs, y);
+            smt::Term abs_y = mk_int_abs(_ctx,y);
             _parent.add_axiom(
                 p,
                 mk_implies(_ctx, _ctx.solver->make_term(smt::Distinct, y, _ctx.ZERO),
@@ -787,7 +787,7 @@ smt::TermVec LiaAbstraction::mk_mod_axiom(const smt::Term& t) {
 
     smt::TermVec axioms;
     if (xval && !_hu(xval)) {
-        smt::Term abs_y = _ctx.solver->make_term(smt::Abs, tsubs_y);
+        smt::Term abs_y = mk_int_abs(_ctx,tsubs_y);
         if (!is_neg_val(xval)) {
             axioms.push_back(
                 mk_implies(_ctx,
@@ -828,7 +828,7 @@ smt::TermVec LiaAbstraction::mk_idiv_axiom(const smt::Term& t) {
 
     smt::TermVec axioms;
     if (xval && !_hu(xval)) {
-        smt::Term abs_y = _ctx.solver->make_term(smt::Abs, tsubs_y);
+        smt::Term abs_y = mk_int_abs(_ctx,tsubs_y);
         if (!is_neg_val(xval)) {
             axioms.push_back(
                 mk_implies(_ctx,

@@ -104,6 +104,9 @@ smt::Term mk_and2(const Ctx& ctx, const smt::Term& a, const smt::Term& b);
 smt::Term mk_or2(const Ctx& ctx, const smt::Term& a, const smt::Term& b);
 smt::Term mk_implies(const Ctx& ctx, const smt::Term& a, const smt::Term& b);
 
+// Integer abs via ite: smt::Abs maps to fp-abs and crashes on int sorts.
+smt::Term mk_int_abs(const Ctx& ctx, const smt::Term& t);
+
 smt::Term mk_mul(const Ctx& ctx, const smt::TermVec& args);
 smt::Term mk_add(const Ctx& ctx, const smt::TermVec& args);
 
