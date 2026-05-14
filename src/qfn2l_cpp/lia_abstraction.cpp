@@ -973,7 +973,7 @@ void LiaAbstraction::add_lazy_congruence_axioms(const CollectPures& pcol) {
                         violated_axs.push_back(ax);
                 }
                 if (!violated_axs.empty()) {
-                    add_axioms(*it1, violated_axs, "cong");
+                    add_axioms(*it1, candidates, "cong");
                     _congruence_pairs_added.insert(key);
                 }
             }
