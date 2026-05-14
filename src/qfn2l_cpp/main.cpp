@@ -157,14 +157,18 @@ static smt::SmtSolver create_solver(const std::string& backend) {
 #ifdef BACKEND_Z3
 static smt::Term apply_tactic(z3::context& zctx, const z3::expr& e,
                                const z3::tactic& t, int timeout_ms) {
-    z3::goal g(zctx);
-    g.add(e);
-    z3::apply_result res = z3::try_for(t, timeout_ms)(g);
-    z3::expr_vector all(zctx);
-    for (unsigned i = 0; i < res.size(); ++i)
-        for (unsigned j = 0; j < res[i].size(); ++j)
-            all.push_back(res[i][j]);
-    return std::make_shared<smt::Z3Term>(z3::mk_and(all), zctx);
+    try {
+        z3::goal g(zctx);
+        g.add(e);
+        z3::apply_result res = z3::try_for(t, timeout_ms)(g);
+        z3::expr_vector all(zctx);
+        for (unsigned i = 0; i < res.size(); ++i)
+            for (unsigned j = 0; j < res[i].size(); ++j)
+                all.push_back(res[i][j]);
+        return std::make_shared<smt::Z3Term>(z3::mk_and(all), zctx);
+    } catch (const z3::exception&) {
+        return std::make_shared<smt::Z3Term>(e, zctx);
+    }
 }
 
 static smt::Term preprocess_aggressive(const Ctx& ctx, const smt::Term& formula,
