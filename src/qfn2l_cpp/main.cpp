@@ -62,6 +62,8 @@ static void print_usage(const char* prog) {
         "  --seed N              Random seed (default 7)\n"
         "  --timeout N           Wall-clock timeout in seconds (-1 = none)\n"
         "  --heur-timeout N      Heuristic LIA timeout in ms (default 3000)\n"
+        "  --preprocess-aggressive N  Z3 tactic preprocessing level (1 or 2)\n"
+        "  --preprocess-aggressive-timeout N  Timeout for preprocessing tactics in ms (default 5000)\n"
         "  --print-model         Print SAT model as define-fun lines\n"
         "  --stats               Print full stats on exit\n"
         "  --brief-stats         Print brief stats on exit\n"
@@ -108,6 +110,10 @@ static Options parse_args(int argc, char** argv, std::string& filename) {
             opts.print_stats = true;
         else if (arg == "--brief-stats")
             opts.brief_stats = true;
+        else if (arg == "--preprocess-aggressive")
+            opts.preprocess_aggressive = std::stoi(next());
+        else if (arg == "--preprocess-aggressive-timeout")
+            opts.preprocess_aggressive_timeout = std::stoi(next());
         else if (arg == "--backend")
             opts.backend = next();
         else if (arg == "--help") {
@@ -147,6 +153,72 @@ static smt::SmtSolver create_solver(const std::string& backend) {
 #endif
 }
 
+// ── Z3 tactic preprocessing ───────────────────────────────────────────────────
+#ifdef BACKEND_Z3
+static smt::Term apply_tactic(z3::context& zctx, const z3::expr& e,
+                               const z3::tactic& t, int timeout_ms) {
+    z3::goal g(zctx);
+    g.add(e);
+    z3::apply_result res = z3::try_for(t, timeout_ms)(g);
+    z3::expr_vector all(zctx);
+    for (unsigned i = 0; i < res.size(); ++i)
+        for (unsigned j = 0; j < res[i].size(); ++j)
+            all.push_back(res[i][j]);
+    return std::make_shared<smt::Z3Term>(z3::mk_and(all), zctx);
+}
+
+static smt::Term preprocess_aggressive(const Ctx& ctx, const smt::Term& formula,
+                                       int level, int timeout_ms) {
+    auto* z3s = dynamic_cast<smt::Z3Solver*>(ctx.solver.get());
+    z3::context& zctx = *z3s->get_z3_context();
+    auto* z3t = dynamic_cast<smt::Z3Term*>(formula.get());
+    z3::expr e = z3t->get_z3_expr();
+
+    using P = z3::params;
+    auto run = [&](z3::tactic t) {
+        e = dynamic_cast<smt::Z3Term*>(
+                apply_tactic(zctx, e, t, timeout_ms).get())
+                ->get_z3_expr();
+    };
+
+    auto p_simplify = [&](bool hoist) {
+        P p(zctx);
+        p.set("arith_lhs", true);
+        p.set("hoist_mul", hoist);
+        p.set("som", true);
+        run(z3::with(z3::tactic(zctx, "simplify"), p));
+    };
+    auto p_propagate_values = [&]() {
+        P p(zctx);
+        p.set("local_ctx", true);
+        p.set("arith_lhs", true);
+        p.set("rewrite_patterns", true);
+        run(z3::with(z3::tactic(zctx, "propagate-values"), p));
+    };
+    auto p_solve_eqs = [&]() {
+        P p(zctx);
+        p.set("context_solve", true);
+        run(z3::with(z3::tactic(zctx, "solve-eqs"), p));
+    };
+
+    p_simplify(true);
+    p_propagate_values();
+    run(z3::tactic(zctx, "propagate-ineqs"));
+    run(z3::tactic(zctx, "normalize-bounds"));
+    p_solve_eqs();
+    p_simplify(true);
+    run(z3::tactic(zctx, "ctx-simplify"));
+    p_simplify(false);
+
+    if (level >= 2) {
+        run(z3::tactic(zctx, "ctx-solver-simplify"));
+        p_simplify(false);
+    }
+
+    return std::make_shared<smt::Z3Term>(e, zctx);
+}
+#endif
+
 // ── Parse SMT2 input ──────────────────────────────────────────────────────────
 static smt::Term parse_input(const Ctx& ctx, const std::string& filename) {
 #ifdef BACKEND_Z3
@@ -175,7 +247,7 @@ static smt::Term parse_input(const Ctx& ctx, const std::string& filename) {
 }
 
 // ── Model printing ────────────────────────────────────────────────────────────
-static void print_model(const Ctx& ctx, const LiaAbstraction& abstr,
+static void print_model(const Ctx& /*ctx*/, const LiaAbstraction& abstr,
                         const smt::UnorderedTermSet& orig_syms) {
     std::printf(";; model-start\n");
     for (auto& sym : orig_syms) {
@@ -231,6 +303,15 @@ int main(int argc, char** argv) {
         return 1;
     }
     STATS.end_phase();
+
+#ifdef BACKEND_Z3
+    if (opts.preprocess_aggressive > 0) {
+        STATS.begin_phase(STATS.parse_time);
+        formula = preprocess_aggressive(ctx, formula, opts.preprocess_aggressive,
+                                        opts.preprocess_aggressive_timeout);
+        STATS.end_phase();
+    }
+#endif
 
     // Collect original symbols for model printing.
     smt::UnorderedTermSet orig_syms;
