@@ -68,6 +68,10 @@ void CollectPures::visit(const smt::Term& root) {
         if (is_mul(*orig))
             mul_collected.insert(t);
 
+        // Traverse the pure's definition so pures referenced inside it
+        // (e.g. e_s^2 inside (mod e_dinv2 e_s^2)) are also collected.
+        stk.push_back(*orig);
+
         auto ax_it = _axioms.find(t);
         if (ax_it != _axioms.end())
             for (auto& ax : ax_it->second)
