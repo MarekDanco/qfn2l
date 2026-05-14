@@ -290,7 +290,9 @@ smt::Term SimplePropagate::propagate(bool pos, const smt::Term& node) {
             continue;
         if (!is_symbolic_const(lhs))
             std::swap(lhs, rhs);
-        if (!is_symbolic_const(lhs) || !is_symbolic_const(rhs))
+        // Allow rhs to be a numeral (x=2) or symbolic const (x=y),
+        // but reject compound rhs (x=a+b) which can cause circular substitution.
+        if (!is_symbolic_const(lhs) || (!is_symbolic_const(rhs) && !is_value(rhs)))
             continue;
         eqs.push_back({lhs, rhs});
         // Swap-remove.
