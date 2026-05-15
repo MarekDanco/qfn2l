@@ -21,6 +21,7 @@ struct Options {
     bool print_model = false;
     bool print_stats = false;
     bool brief_stats = false;
+    bool preprocess = false;
     int preprocess_aggressive = 0;
     int preprocess_aggressive_timeout = 5000;
     std::string backend = "z3"; // "z3" | "cvc5"

@@ -31,7 +31,7 @@ run_and_check() {
 }
 
 S=../src/qfn2l_cpp/build/qfn2l
-for opts in "--zeros" " " "--preprocess-aggressive 2" ; do
+for opts in " "  "--zeros"  "--preproc-aggressive 2" ; do
 	echo OPTS: ${opts}
 	run_and_check "${S}" "--timeout 10 ${opts}" ./hard.c_2.smt2 unsat
 	run_and_check "${S}" "--timeout 10 ${opts}" ./hard.c_3.smt2 unsat

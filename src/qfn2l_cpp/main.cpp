@@ -61,8 +61,9 @@ static void print_usage(const char* prog) {
         "  --seed N              Random seed (default 7)\n"
         "  --timeout N           Wall-clock timeout in seconds (-1 = none)\n"
         "  --heur-timeout N      Heuristic LIA timeout in ms (default 3000)\n"
-        "  --preprocess-aggressive N  Z3 tactic preprocessing level (1 or 2)\n"
-        "  --preprocess-aggressive-timeout N  Timeout for preprocessing tactics in ms (default 5000)\n"
+        "  -p, --preproc         Preprocess with Z3 tactics\n"
+        "  -pa N, --preproc-aggressive N  Z3 tactic preprocessing level (1 or 2)\n"
+        "  -pt N, --preproc-timeout N     Timeout per tactic for -p/-pa in ms (default 5000)\n"
         "  --print-model         Print SAT model as define-fun lines\n"
         "  --stats               Print full stats on exit\n"
         "  --brief-stats         Print brief stats on exit\n"
@@ -109,13 +110,15 @@ static Options parse_args(int argc, char** argv, std::string& filename) {
             opts.print_stats = true;
         else if (arg == "--brief-stats")
             opts.brief_stats = true;
-        else if (arg == "--preprocess-aggressive")
+        else if (arg == "-p" || arg == "--preproc")
+            opts.preprocess = true;
+        else if (arg == "-pa" || arg == "--preproc-aggressive")
             opts.preprocess_aggressive = std::stoi(next());
-        else if (arg == "--preprocess-aggressive-timeout")
+        else if (arg == "-pt" || arg == "--preproc-timeout")
             opts.preprocess_aggressive_timeout = std::stoi(next());
         else if (arg == "--backend")
             opts.backend = next();
-        else if (arg == "--help") {
+        else if (arg == "--help" || arg == "-h") {
             print_usage(argv[0]);
             std::exit(0);
         } else if (arg[0] != '-')
@@ -168,6 +171,21 @@ static smt::Term apply_tactic(z3::context& zctx, const z3::expr& e,
     } catch (const z3::exception&) {
         return std::make_shared<smt::Z3Term>(e, zctx);
     }
+}
+
+static smt::Term preprocess_plain(const Ctx& ctx, const smt::Term& formula,
+                                   int timeout_ms) {
+    auto* z3s = dynamic_cast<smt::Z3Solver*>(ctx.solver.get());
+    z3::context& zctx = *z3s->get_z3_context();
+    auto* z3t = dynamic_cast<smt::Z3Term*>(formula.get());
+    z3::expr e = z3t->get_z3_expr();
+
+    for (const char* name : {"simplify", "propagate-values", "solve-eqs", "simplify"})
+        e = dynamic_cast<smt::Z3Term*>(
+                apply_tactic(zctx, e, z3::tactic(zctx, name), timeout_ms).get())
+                ->get_z3_expr();
+
+    return std::make_shared<smt::Z3Term>(e, zctx);
 }
 
 static smt::Term preprocess_aggressive(const Ctx& ctx, const smt::Term& formula,
@@ -312,6 +330,10 @@ int main(int argc, char** argv) {
         STATS.begin_phase(STATS.parse_time);
         formula = preprocess_aggressive(ctx, formula, opts.preprocess_aggressive,
                                         opts.preprocess_aggressive_timeout);
+        STATS.end_phase();
+    } else if (opts.preprocess) {
+        STATS.begin_phase(STATS.parse_time);
+        formula = preprocess_plain(ctx, formula, opts.preprocess_aggressive_timeout);
         STATS.end_phase();
     }
 #endif
