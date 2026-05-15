@@ -12,37 +12,26 @@
 %
 \begin{document}
 %
-\title{Incremental Linearization for Integer Arithmetic Revisited}
-% Revisiting Incremental Linearization for Nonlinear Integer Arithmetic
+\title{Revisiting Incremental Linearization for Nonlinear Integer Arithmetic}
+%
 \author{Marek Dan\v{c}o\orcidID{0009-0008-3031-113X} \and
 Karel Chvalovsk\'{y}\orcidID{0000-0002-0541-3889} \and
 Mikol\'{a}\v{s} Janota\orcidID{0000-0003-3487-784X}}
-% Karel.Chvalovsky@cvut.cz
 %
 \authorrunning{M. Dan\v{c}o et al.}
-% First names are abbreviated in the running head.
-% If there are more than two authors, 'et al.' is used.
-%
 \institute{Czech Technical University in Prague}
 %
-\maketitle              % typeset the header of the contribution
+\maketitle
 %
 \begin{abstract}
-	Incremental Linearization had been previously proposed for solving SMT problems over nonlinear real, and then
-	later integer arithmetic constraints. Although conceptually simple, in both cases it had been proven very effective.
-	In this paper, we introduce a revised axiom set that achieves faster convergence on exponentiation terms — a class
-	of problems where prior axiomatizations struggled. We present a standalone implementation that uses Z3 as a backend
-	for linear integer arithmetic, and report on an experimental evaluation over the NIA benchmarks in SMT-LIB.
-	Our results show that the approach is competitive with state-of-the-art solvers overall,
-	and largely outperforms them on benchmarks involving exponentiation.
+	Incremental Linearization has previously been proposed for solving SMT problems over quantifier-free
+	nonlinear integer arithmetic and has proven effective despite its conceptual simplicity.
+	In this paper, we introduce a revised axiom set that improves convergence on polynomial constraints,
+	a class of problems on which prior axiomatizations struggled. We present a standalone implementation
+	built on top of Z3 for linear integer arithmetic and evaluate it on the NIA benchmark set from SMT-LIB.
+	Our results show that the approach is competitive with state-of-the-art solvers overall and
+	substantially outperforms them on benchmarks dominated by polynomial constraints.
 	\keywords{SMT \and Nonlinear Arithmetic \and NIA.}
-
-% Incremental Linearization has previously been proposed for solving SMT problems over quantifier-free nonlinear integer arithmetic and has proven effective despite its conceptual simplicity.
-%
-% In this paper, we introduce a revised axiom set that improves convergence on polynomial constraints, a class of problems on which prior axiomatizations struggled. We present a standalone implementation built on top of Z3 for linear integer arithmetic and evaluate it on the NIA benchmark set from SMT-LIB.
-%
-% Our results show that the approach is competitive with state-of-the-art solvers overall and substantially outperforms them on benchmarks dominated by polynomial constraints.
-
 \end{abstract}
 % \bibliographystyle{splncs04}
 % \bibliography{mybibliography}
