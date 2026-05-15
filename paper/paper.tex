@@ -1,0 +1,41 @@
+\documentclass[runningheads]{llncs}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+% Used for displaying a sample figure. If possible, figure files should
+% be included in EPS format.
+%
+% If you use the hyperref package, please uncomment the following two lines
+% to display URLs in blue roman font according to Springer's eBook style:
+%\usepackage{color}
+%\renewcommand\UrlFont{\color{blue}\rmfamily}
+%\urlstyle{rm}
+%
+\begin{document}
+%
+\title{Incremental Linearization for Integer Arithmetic Revisited}
+\author{Marek Dan\v{c}o\orcidID{0009-0008-3031-113X} \and
+Karel Chvalovsk\'{y}\orcidID{0000-0002-0541-3889} \and
+Mikol\'{a}\v{s} Janota\orcidID{0000-0003-3487-784X}}
+%
+\authorrunning{M. Dan\v{c}o et al.}
+% First names are abbreviated in the running head.
+% If there are more than two authors, 'et al.' is used.
+%
+\institute{Czech Technical University in Prague}
+%
+\maketitle              % typeset the header of the contribution
+%
+\begin{abstract}
+	Incremental Linearization had been previously proposed for solving SMT problems over nonlinear real, and then
+	later integer arithmetic constraints. Although conceptually simple, in both cases it had been proven very effective.
+	In this paper, we introduce a revised axiom set that achieves faster convergence on exponentiation terms — a class
+	of problems where prior axiomatizations struggled. We present a standalone implementation that uses Z3 as a backend
+	for linear integer arithmetic, and report on an experimental evaluation over the NIA benchmarks in SMT-LIB.
+	Our results show that the approach is competitive with state-of-the-art solvers overall,
+	and largely outperforms them on benchmarks involving exponentiation.
+	\keywords{SMT \and Nonlinear Arithmetic \and NIA.}
+\end{abstract}
+% \bibliographystyle{splncs04}
+% \bibliography{mybibliography}
+%
+\end{document}
