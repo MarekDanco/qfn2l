@@ -5,33 +5,33 @@ set -euo pipefail
 DEFAULT_SMT_SWITCH_DIR="${SMT_SWITCH_DIR:-/home/marek/solvers/smt-switch/build}"
 
 usage() {
-    echo "Usage: $0 [--smt-switch-dir DIR] [--build-dir DIR] [--debug] [--cvc5] [--no-build] [cmake extra args...]"
+    echo "Usage: $0 [--smt-switch-dir DIR] [--build-dir DIR] [--debug] [--jobs N] [--no-tests] [--no-build] [cmake extra args...]"
     echo
     echo "  --smt-switch-dir DIR   Path to smt-switch build directory (default: $DEFAULT_SMT_SWITCH_DIR)"
-    echo "  --smt-switch-src DIR   Patch smt-switch source (z3_term.cpp hash→id fix) and rebuild before configuring"
     echo "  --build-dir DIR        Build directory relative to src/qfn2l_cpp (default: build)"
     echo "  --debug                Use Debug build type instead of Release"
-    echo "  --cvc5                 Also enable the CVC5 backend"
+    echo "  --jobs N               Parallel build jobs (default: number of CPUs)"
+    echo "  --no-tests             Disable building test executables (reduces RAM usage during linking)"
     echo "  --no-build             Configure only; skip the build step"
     echo "  Extra cmake args are passed through verbatim."
     exit 0
 }
 
 SMT_SWITCH_DIR_ARG="$DEFAULT_SMT_SWITCH_DIR"
-SMT_SWITCH_SRC=""
 BUILD_DIR="build"
 BUILD_TYPE="Release"
+JOBS="$(nproc)"
+BUILD_TESTING="ON"
 EXTRA_ARGS=()
-BACKEND_CVC5="OFF"
 DO_BUILD=1
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --smt-switch-dir) SMT_SWITCH_DIR_ARG="$2"; shift 2 ;;
-        --smt-switch-src) SMT_SWITCH_SRC="$2"; shift 2 ;;
         --build-dir)      BUILD_DIR="$2"; shift 2 ;;
         --debug)          BUILD_TYPE="Debug"; shift ;;
-        --cvc5)           BACKEND_CVC5="ON"; shift ;;
+        --jobs)           JOBS="$2"; shift 2 ;;
+        --no-tests)       BUILD_TESTING="OFF"; shift ;;
         --no-build)       DO_BUILD=0; shift ;;
         -h|--help)        usage ;;
         *)                EXTRA_ARGS+=("$1"); shift ;;
@@ -40,21 +40,6 @@ done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_PATH="$SCRIPT_DIR/$BUILD_DIR"
-
-if [[ -n "$SMT_SWITCH_SRC" ]]; then
-    Z3_TERM="$SMT_SWITCH_SRC/z3/src/z3_term.cpp"
-    if [[ ! -f "$Z3_TERM" ]]; then
-        echo "ERROR: cannot find $Z3_TERM — check --smt-switch-src" >&2
-        exit 1
-    fi
-    echo "==> Patching smt-switch: $Z3_TERM"
-    sed -i \
-        -e 's/return z_func\.hash() == (zs->z_func)\.hash();/return z_func.id() == (zs->z_func).id();/' \
-        -e 's/return term\.hash() == (zs->term)\.hash();/return term.id() == (zs->term).id();/' \
-        "$Z3_TERM"
-    echo "==> Rebuilding smt-switch"
-    cmake --build "$SMT_SWITCH_DIR_ARG" -j"$(nproc)"
-fi
 
 echo "==> Configuring qfn2l_cpp"
 echo "    smt-switch: $SMT_SWITCH_DIR_ARG"
@@ -67,11 +52,11 @@ cmake -S "$SCRIPT_DIR" -B "$BUILD_PATH" \
     -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
     -DSMT_SWITCH_DIR="$SMT_SWITCH_DIR_ARG" \
     -DBACKEND_Z3=ON \
-    -DBACKEND_CVC5="$BACKEND_CVC5" \
+    -DBUILD_TESTING="$BUILD_TESTING" \
     "${EXTRA_ARGS[@]}"
 
 if [[ $DO_BUILD -eq 1 ]]; then
     echo
-    echo "==> Building"
-    cmake --build "$BUILD_PATH" -j"$(nproc)"
+    echo "==> Building (jobs: $JOBS)"
+    cmake --build "$BUILD_PATH" -j"$JOBS"
 fi
