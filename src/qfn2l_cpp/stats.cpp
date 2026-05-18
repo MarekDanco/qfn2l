@@ -1,5 +1,4 @@
 #include "stats.h"
-#include <algorithm>
 #include <cstdio>
 
 Stats STATS;

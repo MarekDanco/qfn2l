@@ -2,7 +2,6 @@
 #include "visitors.h"
 #include <optional>
 #include <unordered_map>
-#include <unordered_set>
 
 // Bidirectional map between NIA terms and their pure constants.
 class Pures {

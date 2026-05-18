@@ -50,7 +50,8 @@ smt::Term TermTransformer::recurse(const smt::Term& t) {
             changed = true;
         new_args.push_back(nc);
     }
-    if (!changed) return t;
+    if (!changed)
+        return t;
     return rebuild(_ctx, t, new_args);
 }
 

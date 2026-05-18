@@ -1,6 +1,5 @@
 #pragma once
 #include <cstdio>
-#include <string>
 
 // Global verbosity level — set once at startup from --verbose/-v.
 extern int g_verbosity;

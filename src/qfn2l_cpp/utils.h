@@ -5,7 +5,6 @@
 #include <cassert>
 #include <cstdint>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #include <boost/multiprecision/cpp_int.hpp>

@@ -1,7 +1,6 @@
 #pragma once
 #include <chrono>
 #include <cstdio>
-#include <string>
 #include <vector>
 
 struct TimedStat {

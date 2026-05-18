@@ -1,12 +1,10 @@
 #include "utils.h"
-#include <algorithm>
 #include <cassert>
 #include <limits>
 #include <regex>
 #include <stdexcept>
 
 #ifdef BACKEND_Z3
-#include "z3_solver.h"
 #include "z3_term.h"
 #endif
 
@@ -66,6 +64,13 @@ cpp_int term_to_cpp_int(const smt::Term& t) {
 }
 
 smt::Term cpp_int_to_term(const Ctx& ctx, const cpp_int& v) {
+    // Use the int64 overload when possible: it creates a proper z3 numeral
+    // (is_value() == true) even for negative values.  The Negate(N) application
+    // produced by the fallback is NOT a numeral in z3's eyes.
+    static const cpp_int I64_MIN = std::numeric_limits<int64_t>::min();
+    static const cpp_int I64_MAX = std::numeric_limits<int64_t>::max();
+    if (v >= I64_MIN && v <= I64_MAX)
+        return ctx.solver->make_term(v.convert_to<int64_t>(), ctx.int_sort);
     if (v >= 0)
         return ctx.solver->make_term(v.str(), ctx.int_sort);
     cpp_int abs_v = -v;
@@ -173,9 +178,8 @@ smt::Term mk_true(const Ctx& ctx) { return ctx.TRUE_T; }
 smt::Term mk_false(const Ctx& ctx) { return ctx.FALSE_T; }
 
 smt::Term mk_int_abs(const Ctx& ctx, const smt::Term& t) {
-    return ctx.solver->make_term(
-        smt::Ite, ctx.solver->make_term(smt::Ge, t, ctx.ZERO), t,
-        ctx.solver->make_term(smt::Negate, t));
+    return ctx.solver->make_term(smt::Ite, ctx.solver->make_term(smt::Ge, t, ctx.ZERO),
+                                 t, ctx.solver->make_term(smt::Negate, t));
 }
 
 smt::Term mk_not(const Ctx& ctx, const smt::Term& a) {

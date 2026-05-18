@@ -1,4 +1,7 @@
 #include "lia_abstraction.h"
+#include "projections.h"
+#include "stats.h"
+#include "tagged_logging.h"
 #include <algorithm>
 #include <cassert>
 #include <chrono>
@@ -7,7 +10,6 @@
 #include <sstream>
 
 #ifdef BACKEND_Z3
-#include "z3_factory.h"
 #include "z3_solver.h"
 #endif
 #ifdef BACKEND_CVC5
@@ -62,8 +64,8 @@ smt::Term LiaAbstraction::Purifier::visit_idiv(const smt::Term& t) {
         smt::Term p = _parent.make_pure_constant(t);
         if (_parent._opts.static_ax && !is_zero(_ctx, y)) {
             // |p| <= |x|  when y != 0
-            smt::Term abs_p = mk_int_abs(_ctx,p);
-            smt::Term abs_x = mk_int_abs(_ctx,x);
+            smt::Term abs_p = mk_int_abs(_ctx, p);
+            smt::Term abs_x = mk_int_abs(_ctx, x);
             _parent.add_axiom(
                 p, mk_implies(_ctx, _ctx.solver->make_term(smt::Distinct, y, _ctx.ZERO),
                               _ctx.solver->make_term(smt::Le, abs_p, abs_x)));
@@ -79,7 +81,7 @@ smt::Term LiaAbstraction::Purifier::visit_mod(const smt::Term& t) {
     if (_hu(y) || is_zero(_ctx, y)) {
         smt::Term p = _parent.make_pure_constant(t);
         if (_parent._opts.static_ax && !is_zero(_ctx, y)) {
-            smt::Term abs_y = mk_int_abs(_ctx,y);
+            smt::Term abs_y = mk_int_abs(_ctx, y);
             _parent.add_axiom(
                 p,
                 mk_implies(_ctx, _ctx.solver->make_term(smt::Distinct, y, _ctx.ZERO),
@@ -383,7 +385,7 @@ void LiaAbstraction::_solve() {
         z3::context* z3ctx = z3s->get_z3_context();
 
         // Fresh solver per call, tuned for LIA — mirrors Python's SolverFor("LIA").
-        z3::solver lia_slv(*z3ctx, "LIA");
+        z3::solver lia_slv(*z3ctx, "QF_LIA");
         z3::params p(*z3ctx);
         p.set("random_seed", (unsigned)_opts.seed);
         if (_opts.timeout > 0) {
@@ -441,7 +443,7 @@ void LiaAbstraction::_solve() {
                 if (mx == INT64_MAX || mx < TINY)
                     break;
                 int64_t bound = 3 * mx / 4;
-                ALOG(4, "shrink attempt %d: ±%lld (max=%lld)", attempt,
+                ALOG(4, "shrink attempt %d: +-%lld (max=%lld)", attempt,
                      (long long)bound, (long long)mx);
                 lia_slv.push();
                 for (unsigned i = 0; i < opt_mdl.num_consts(); i++) {
@@ -557,7 +559,6 @@ void LiaAbstraction::_solve() {
         STATS.liacalls += 1;
         _heuristic_left_unsat = false;
     }
-
 }
 
 std::optional<smt::UnorderedTermMap>
@@ -787,7 +788,7 @@ smt::TermVec LiaAbstraction::mk_mod_axiom(const smt::Term& t) {
 
     smt::TermVec axioms;
     if (xval && !_hu(xval)) {
-        smt::Term abs_y = mk_int_abs(_ctx,tsubs_y);
+        smt::Term abs_y = mk_int_abs(_ctx, tsubs_y);
         if (!is_neg_val(xval)) {
             axioms.push_back(
                 mk_implies(_ctx,
@@ -828,7 +829,7 @@ smt::TermVec LiaAbstraction::mk_idiv_axiom(const smt::Term& t) {
 
     smt::TermVec axioms;
     if (xval && !_hu(xval)) {
-        smt::Term abs_y = mk_int_abs(_ctx,tsubs_y);
+        smt::Term abs_y = mk_int_abs(_ctx, tsubs_y);
         if (!is_neg_val(xval)) {
             axioms.push_back(
                 mk_implies(_ctx,

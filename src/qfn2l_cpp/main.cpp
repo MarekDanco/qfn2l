@@ -7,9 +7,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <fstream>
 #include <iostream>
-#include <sstream>
 #include <string>
 #include <sys/time.h>
 #include <unistd.h>
@@ -63,7 +61,8 @@ static void print_usage(const char* prog) {
         "  --heur-timeout N      Heuristic LIA timeout in ms (default 3000)\n"
         "  -p, --preproc         Preprocess with Z3 tactics\n"
         "  -pa N, --preproc-aggressive N  Z3 tactic preprocessing level (1 or 2)\n"
-        "  -pt N, --preproc-timeout N     Timeout per tactic for -p/-pa in ms (default 5000)\n"
+        "  -pt N, --preproc-timeout N     Timeout per tactic for -p/-pa in ms (default "
+        "5000)\n"
         "  --print-model         Print SAT model as define-fun lines\n"
         "  --stats               Print full stats on exit\n"
         "  --brief-stats         Print brief stats on exit\n"
@@ -157,8 +156,8 @@ static smt::SmtSolver create_solver(const std::string& backend) {
 
 // ── Z3 tactic preprocessing ───────────────────────────────────────────────────
 #ifdef BACKEND_Z3
-static smt::Term apply_tactic(z3::context& zctx, const z3::expr& e,
-                               const z3::tactic& t, int timeout_ms) {
+static smt::Term apply_tactic(z3::context& zctx, const z3::expr& e, const z3::tactic& t,
+                              int timeout_ms) {
     try {
         z3::goal g(zctx);
         g.add(e);
@@ -174,7 +173,7 @@ static smt::Term apply_tactic(z3::context& zctx, const z3::expr& e,
 }
 
 static smt::Term preprocess_plain(const Ctx& ctx, const smt::Term& formula,
-                                   int timeout_ms) {
+                                  int timeout_ms) {
     auto* z3s = dynamic_cast<smt::Z3Solver*>(ctx.solver.get());
     z3::context& zctx = *z3s->get_z3_context();
     auto* z3t = dynamic_cast<smt::Z3Term*>(formula.get());
@@ -197,8 +196,7 @@ static smt::Term preprocess_aggressive(const Ctx& ctx, const smt::Term& formula,
 
     using P = z3::params;
     auto run = [&](z3::tactic t) {
-        e = dynamic_cast<smt::Z3Term*>(
-                apply_tactic(zctx, e, t, timeout_ms).get())
+        e = dynamic_cast<smt::Z3Term*>(apply_tactic(zctx, e, t, timeout_ms).get())
                 ->get_z3_expr();
     };
 

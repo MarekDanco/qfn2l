@@ -1,7 +1,5 @@
 #pragma once
 #include "prefix.h"
-#include <functional>
-#include <optional>
 #include <unordered_map>
 
 // ── Base: memoized term transformer ──────────────────────────────────────────

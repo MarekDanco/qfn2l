@@ -1,9 +1,6 @@
 #pragma once
 #include "prefix.h"
-#include "projections.h"
 #include "pures.h"
-#include "stats.h"
-#include "tagged_logging.h"
 #include <optional>
 #include <set>
 #include <unordered_map>
