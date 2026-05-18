@@ -64,18 +64,15 @@ cpp_int term_to_cpp_int(const smt::Term& t) {
 }
 
 smt::Term cpp_int_to_term(const Ctx& ctx, const cpp_int& v) {
-    // Use the int64 overload when possible: it creates a proper z3 numeral
-    // (is_value() == true) even for negative values.  The Negate(N) application
-    // produced by the fallback is NOT a numeral in z3's eyes.
+    // Use the int64 overload for small values: guaranteed proper z3 numeral.
+    // For large values use v.str() — z3's Z3_mk_numeral accepts decimal strings
+    // including a leading '-', producing a proper numeral (is_value()==true).
+    // Never use Negate(N): that is an application node, not a numeral.
     static const cpp_int I64_MIN = std::numeric_limits<int64_t>::min();
     static const cpp_int I64_MAX = std::numeric_limits<int64_t>::max();
     if (v >= I64_MIN && v <= I64_MAX)
         return ctx.solver->make_term(v.convert_to<int64_t>(), ctx.int_sort);
-    if (v >= 0)
-        return ctx.solver->make_term(v.str(), ctx.int_sort);
-    cpp_int abs_v = -v;
-    smt::Term pos = ctx.solver->make_term(abs_v.str(), ctx.int_sort);
-    return ctx.solver->make_term(smt::Negate, pos);
+    return ctx.solver->make_term(v.str(), ctx.int_sort);
 }
 
 int64_t cpp_int_to_int64(const cpp_int& v) {
