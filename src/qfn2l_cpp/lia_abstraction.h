@@ -9,6 +9,8 @@ struct Options {
     int verbose = 0;
     int maxits = -1;
     int modax = 2;
+    bool bounds = false;
+    int64_t bounds_initial = 5;
     bool zeros = false;
     bool static_ax = false;
     int seed = 7;

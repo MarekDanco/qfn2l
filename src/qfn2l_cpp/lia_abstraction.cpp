@@ -403,21 +403,130 @@ void LiaAbstraction::_solve() {
         lia_slv.add(z3t->get_z3_expr());
 
         ALOG(5, "LIA formula:\n%s", z3t->get_z3_expr().to_string().c_str());
-        ALOG(4, "SAT? checking LIA");
-        STATS.begin_phase(STATS.liatime);
-        z3::check_result res = lia_slv.check();
-        STATS.end_phase();
-        STATS.liacalls += 1;
-        ALOG(4, "check done");
 
-        if (res == z3::unknown) {
-            ALOG(-1, "LIA solver returned unknown");
-            throw LIAFail("LIA solver returned unknown");
+        // --bounds: try to find a small model using per-variable bounds, growing
+        // bounds guided by unsat cores when the bounded problem is UNSAT.
+        bool got_sat = false;
+        z3::model opt_mdl(*z3ctx);
+
+        if (_opts.bounds) {
+            struct BndVar {
+                z3::expr var;
+                int64_t bound;
+            };
+            // Only bound variables that appear directly inside a nonlinear term
+            // (mul/div/mod operand). Variables that are purely linear do not need
+            // bounds — the LIA solver handles them without help.
+            smt::UnorderedTermSet nl_vars;
+            for (auto& [orig_term, _] : _pures.term2pure())
+                for (auto& v : get_vars(orig_term))
+                    nl_vars.insert(v);
+
+            std::vector<BndVar> bvars;
+            for (auto& sv : _orig_vars) {
+                if (!nl_vars.count(sv))
+                    continue;
+                auto* z3tv = dynamic_cast<smt::Z3Term*>(sv.get());
+                if (!z3tv)
+                    continue;
+                z3::expr e = z3tv->get_z3_expr();
+                if (!e.get_sort().is_int())
+                    continue;
+                bvars.push_back({e, _opts.bounds_initial});
+            }
+
+            if (!bvars.empty()) {
+                static constexpr int MAX_BND_ROUNDS = 5;
+                static constexpr int64_t MAX_BND_VAL = (int64_t)1 << 40;
+
+                for (int rnd = 0; rnd < MAX_BND_ROUNDS && !got_sat; rnd++) {
+                    // Add bound assertions via named indicators so unsat_core()
+                    // reliably identifies which bounds contributed to UNSAT.
+                    lia_slv.push();
+                    z3::expr_vector asmps(*z3ctx);
+                    std::vector<std::pair<z3::expr, z3::expr>> inds; // (lo, hi) per var
+                    for (int i = 0; i < (int)bvars.size(); i++) {
+                        std::string nm = std::to_string(rnd) + "_" + std::to_string(i);
+                        z3::expr p_lo = z3ctx->bool_const(("_blo_" + nm).c_str());
+                        z3::expr p_hi = z3ctx->bool_const(("_bhi_" + nm).c_str());
+                        lia_slv.add(implies(p_lo, bvars[i].var >=
+                                                       z3ctx->int_val(-bvars[i].bound)));
+                        lia_slv.add(implies(p_hi, bvars[i].var <=
+                                                       z3ctx->int_val(bvars[i].bound)));
+                        inds.push_back({p_lo, p_hi});
+                        asmps.push_back(p_lo);
+                        asmps.push_back(p_hi);
+                    }
+
+                    {
+                        int64_t mx_bnd = 0;
+                        for (auto& bv : bvars)
+                            mx_bnd = std::max(mx_bnd, bv.bound);
+                        ALOG(4, "bounds rnd %d: max bound ±%lld", rnd, (long long)mx_bnd);
+                    }
+                    STATS.begin_phase(STATS.liatime);
+                    z3::check_result bres = lia_slv.check(asmps);
+                    STATS.end_phase();
+                    STATS.liacalls += 1;
+
+                    if (bres == z3::sat) {
+                        ALOG(4, "bounds: SAT at rnd %d", rnd);
+                        opt_mdl = lia_slv.get_model();
+                        got_sat = true;
+                        lia_slv.pop();
+                        break;
+                    } else if (bres == z3::unsat) {
+                        z3::expr_vector core = lia_slv.unsat_core();
+                        lia_slv.pop();
+
+                        bool any_bound_in_core = false;
+                        std::vector<bool> in_core(bvars.size(), false);
+                        for (unsigned j = 0; j < core.size(); j++) {
+                            unsigned cid = core[j].id();
+                            for (int k = 0; k < (int)bvars.size(); k++) {
+                                if (cid == inds[k].first.id() ||
+                                    cid == inds[k].second.id()) {
+                                    in_core[k] = true;
+                                    any_bound_in_core = true;
+                                }
+                            }
+                        }
+                        if (!any_bound_in_core) {
+                            ALOG(4, "bounds: truly UNSAT at rnd %d", rnd);
+                            return; // _lia_sat stays false
+                        }
+                        ALOG(4, "bounds rnd %d: UNSAT from bounds, growing", rnd);
+                        for (int k = 0; k < (int)bvars.size(); k++) {
+                            if (in_core[k] && bvars[k].bound < MAX_BND_VAL)
+                                bvars[k].bound =
+                                    std::max(bvars[k].bound + 1, bvars[k].bound * 3 / 2);
+                        }
+                    } else {
+                        lia_slv.pop();
+                        ALOG(4, "bounds rnd %d: unknown, giving up bounds", rnd);
+                        break;
+                    }
+                }
+            }
         }
-        if (res == z3::unsat)
-            return;
 
-        z3::model opt_mdl = lia_slv.get_model();
+        if (!got_sat) {
+            ALOG(4, "SAT? checking LIA");
+            STATS.begin_phase(STATS.liatime);
+            z3::check_result res = lia_slv.check();
+            STATS.end_phase();
+            STATS.liacalls += 1;
+            ALOG(4, "check done");
+
+            if (res == z3::unknown) {
+                ALOG(-1, "LIA solver returned unknown");
+                throw LIAFail("LIA solver returned unknown");
+            }
+            if (res == z3::unsat)
+                return;
+
+            opt_mdl = lia_slv.get_model();
+        }
 
         // Adaptively shrink the model: mirror Python's --bounds heuristic.
         // Each attempt bounds all int constants to ±(3/4 * current_max) and
@@ -737,6 +846,20 @@ smt::TermVec LiaAbstraction::mk_mixed_mul_axioms(const smt::Term& t,
 
     smt::TermVec rv = {eq_ax};
 
+    // One-sided linear axiom: fix root1 to its model value, leave root2 free.
+    // root1 = root1_val → pure = (root1_val^exp1) * root2^exp2.
+    // When exp2==1 this is linear (constant coefficient times a LIA variable).
+    // When exp2>1 the pure for root2^exp2 is a LIA variable too, so still linear.
+    if (!is_zero(_ctx, root1_val)) {
+        smt::Term coeff1 = exp1 == 1 ? root1_val : eval_exp(_ctx, root1_val, exp1);
+        smt::Term pow2 = exp2 == 1 ? root2 : _purify(mk_mul(_ctx, pw2));
+        smt::Term rhs1 =
+            is_one(_ctx, coeff1) ? pow2 : mk_mul(_ctx, {coeff1, pow2});
+        rv.push_back(
+            mk_implies(_ctx, _ctx.solver->make_term(smt::Equal, root1, root1_val),
+                       _ctx.solver->make_term(smt::Equal, pure, rhs1)));
+    }
+
     if (!root2_val_opt) {
         // Only root1 is assigned — project y (root2).
         smt::Term ppow2 = _purify(mk_mul(_ctx, pw2));
@@ -746,6 +869,17 @@ smt::TermVec LiaAbstraction::mk_mixed_mul_axioms(const smt::Term& t,
         return rv;
     }
     smt::Term root2_val = *root2_val_opt;
+    // One-sided linear axiom: fix root2 to its model value, leave root1 free.
+    // root2 = root2_val → pure = (root2_val^exp2) * root1^exp1.
+    if (!is_zero(_ctx, root2_val)) {
+        smt::Term coeff2 = exp2 == 1 ? root2_val : eval_exp(_ctx, root2_val, exp2);
+        smt::Term pow1 = exp1 == 1 ? root1 : _purify(mk_mul(_ctx, pw1));
+        smt::Term rhs2 =
+            is_one(_ctx, coeff2) ? pow1 : mk_mul(_ctx, {coeff2, pow1});
+        rv.push_back(
+            mk_implies(_ctx, _ctx.solver->make_term(smt::Equal, root2, root2_val),
+                       _ctx.solver->make_term(smt::Equal, pure, rhs2)));
+    }
     for (auto& [c, b] :
          combine_lb(_ctx, root1, exp1, root1_val, root2, exp2, root2_val))
         rv.push_back(triple_to_axiom(_ctx, c, b, pure));

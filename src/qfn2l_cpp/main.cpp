@@ -54,6 +54,8 @@ static void print_usage(const char* prog) {
         "  -v N                  Verbosity level (default 0)\n"
         "  --maxits N            Max iterations (-1 = unlimited)\n"
         "  --modax N             Modulo axioms up to N (default 2, <=1 disables)\n"
+        "  --bounds              Fast small-model heuristic: try ±initial bound (few rounds) before unbounded\n"
+        "  --bounds-initial N    Initial bound magnitude for --bounds (default 5)\n"
         "  --zeros               Try setting mul pures to 0\n"
         "  --static              Add static axioms for div/mod\n"
         "  --seed N              Random seed (default 7)\n"
@@ -93,6 +95,10 @@ static Options parse_args(int argc, char** argv, std::string& filename) {
             opts.maxits = std::stoi(next());
         else if (arg == "--modax")
             opts.modax = std::stoi(next());
+        else if (arg == "--bounds")
+            opts.bounds = true;
+        else if (arg == "--bounds-initial")
+            opts.bounds_initial = std::stoll(next());
         else if (arg == "--zeros")
             opts.zeros = true;
         else if (arg == "--static")
