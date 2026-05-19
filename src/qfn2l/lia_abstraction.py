@@ -175,6 +175,7 @@ class LiaAbstraction:
         self.mod_zero_interp = {}
         self.idiv_zero_interp = {}
         self._congruence_pairs_added: set[tuple[int, int]] = set()
+        self._sign_axioms_added: set[ExprRef] = set()
 
     def _congruence_same_axioms(self, pures_set: set) -> list:
         """Congruence axioms for div/mod pures: same args => same pure."""
@@ -327,21 +328,31 @@ class LiaAbstraction:
             return axioms
         return []
 
-    def _add_lazy_congruence_axioms(self, pcol: CollectPures) -> None:
-        """Add pairwise congruence axioms violated in the current model."""
+    def _add_lazy_congruence_axioms(self, pcol: CollectPures, bad_pures: set) -> None:
+        """Add pairwise congruence axioms violated in the current model.
+        Only checks pairs where at least one pure failed NIA check."""
         for collection in (pcol.idiv_collected, pcol.mod_collected, pcol.mul_collected):
-            for a, b in combinations(collection, 2):
-                key = (min(a.get_id(), b.get_id()), max(a.get_id(), b.get_id()))
-                if key in self._congruence_pairs_added:
-                    continue
-                candidates = self._congruence_axioms_for_pair(a, b)
-                violated = [
-                    ax for ax in candidates
-                    if z3.is_false(self.current_model.eval(ax, model_completion=True))
-                ]
-                if violated:
-                    self.add_axioms(a, violated, "cong")
-                    self._congruence_pairs_added.add(key)
+            col_list = list(collection)
+            bad_in_col = [p for p in col_list if p in bad_pures]
+            if not bad_in_col:
+                continue
+            checked: set[tuple[int, int]] = set()
+            for a in bad_in_col:
+                for b in col_list:
+                    if a.get_id() == b.get_id():
+                        continue
+                    key = (min(a.get_id(), b.get_id()), max(a.get_id(), b.get_id()))
+                    if key in checked or key in self._congruence_pairs_added:
+                        continue
+                    checked.add(key)
+                    candidates = self._congruence_axioms_for_pair(a, b)
+                    violated = [
+                        ax for ax in candidates
+                        if z3.is_false(self.current_model.eval(ax, model_completion=True))
+                    ]
+                    if violated:
+                        self.add_axioms(a, violated, "cong")
+                        self._congruence_pairs_added.add(key)
 
     def mk_congruence_axioms(self, _pures: CollectPures):
         """Create congruence axioms of the collected pures."""
@@ -377,40 +388,33 @@ class LiaAbstraction:
         self.log(4, f"mapping {term} to {pure}")
         self.prefix[0].add_var(pure)
 
-        if is_mul(term):
-            chs = set(term.children())
-            self.add_axiom(
-                pure, mk_or(*[c == ZERO for c in chs]) == (pure == ZERO), "smul"
-            )
-            t = self.split_mul(term)
-            coeff, pws = t[0], t[1:]
-            assert is_one(coeff)
-            oddroots = [pow[0] for pow in pws if len(pow) % 2 != 0]
-            evenroots = [pow[0] for pow in pws if len(pow) % 2 == 0]
-            if len(oddroots) == 2:
-                assert not evenroots
-                self.add_axiom(
-                    pure,
-                    mk_or(
-                        mk_and(oddroots[1] > ZERO, oddroots[0] > ZERO),
-                        mk_and(oddroots[0] < ZERO, oddroots[1] < ZERO),
-                    )
-                    == (pure > ZERO),
-                    "smul",
-                )
-            elif len(oddroots) == 1:
-                self.add_axiom(
-                    pure,
-                    mk_and(*[r != ZERO for r in evenroots], oddroots[0] > ZERO)
-                    == (pure > ZERO),
-                    "smul",
-                )
-            elif len(oddroots) == 0:
-                self.add_axiom(pure, pure >= ZERO, "smul")
-            else:
-                raise AssertionError(f"unexpected oddroots state: {oddroots}")
-
         return pure
+
+    def _mk_sign_axioms(self, pure: ArithRef, t: ArithRef, pws) -> list:
+        """Generate sign axioms for a mul pure (model-independent, added at most once)."""
+        chs = set(t.children())
+        axioms = [mk_or(*[c == ZERO for c in chs]) == (pure == ZERO)]
+        oddroots = [pw[0] for pw in pws if len(pw) % 2 != 0]
+        evenroots = [pw[0] for pw in pws if len(pw) % 2 == 0]
+        if len(oddroots) == 2:
+            assert not evenroots
+            axioms.append(
+                mk_or(
+                    mk_and(oddroots[1] > ZERO, oddroots[0] > ZERO),
+                    mk_and(oddroots[0] < ZERO, oddroots[1] < ZERO),
+                )
+                == (pure > ZERO)
+            )
+        elif len(oddroots) == 1:
+            axioms.append(
+                mk_and(*[r != ZERO for r in evenroots], oddroots[0] > ZERO)
+                == (pure > ZERO)
+            )
+        elif len(oddroots) == 0:
+            axioms.append(pure >= ZERO)
+        else:
+            raise AssertionError(f"unexpected oddroots state: {oddroots}")
+        return axioms
 
     def add_axiom(self, pure: ExprRef, ax: BoolRef, tag=""):
         self.log(4, f"ax: {ax} {tag}")
@@ -426,19 +430,18 @@ class LiaAbstraction:
         assert isinstance(assignment, dict)
         self.assignment = assignment
         subs = list(self.assignment.items())
-        self.current_body = self.prop(substitute(self.body, subs))  # self.simpl()
+        if subs:
+            self.current_body = self.prop(substitute(self.body, subs))
+        else:
+            self.current_body = self.body
         self.current_pure_body = self.purify(self.current_body)
-        pcol = CollectPures(self.pures, self.axioms)
-        pcol(self.current_pure_body)
         assert self.current_pure_body is not None
-        self.current_instantiation = mk_and(
-            self.current_pure_body,
-            *[
-                substitute(ax, subs)  # self.simpl()
-                for ls in self.axioms.values()
-                for ax in ls
-            ],
+        axs = (
+            [substitute(ax, subs) for ls in self.axioms.values() for ax in ls]
+            if subs
+            else [ax for ls in self.axioms.values() for ax in ls]
         )
+        self.current_instantiation = mk_and(self.current_pure_body, *axs)
         self.log(3, "inst by:", assignment, self.current_instantiation)
         stats.STATS.end_phase()
 
@@ -659,6 +662,8 @@ class LiaAbstraction:
         eq_axiom = Implies(pairs2fla(premise), pure == tsubs)
         rv = []
         rv.append(eq_axiom)
+        if exp2 == 1:
+            rv.append(Implies(root1 == root1_val, pure == substitute(t, [(root1, root1_val)])))
         if root2_val is None:
             ppow2 = self.purify(mk_mul(*pow2))
             assert isinstance(ppow2, ArithRef)
@@ -676,6 +681,8 @@ class LiaAbstraction:
             ]
             return rv
         assert root1_val is not None and root2_val is not None
+        if exp1 == 1:
+            rv.append(Implies(root2 == root2_val, pure == substitute(t, [(root2, root2_val)])))
         for c, b in combine_lb(root1, exp1, root1_val, root2, exp2, root2_val):
             rv.append(triple_to_axiom(c, b, pure))
         for c, b in combine_ub(root1, exp1, root1_val, root2, exp2, root2_val):
@@ -698,7 +705,11 @@ class LiaAbstraction:
         spl = spl[1:]
         assert 1 <= len(spl) <= 2, f"we expect only two variables in a monomial {t}"
         pure = self.pures.get_p(t)
-        return (
+        axioms = []
+        if pure not in self._sign_axioms_added:
+            axioms += self._mk_sign_axioms(pure, t, spl)
+            self._sign_axioms_added.add(pure)
+        return axioms + (
             self.mk_pow_axioms(assignment, pure, spl)
             if len(spl) == 1
             else self.mk_mixed_mul_axioms(t, assignment, pure, spl)
@@ -800,17 +811,15 @@ class LiaAbstraction:
         res = True
         pcol = CollectPures(pures=self.pures, axioms=self.axioms)
         pcol(self.current_pure_body)
-        pairs_before = len(self._congruence_pairs_added)
-        self._add_lazy_congruence_axioms(pcol)
-        if len(self._congruence_pairs_added) > pairs_before:
-            res = False
 
+        bad_pures: set[ExprRef] = set()
         for pure in pcol.collected:
             t = self.pures.get_t(pure)
             is_okay = self.is_okay(pure, t, self.current_model)
             self.log(4, f"check_nia result: {is_okay}")
             if is_okay:
                 continue
+            bad_pures.add(pure)
             res = False
             self.log(3, f"check_nia: axioms for {t} .. {pure}")
             if z3.is_idiv(t):
@@ -828,5 +837,11 @@ class LiaAbstraction:
                 self.add_axioms(pure, axioms, "mul")
                 stats.STATS.mul_axioms += len(axioms)
                 continue
+
+        pairs_before = len(self._congruence_pairs_added)
+        self._add_lazy_congruence_axioms(pcol, bad_pures)
+        if len(self._congruence_pairs_added) > pairs_before:
+            res = False
+
         stats.STATS.end_phase()
         return res

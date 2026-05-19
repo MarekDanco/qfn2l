@@ -813,8 +813,7 @@ smt::TermVec LiaAbstraction::mk_pow_axioms(const smt::Term& pure,
     return rv;
 }
 
-smt::TermVec LiaAbstraction::mk_mixed_mul_axioms(const smt::Term& t,
-                                                 const smt::Term& pure,
+smt::TermVec LiaAbstraction::mk_mixed_mul_axioms(const smt::Term& pure,
                                                  const MulSplit& split) {
     assert(split.pows.size() == 2);
     auto pw1 = split.pows[0], pw2 = split.pows[1];
@@ -831,51 +830,30 @@ smt::TermVec LiaAbstraction::mk_mixed_mul_axioms(const smt::Term& t,
     smt::Term root1_val = *root1_val_opt;
     auto root2_val_opt = get_value(root2);
 
-    std::vector<std::pair<smt::Term, smt::Term>> premise_pairs;
-    premise_pairs.push_back({root1, root1_val});
-    if (root2_val_opt)
-        premise_pairs.push_back({root2, *root2_val_opt});
+    smt::TermVec rv;
 
-    smt::Term cond = pairs2fla(_ctx, premise_pairs);
-    smt::UnorderedTermMap subst;
-    for (auto& [k, v] : premise_pairs)
-        subst[k] = v;
-    smt::Term tsubs = do_substitute(_ctx, t, subst);
-    smt::Term eq_ax =
-        mk_implies(_ctx, cond, _ctx.solver->make_term(smt::Equal, pure, tsubs));
-
-    smt::TermVec rv = {eq_ax};
-
-    // One-sided linear axiom: fix root1 to its model value, leave root2 free.
-    // root1 = root1_val → pure = (root1_val^exp1) * root2^exp2.
-    // When exp2==1 this is linear (constant coefficient times a LIA variable).
-    // When exp2>1 the pure for root2^exp2 is a LIA variable too, so still linear.
+    // Single-root equality: fix root1, leave root2 as ppow2 (always linear)
     if (!is_zero(_ctx, root1_val)) {
         smt::Term coeff1 = exp1 == 1 ? root1_val : eval_exp(_ctx, root1_val, exp1);
-        smt::Term pow2 = exp2 == 1 ? root2 : _purify(mk_mul(_ctx, pw2));
+        smt::Term ppow2 = exp2 == 1 ? root2 : _purify(mk_mul(_ctx, pw2));
         smt::Term rhs1 =
-            is_one(_ctx, coeff1) ? pow2 : mk_mul(_ctx, {coeff1, pow2});
+            is_one(_ctx, coeff1) ? ppow2 : mk_mul(_ctx, {coeff1, ppow2});
         rv.push_back(
             mk_implies(_ctx, _ctx.solver->make_term(smt::Equal, root1, root1_val),
                        _ctx.solver->make_term(smt::Equal, pure, rhs1)));
     }
 
-    if (!root2_val_opt) {
-        // Only root1 is assigned — project y (root2).
-        smt::Term ppow2 = _purify(mk_mul(_ctx, pw2));
-        for (auto& [c, lhs, rhs] :
-             project_y(_ctx, root2, exp2, root1, exp1, root1_val, ppow2, pure))
-            rv.push_back(triple_to_axiom(_ctx, c, lhs, rhs));
+    if (!root2_val_opt)
         return rv;
-    }
+
     smt::Term root2_val = *root2_val_opt;
-    // One-sided linear axiom: fix root2 to its model value, leave root1 free.
-    // root2 = root2_val → pure = (root2_val^exp2) * root1^exp1.
+
+    // Single-root equality: fix root2, leave root1 as ppow1 (always linear)
     if (!is_zero(_ctx, root2_val)) {
         smt::Term coeff2 = exp2 == 1 ? root2_val : eval_exp(_ctx, root2_val, exp2);
-        smt::Term pow1 = exp1 == 1 ? root1 : _purify(mk_mul(_ctx, pw1));
+        smt::Term ppow1 = exp1 == 1 ? root1 : _purify(mk_mul(_ctx, pw1));
         smt::Term rhs2 =
-            is_one(_ctx, coeff2) ? pow1 : mk_mul(_ctx, {coeff2, pow1});
+            is_one(_ctx, coeff2) ? ppow1 : mk_mul(_ctx, {coeff2, ppow1});
         rv.push_back(
             mk_implies(_ctx, _ctx.solver->make_term(smt::Equal, root2, root2_val),
                        _ctx.solver->make_term(smt::Equal, pure, rhs2)));
@@ -903,7 +881,7 @@ smt::TermVec LiaAbstraction::mk_mul_axioms(const smt::Term& t) {
     assert(spl.pows.size() >= 1 && spl.pows.size() <= 2);
     smt::Term pure = _pures.get_p(t);
     return spl.pows.size() == 1 ? mk_pow_axioms(pure, spl)
-                                : mk_mixed_mul_axioms(t, pure, spl);
+                                : mk_mixed_mul_axioms(pure, spl);
 }
 
 smt::TermVec LiaAbstraction::mk_mod_axiom(const smt::Term& t) {

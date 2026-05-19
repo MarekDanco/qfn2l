@@ -137,8 +137,7 @@ class LiaAbstraction {
     MulSplit split_mul(const smt::Term& t) const;
 
     smt::TermVec mk_pow_axioms(const smt::Term& pure, const MulSplit& split);
-    smt::TermVec mk_mixed_mul_axioms(const smt::Term& t, const smt::Term& pure,
-                                     const MulSplit& split);
+    smt::TermVec mk_mixed_mul_axioms(const smt::Term& pure, const MulSplit& split);
     smt::TermVec mk_mul_axioms(const smt::Term& t);
     smt::TermVec mk_mod_axiom(const smt::Term& t);
     smt::TermVec mk_idiv_axiom(const smt::Term& t);
