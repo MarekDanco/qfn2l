@@ -234,61 +234,7 @@ smt::Term LiaAbstraction::make_pure_constant(const smt::Term& term) {
              pure->to_string().c_str());
     _prefix[0].add_var(pure);
 
-    if (is_mul(term)) {
-        // Use split_mul to produce purely-linear smul axioms. Using raw children
-        // would embed nonlinear subterms (e.g. (* x x)) when the term is binary-
-        // nested, forcing z3 out of its LIA solver into NIA.
-        MulSplit spl = split_mul(term);
-        assert(is_one(_ctx, spl.coeff));
-
-        // zero-ness axiom: pure=0 ↔ any root variable is 0
-        {
-            smt::TermVec zero_disjs;
-            for (auto& pw : spl.pows)
-                zero_disjs.push_back(
-                    _ctx.solver->make_term(smt::Equal, pw[0], _ctx.ZERO));
-            add_axiom(pure,
-                      _ctx.solver->make_term(
-                          smt::Equal, mk_or(_ctx, zero_disjs),
-                          _ctx.solver->make_term(smt::Equal, pure, _ctx.ZERO)),
-                      "smul");
-        }
-
-        std::vector<smt::Term> oddroots, evenroots;
-        for (auto& pw : spl.pows) {
-            if (pw.size() % 2 != 0)
-                oddroots.push_back(pw[0]);
-            else
-                evenroots.push_back(pw[0]);
-        }
-        smt::Term pure_gt0 = _ctx.solver->make_term(smt::Gt, pure, _ctx.ZERO);
-        if (oddroots.size() == 2) {
-            assert(evenroots.empty());
-            auto& r0 = oddroots[0];
-            auto& r1 = oddroots[1];
-            smt::Term both_pos =
-                mk_and2(_ctx, _ctx.solver->make_term(smt::Gt, r1, _ctx.ZERO),
-                        _ctx.solver->make_term(smt::Gt, r0, _ctx.ZERO));
-            smt::Term both_neg =
-                mk_and2(_ctx, _ctx.solver->make_term(smt::Lt, r0, _ctx.ZERO),
-                        _ctx.solver->make_term(smt::Lt, r1, _ctx.ZERO));
-            add_axiom(pure,
-                      _ctx.solver->make_term(
-                          smt::Equal, mk_or2(_ctx, both_pos, both_neg), pure_gt0),
-                      "smul");
-        } else if (oddroots.size() == 1) {
-            smt::TermVec nonzero;
-            for (auto& r : evenroots)
-                nonzero.push_back(_ctx.solver->make_term(smt::Distinct, r, _ctx.ZERO));
-            nonzero.push_back(_ctx.solver->make_term(smt::Gt, oddroots[0], _ctx.ZERO));
-            add_axiom(
-                pure,
-                _ctx.solver->make_term(smt::Equal, mk_and(_ctx, nonzero), pure_gt0),
-                "smul");
-        } else if (oddroots.empty()) {
-            add_axiom(pure, _ctx.solver->make_term(smt::Ge, pure, _ctx.ZERO), "smul");
-        }
-    }
+    // Sign/zero axioms for mul pures are added lazily in check_nia (mk_sign_axioms).
     return pure;
 }
 
@@ -400,9 +346,22 @@ void LiaAbstraction::_solve() {
 
         auto* z3t = dynamic_cast<smt::Z3Term*>(_current_instantiation.get());
         assert(z3t);
-        lia_slv.add(z3t->get_z3_expr());
 
-        ALOG(5, "LIA formula:\n%s", z3t->get_z3_expr().to_string().c_str());
+        z3::expr lia_expr = z3t->get_z3_expr();
+        if (_opts.lia_preprocess) {
+            try {
+                z3::tactic t = z3::tactic(*z3ctx, "simplify") &
+                               z3::tactic(*z3ctx, "propagate-values");
+                z3::goal g(*z3ctx);
+                g.add(lia_expr);
+                z3::apply_result res = t(g);
+                if (res.size() == 1)
+                    lia_expr = res[0].as_expr();
+            } catch (...) {}
+        }
+        lia_slv.add(lia_expr);
+
+        ALOG(5, "LIA formula:\n%s", lia_expr.to_string().c_str());
 
         // --bounds: try to find a small model using per-variable bounds, growing
         // bounds guided by unsat cores when the bounded problem is UNSAT.
@@ -755,6 +714,55 @@ LiaAbstraction::MulSplit LiaAbstraction::split_mul(const smt::Term& t) const {
 }
 
 // ── Axiom generation ──────────────────────────────────────────────────────────
+smt::TermVec LiaAbstraction::mk_sign_axioms(const smt::Term& pure,
+                                            const MulSplit& split) {
+    assert(is_one(_ctx, split.coeff));
+    smt::TermVec rv;
+
+    // zero-ness: pure==0 ↔ any root is 0
+    // Uses split.pows[i][0] (roots) so the formula stays in LIA.
+    {
+        smt::TermVec zero_disjs;
+        for (auto& pw : split.pows)
+            zero_disjs.push_back(_ctx.solver->make_term(smt::Equal, pw[0], _ctx.ZERO));
+        rv.push_back(_ctx.solver->make_term(
+            smt::Equal, mk_or(_ctx, zero_disjs),
+            _ctx.solver->make_term(smt::Equal, pure, _ctx.ZERO)));
+    }
+
+    std::vector<smt::Term> oddroots, evenroots;
+    for (auto& pw : split.pows) {
+        if (pw.size() % 2 != 0)
+            oddroots.push_back(pw[0]);
+        else
+            evenroots.push_back(pw[0]);
+    }
+    smt::Term pure_gt0 = _ctx.solver->make_term(smt::Gt, pure, _ctx.ZERO);
+    if (oddroots.size() == 2) {
+        assert(evenroots.empty());
+        auto& r0 = oddroots[0];
+        auto& r1 = oddroots[1];
+        smt::Term both_pos =
+            mk_and2(_ctx, _ctx.solver->make_term(smt::Gt, r0, _ctx.ZERO),
+                    _ctx.solver->make_term(smt::Gt, r1, _ctx.ZERO));
+        smt::Term both_neg =
+            mk_and2(_ctx, _ctx.solver->make_term(smt::Lt, r0, _ctx.ZERO),
+                    _ctx.solver->make_term(smt::Lt, r1, _ctx.ZERO));
+        rv.push_back(_ctx.solver->make_term(smt::Equal, mk_or2(_ctx, both_pos, both_neg),
+                                            pure_gt0));
+    } else if (oddroots.size() == 1) {
+        smt::TermVec nonzero;
+        for (auto& r : evenroots)
+            nonzero.push_back(_ctx.solver->make_term(smt::Distinct, r, _ctx.ZERO));
+        nonzero.push_back(_ctx.solver->make_term(smt::Gt, oddroots[0], _ctx.ZERO));
+        rv.push_back(
+            _ctx.solver->make_term(smt::Equal, mk_and(_ctx, nonzero), pure_gt0));
+    } else if (oddroots.empty()) {
+        rv.push_back(_ctx.solver->make_term(smt::Ge, pure, _ctx.ZERO));
+    }
+    return rv;
+}
+
 smt::TermVec LiaAbstraction::mk_pow_axioms(const smt::Term& pure,
                                            const MulSplit& split) {
     assert(split.pows.size() == 1);
@@ -773,7 +781,7 @@ smt::TermVec LiaAbstraction::mk_pow_axioms(const smt::Term& pure,
             smt::Equal, _ctx.solver->make_term(smt::Equal, pure, _ctx.ZERO),
             _ctx.solver->make_term(smt::Equal, root, _ctx.ZERO)));
     } else {
-        bool odd = (exp % 2 == 1);
+        const bool odd = (exp % 2 == 1);
         smt::Term premise = _ctx.solver->make_term(smt::Equal, root, root_val);
         smt::Term tval = eval_exp(_ctx, root_val, exp);
         if (odd) {
@@ -832,15 +840,29 @@ smt::TermVec LiaAbstraction::mk_mixed_mul_axioms(const smt::Term& pure,
 
     smt::TermVec rv;
 
-    // Single-root equality: fix root1, leave root2 as ppow2 (always linear)
+    // Single-root equality: fix root1, leave root2^exp2 as ppow2 (linear).
+    // Fallback to two-root equality when the pure for root2^exp2 is missing.
     if (!is_zero(_ctx, root1_val)) {
         smt::Term coeff1 = exp1 == 1 ? root1_val : eval_exp(_ctx, root1_val, exp1);
-        smt::Term ppow2 = exp2 == 1 ? root2 : _purify(mk_mul(_ctx, pw2));
-        smt::Term rhs1 =
-            is_one(_ctx, coeff1) ? ppow2 : mk_mul(_ctx, {coeff1, ppow2});
-        rv.push_back(
-            mk_implies(_ctx, _ctx.solver->make_term(smt::Equal, root1, root1_val),
-                       _ctx.solver->make_term(smt::Equal, pure, rhs1)));
+        if (exp2 == 1) {
+            smt::Term rhs1 = is_one(_ctx, coeff1) ? root2 : mk_mul(_ctx, {coeff1, root2});
+            rv.push_back(mk_implies(_ctx,
+                _ctx.solver->make_term(smt::Equal, root1, root1_val),
+                _ctx.solver->make_term(smt::Equal, pure, rhs1)));
+        } else if (const smt::Term* p2 = _pures.find_p(mk_mul(_ctx, pw2))) {
+            smt::Term rhs1 = is_one(_ctx, coeff1) ? *p2 : mk_mul(_ctx, {coeff1, *p2});
+            rv.push_back(mk_implies(_ctx,
+                _ctx.solver->make_term(smt::Equal, root1, root1_val),
+                _ctx.solver->make_term(smt::Equal, pure, rhs1)));
+        } else if (root2_val_opt) {
+            smt::Term coeff2 = eval_exp(_ctx, *root2_val_opt, exp2);
+            rv.push_back(mk_implies(_ctx,
+                mk_and2(_ctx, _ctx.solver->make_term(smt::Equal, root1, root1_val),
+                        _ctx.solver->make_term(smt::Equal, root2, *root2_val_opt)),
+                _ctx.solver->make_term(smt::Equal, pure,
+                                       eval_mul(_ctx, {coeff1, coeff2}))));
+        }
+        // else: pure missing and root2 unassigned — skip
     }
 
     if (!root2_val_opt)
@@ -848,15 +870,29 @@ smt::TermVec LiaAbstraction::mk_mixed_mul_axioms(const smt::Term& pure,
 
     smt::Term root2_val = *root2_val_opt;
 
-    // Single-root equality: fix root2, leave root1 as ppow1 (always linear)
+    // Single-root equality: fix root2, leave root1^exp1 as ppow1 (linear).
+    // Fallback to two-root equality when the pure for root1^exp1 is missing.
     if (!is_zero(_ctx, root2_val)) {
         smt::Term coeff2 = exp2 == 1 ? root2_val : eval_exp(_ctx, root2_val, exp2);
-        smt::Term ppow1 = exp1 == 1 ? root1 : _purify(mk_mul(_ctx, pw1));
-        smt::Term rhs2 =
-            is_one(_ctx, coeff2) ? ppow1 : mk_mul(_ctx, {coeff2, ppow1});
-        rv.push_back(
-            mk_implies(_ctx, _ctx.solver->make_term(smt::Equal, root2, root2_val),
-                       _ctx.solver->make_term(smt::Equal, pure, rhs2)));
+        if (exp1 == 1) {
+            smt::Term rhs2 = is_one(_ctx, coeff2) ? root1 : mk_mul(_ctx, {coeff2, root1});
+            rv.push_back(mk_implies(_ctx,
+                _ctx.solver->make_term(smt::Equal, root2, root2_val),
+                _ctx.solver->make_term(smt::Equal, pure, rhs2)));
+        } else if (const smt::Term* p1 = _pures.find_p(mk_mul(_ctx, pw1))) {
+            smt::Term rhs2 = is_one(_ctx, coeff2) ? *p1 : mk_mul(_ctx, {coeff2, *p1});
+            rv.push_back(mk_implies(_ctx,
+                _ctx.solver->make_term(smt::Equal, root2, root2_val),
+                _ctx.solver->make_term(smt::Equal, pure, rhs2)));
+        } else {
+            // root1_val always available here (guaranteed by swap at top)
+            smt::Term coeff1 = eval_exp(_ctx, root1_val, exp1);
+            rv.push_back(mk_implies(_ctx,
+                mk_and2(_ctx, _ctx.solver->make_term(smt::Equal, root1, root1_val),
+                        _ctx.solver->make_term(smt::Equal, root2, root2_val)),
+                _ctx.solver->make_term(smt::Equal, pure,
+                                       eval_mul(_ctx, {coeff1, coeff2}))));
+        }
     }
     for (auto& [c, b] :
          combine_lb(_ctx, root1, exp1, root1_val, root2, exp2, root2_val))
@@ -1180,6 +1216,11 @@ bool LiaAbstraction::check_nia() {
             add_axioms(pure, axs, "mod");
             STATS.mod_axioms += static_cast<long>(axs.size());
         } else if (is_mul(t)) {
+            if (!_sign_axioms_added.count(pure)) {
+                MulSplit spl = split_mul(t);
+                add_axioms(pure, mk_sign_axioms(pure, spl), "smul");
+                _sign_axioms_added.insert(pure);
+            }
             auto axs = mk_mul_axioms(t);
             add_axioms(pure, axs, "mul");
             STATS.mul_axioms += static_cast<long>(axs.size());

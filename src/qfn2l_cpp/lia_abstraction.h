@@ -24,6 +24,7 @@ struct Options {
     bool preprocess = false;
     int preprocess_aggressive = 0;
     int preprocess_aggressive_timeout = 5000;
+    bool lia_preprocess = false;
     std::string dump_qf_nia_formula;
     std::string dump_abstraction_formula;
     std::string backend = "z3"; // "z3" | "cvc5"
@@ -103,6 +104,9 @@ class LiaAbstraction {
     // Track congruence pairs already added.
     std::set<std::pair<smt::Term, smt::Term>> _congruence_pairs_added;
 
+    // Track mul pures whose sign/zero axioms have already been added lazily.
+    smt::UnorderedTermSet _sign_axioms_added;
+
     bool _in_init = true; // suppresses logging until intermediate pures are pruned
     bool _lia_sat = false;
     // Set by incorporate_assumptions when it ends with a check_sat_assuming UNSAT.
@@ -136,6 +140,7 @@ class LiaAbstraction {
     };
     MulSplit split_mul(const smt::Term& t) const;
 
+    smt::TermVec mk_sign_axioms(const smt::Term& pure, const MulSplit& split);
     smt::TermVec mk_pow_axioms(const smt::Term& pure, const MulSplit& split);
     smt::TermVec mk_mixed_mul_axioms(const smt::Term& pure, const MulSplit& split);
     smt::TermVec mk_mul_axioms(const smt::Term& t);

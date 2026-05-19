@@ -61,6 +61,7 @@ static void print_usage(const char* prog) {
         "  --seed N              Random seed (default 7)\n"
         "  --timeout N           Wall-clock timeout in seconds (-1 = none)\n"
         "  --heur-timeout N      Heuristic LIA timeout in ms (default 3000)\n"
+        "  --lia-preprocess      Preprocess LIA formula with z3 simplify+propagate before each solve\n"
         "  -p, --preproc         Preprocess with Z3 tactics\n"
         "  -pa N, --preproc-aggressive N  Z3 tactic preprocessing level (1 or 2)\n"
         "  -pt N, --preproc-timeout N     Timeout per tactic for -p/-pa in ms (default "
@@ -117,6 +118,8 @@ static Options parse_args(int argc, char** argv, std::string& filename) {
             opts.print_stats = true;
         else if (arg == "--brief-stats")
             opts.brief_stats = true;
+        else if (arg == "--lia-preprocess")
+            opts.lia_preprocess = true;
         else if (arg == "-p" || arg == "--preproc")
             opts.preprocess = true;
         else if (arg == "-pa" || arg == "--preproc-aggressive")
@@ -335,6 +338,13 @@ int main(int argc, char** argv) {
     }
     STATS.end_phase();
 
+    // Collect original symbols before preprocessing so eliminated variables
+    // are still printed in the model.
+    smt::UnorderedTermSet orig_syms;
+    if (opts.print_model)
+        for (auto& v : get_vars(formula))
+            orig_syms.insert(v);
+
 #ifdef BACKEND_Z3
     if (opts.preprocess_aggressive > 0) {
         STATS.begin_phase(STATS.parse_time);
@@ -347,12 +357,6 @@ int main(int argc, char** argv) {
         STATS.end_phase();
     }
 #endif
-
-    // Collect original symbols for model printing.
-    smt::UnorderedTermSet orig_syms;
-    if (opts.print_model)
-        for (auto& v : get_vars(formula))
-            orig_syms.insert(v);
 
     // ── Solve ─────────────────────────────────────────────────────────────────
     std::optional<bool> res;
