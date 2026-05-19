@@ -65,6 +65,8 @@ static void print_usage(const char* prog) {
         "  -pa N, --preproc-aggressive N  Z3 tactic preprocessing level (1 or 2)\n"
         "  -pt N, --preproc-timeout N     Timeout per tactic for -p/-pa in ms (default "
         "5000)\n"
+        "  --dump-qf-nia FILE     Dump the post-preprocessing QF_NIA formula\n"
+        "  --dump-abstraction FILE  Dump the LIA abstraction formula sent to the solver\n"
         "  --print-model         Print SAT model as define-fun lines\n"
         "  --stats               Print full stats on exit\n"
         "  --brief-stats         Print brief stats on exit\n"
@@ -121,6 +123,10 @@ static Options parse_args(int argc, char** argv, std::string& filename) {
             opts.preprocess_aggressive = std::stoi(next());
         else if (arg == "-pt" || arg == "--preproc-timeout")
             opts.preprocess_aggressive_timeout = std::stoi(next());
+        else if (arg == "--dump-qf-nia")
+            opts.dump_qf_nia_formula = next();
+        else if (arg == "--dump-abstraction")
+            opts.dump_abstraction_formula = next();
         else if (arg == "--backend")
             opts.backend = next();
         else if (arg == "--help" || arg == "-h") {

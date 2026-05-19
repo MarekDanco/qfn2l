@@ -24,11 +24,16 @@ if(NOT smt-switch_FOUND)
   # Fallback: look for a local build in deps/ (relative to this CMakeLists.txt)
   set(SMT_SWITCH_DIR "${CMAKE_SOURCE_DIR}/deps/smt-switch/build"
       CACHE PATH "Path to smt-switch build directory")
+  set(SMT_SWITCH_SOURCE_DIR "${SMT_SWITCH_DIR}/.."
+      CACHE PATH "Path to smt-switch source directory")
+  set(Z3_SOURCE_DIR "${SMT_SWITCH_SOURCE_DIR}/deps/z3"
+      CACHE PATH "Path to Z3 source directory for headers")
   find_library(SMT_SWITCH_LIB smt-switch PATHS "${SMT_SWITCH_DIR}" NO_DEFAULT_PATH)
   find_library(SMT_SWITCH_Z3_LIB smt-switch-z3
     PATHS "${SMT_SWITCH_DIR}" "${SMT_SWITCH_DIR}/z3" NO_DEFAULT_PATH)
   find_path(SMT_SWITCH_INCLUDE smt.h
-    PATHS "${SMT_SWITCH_DIR}/../src" "${SMT_SWITCH_DIR}/../include" NO_DEFAULT_PATH)
+    PATHS "${SMT_SWITCH_SOURCE_DIR}/src" "${SMT_SWITCH_SOURCE_DIR}/include"
+    NO_DEFAULT_PATH)
   if(NOT SMT_SWITCH_LIB)
     message(FATAL_ERROR
       "smt-switch not found. Set SMT_SWITCH_DIR or install smt-switch system-wide.")
@@ -64,6 +69,11 @@ add_library(qfn2l_core STATIC ${CORE_SOURCES})
 function(configure_qfn2l_target target)
   target_include_directories(${target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
   target_link_libraries(${target} PRIVATE smt-switch::smt-switch)
+  if(SMT_SWITCH_DIR)
+    set_target_properties(${target} PROPERTIES
+      BUILD_RPATH "${SMT_SWITCH_DIR};${SMT_SWITCH_DIR}/z3"
+      INSTALL_RPATH "${SMT_SWITCH_DIR};${SMT_SWITCH_DIR}/z3")
+  endif()
   if(TARGET Boost::boost)
     target_link_libraries(${target} PRIVATE Boost::boost)
   else()
@@ -74,13 +84,10 @@ function(configure_qfn2l_target target)
     target_compile_definitions(${target} PRIVATE BACKEND_Z3)
     # Z3 backend headers (z3_solver.h, z3_term.h, z3++.h).
     target_include_directories(${target} SYSTEM PRIVATE
-      "${SMT_SWITCH_DIR}/../z3/include"
-      "${SMT_SWITCH_DIR}/../deps/z3/src/api/c++"
-      "${SMT_SWITCH_DIR}/../deps/z3/src/api"
+      "${SMT_SWITCH_SOURCE_DIR}/z3/include"
+      "${Z3_SOURCE_DIR}/src/api/c++"
+      "${Z3_SOURCE_DIR}/src/api"
     )
-    if(Z3_LIB)
-      target_link_libraries(${target} PRIVATE "${Z3_LIB}")
-    endif()
   endif()
 
   if(BACKEND_CVC5)
@@ -95,7 +102,7 @@ endfunction()
 
 if(BACKEND_Z3)
   find_library(Z3_LIB z3
-    PATHS "${SMT_SWITCH_DIR}/../deps/z3/build" "${SMT_SWITCH_DIR}/z3"
+    PATHS "${Z3_SOURCE_DIR}/build" "${SMT_SWITCH_DIR}/z3"
     NO_DEFAULT_PATH)
   if(NOT Z3_LIB)
     find_library(Z3_LIB z3)
@@ -110,6 +117,9 @@ configure_qfn2l_target(qfn2l_core)
 add_executable(qfn2l main.cpp)
 target_link_libraries(qfn2l PRIVATE qfn2l_core)
 configure_qfn2l_target(qfn2l)
+if(BACKEND_Z3 AND Z3_LIB)
+  target_link_libraries(qfn2l PRIVATE "${Z3_LIB}")
+endif()
 
 include(CTest)
 if(BUILD_TESTING)
@@ -131,7 +141,7 @@ if(BUILD_TESTING)
   foreach(test_target IN LISTS TEST_TARGETS)
     target_link_libraries(${test_target} PRIVATE qfn2l_core)
     configure_qfn2l_target(${test_target})
-    add_test(NAME ${test_target} COMMAND ${test_target})
+    add_test(NAME ${test_target} COMMAND "./${test_target}")
   endforeach()
 
   # Reproducer for an upstream smt-switch/Z3 term identity bug.  It is kept

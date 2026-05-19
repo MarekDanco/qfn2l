@@ -3,6 +3,7 @@
 #include "pures.h"
 #include <optional>
 #include <set>
+#include <string>
 #include <unordered_map>
 
 struct Options {
@@ -23,6 +24,8 @@ struct Options {
     bool preprocess = false;
     int preprocess_aggressive = 0;
     int preprocess_aggressive_timeout = 5000;
+    std::string dump_qf_nia_formula;
+    std::string dump_abstraction_formula;
     std::string backend = "z3"; // "z3" | "cvc5"
 };
 
@@ -49,6 +52,7 @@ class LiaAbstraction {
     bool check_nia();
 
     const smt::Term& current_pure_body() const { return _current_pure_body; }
+    const smt::Term& current_instantiation() const { return _current_instantiation; }
     const Pures& pures() const { return _pures; }
 
     // Value of a pure/variable in the current model (nullopt if not assigned).

@@ -4,7 +4,22 @@
 #include "tagged_logging.h"
 #include "visitors.h"
 
+#include <fstream>
+#include <stdexcept>
+
 static const char* LOG_TAG = "slv";
+
+static void dump_solve_formula(const std::string& path, const smt::Term& formula) {
+    if (path.empty())
+        return;
+
+    std::ofstream out(path);
+    if (!out)
+        throw std::runtime_error("failed to open solve formula dump: " + path);
+    out << formula->to_string() << '\n';
+    if (!out)
+        throw std::runtime_error("failed to write solve formula dump: " + path);
+}
 
 QfSolver::QfSolver(const Ctx& ctx, const Options& opts, const smt::Term& formula)
     : _ctx(ctx), _opts(opts) {
@@ -12,9 +27,17 @@ QfSolver::QfSolver(const Ctx& ctx, const Options& opts, const smt::Term& formula
     smt::Term f = NNFConverter(ctx)(formula);
     STATS.end_phase();
 
-    STATS.begin_phase(STATS.propagate_time);
-    f = SimplePropagate(ctx)(f);
-    STATS.end_phase();
+    if (!opts.preprocess && opts.preprocess_aggressive <= 0) {
+        STATS.begin_phase(STATS.simplify_time);
+        f = SimpleSimplify(ctx)(f);
+        STATS.end_phase();
+
+        STATS.begin_phase(STATS.propagate_time);
+        f = SimplePropagate(ctx)(f);
+        STATS.end_phase();
+    }
+
+    dump_solve_formula(_opts.dump_qf_nia_formula, f);
 
     smt::TermVec free_vars = get_vars(f);
     Prefix prefix = {QLev(true, free_vars)};
@@ -31,6 +54,8 @@ QfSolver::QfSolver(const Ctx& ctx, const Options& opts, const smt::Term& formula
 
 std::optional<bool> QfSolver::solve() {
     _abstraction->set_level({});
+    dump_solve_formula(_opts.dump_abstraction_formula,
+                       _abstraction->current_instantiation());
     while (true) {
         if (_opts.maxits >= 0 && STATS.its >= _opts.maxits)
             return std::nullopt;

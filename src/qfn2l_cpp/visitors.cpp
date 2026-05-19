@@ -2,6 +2,8 @@
 #include <algorithm>
 #include <unordered_map>
 
+using boost::multiprecision::cpp_int;
+
 // ── TermTransformer ───────────────────────────────────────────────────────────
 // Iterative post-order traversal: processes children before parents so that
 // visit_node() always sees its children already memoized.  visit_node() may
@@ -221,6 +223,23 @@ smt::Term SimpleSimplify::visit_and(const smt::Term& t) {
 
 smt::Term SimpleSimplify::visit_sub(const smt::Term& t) {
     auto chs = get_children(t);
+    bool all_values = true;
+    for (const auto& ch : chs) {
+        if (!ch->is_value()) {
+            all_values = false;
+            break;
+        }
+    }
+    if (all_values) {
+        assert(!chs.empty());
+        cpp_int result = term_to_cpp_int(chs[0]);
+        if (chs.size() == 1)
+            result = -result;
+        else
+            for (size_t i = 1; i < chs.size(); ++i)
+                result -= term_to_cpp_int(chs[i]);
+        return cpp_int_to_term(_ctx, result);
+    }
     if (chs.size() == 2 && is_zero(_ctx, chs[1]))
         return chs[0];
     return t;

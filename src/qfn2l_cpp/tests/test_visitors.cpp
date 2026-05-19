@@ -48,6 +48,23 @@ static void test_simple_simplify_arithmetic(Ctx& ctx) {
     expect_true(saw_x, "simplified sum lost symbolic child");
     expect_true(saw_five, "simplified sum did not fold numeric children");
 
+    smt::Term minus_one =
+        ctx.solver->make_term(smt::Minus, ctx.ZERO, ctx.ONE);
+    smt::Term neg_product =
+        ctx.solver->make_term(smt::Mult, {minus_one, x});
+    smt::Term simplified_neg_product = SimpleSimplify(ctx)(neg_product);
+
+    expect_true(is_mul(simplified_neg_product),
+                "simplified negative product should still contain x");
+    bool saw_minus_one = false;
+    for (auto it = simplified_neg_product->begin();
+         it != simplified_neg_product->end(); ++it) {
+        if ((*it)->is_value() && term_to_cpp_int(*it) == -1)
+            saw_minus_one = true;
+    }
+    expect_true(saw_minus_one,
+                "ground subtraction in product was not folded to -1");
+
     smt::Term product = ctx.solver->make_term(smt::Mult, {ctx.ONE, ctx.ZERO, x});
     expect_true(SimpleSimplify(ctx)(product) == ctx.ZERO,
                 "multiplication by zero did not simplify to zero");
@@ -79,4 +96,3 @@ int main() {
     test_simple_propagate(ctx);
     return 0;
 }
-
