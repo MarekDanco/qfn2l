@@ -62,7 +62,7 @@ static void print_usage(const char* prog) {
         "  --seed N              Random seed (default 7)\n"
         "  --timeout N           Wall-clock timeout in seconds (-1 = none)\n"
         "  --heur-timeout N      Heuristic LIA timeout in ms (default 3000)\n"
-        "  --lia-preprocess      Preprocess LIA formula with z3 simplify+propagate before each solve\n"
+        "  --lia-preproc         Preprocess LIA formula with z3 simplify+propagate before each solve\n"
         "  -p, --preproc         Preprocess with Z3 tactics\n"
         "  -pa N, --preproc-aggressive N  Z3 tactic preprocessing level (1 or 2)\n"
         "  -pt N, --preproc-timeout N     Timeout per tactic for -p/-pa in ms (default "
@@ -120,8 +120,8 @@ static Options parse_args(int argc, char** argv, std::string& filename) {
             opts.print_stats = true;
         else if (arg == "--brief-stats")
             opts.brief_stats = true;
-        else if (arg == "--lia-preprocess")
-            opts.lia_preprocess = true;
+        else if (arg == "--lia-preproc")
+            opts.lia_preproc = true;
         else if (arg == "-p" || arg == "--preproc")
             opts.preprocess = true;
         else if (arg == "-pa" || arg == "--preproc-aggressive")

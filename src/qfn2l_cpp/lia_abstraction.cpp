@@ -348,7 +348,7 @@ void LiaAbstraction::_solve() {
         assert(z3t);
 
         z3::expr lia_expr = z3t->get_z3_expr();
-        if (_opts.lia_preprocess) {
+        if (_opts.lia_preproc) {
             try {
                 z3::tactic t = z3::tactic(*z3ctx, "simplify") &
                                z3::tactic(*z3ctx, "propagate-values");
@@ -421,7 +421,7 @@ void LiaAbstraction::_solve() {
                         int64_t mx_bnd = 0;
                         for (auto& bv : bvars)
                             mx_bnd = std::max(mx_bnd, bv.bound);
-                        ALOG(4, "bounds rnd %d: max bound ±%lld", rnd, (long long)mx_bnd);
+                        ALOG(4, "bounds rnd %d: max bound +-%lld", rnd, (long long)mx_bnd);
                     }
                     STATS.begin_phase(STATS.liatime);
                     z3::check_result bres = lia_slv.check(asmps);

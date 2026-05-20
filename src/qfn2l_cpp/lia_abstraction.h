@@ -11,7 +11,7 @@ struct Options {
     int maxits = -1;
     int modax = 2;
     bool bounds = false;
-    int64_t bounds_initial = 5;
+    int64_t bounds_initial = 10;
     bool zeros = false;
     bool static_ax = false;
     int seed = 7;
@@ -24,7 +24,7 @@ struct Options {
     bool preprocess = false;
     int preprocess_aggressive = 0;
     int preprocess_aggressive_timeout = 5000;
-    bool lia_preprocess = false;
+    bool lia_preproc = false;
     bool congruence = true;
     std::string dump_qf_nia_formula;
     std::string dump_abstraction_formula;

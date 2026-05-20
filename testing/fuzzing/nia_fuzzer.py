@@ -89,6 +89,8 @@ def run_solver(cmd, formula):
             stderr=subprocess.PIPE,
             timeout=10,
         )
+        if p.returncode != 0:
+            return "error"
         return p.stdout.decode(errors="ignore").lower()
     except Exception:
         return "error"

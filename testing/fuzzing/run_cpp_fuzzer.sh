@@ -29,7 +29,7 @@ if ! command -v qfn2l-cpp &>/dev/null; then
     exit 1
 fi
 
-S1="qfn2l-cpp --maxits 20 --timeout 5"
+S1="qfn2l-cpp --lia-preproc --maxits 20 --timeout 5"
 S2="venv/bin/z3 -T:5 -in"
 
 "$SCRIPT_DIR/nia_fuzzer.py" --no-nia -j 12 "$@" "$its" "$S1" "$S2"
