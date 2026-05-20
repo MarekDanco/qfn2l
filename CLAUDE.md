@@ -36,7 +36,6 @@ Key options:
 - `--stats` — print full stats on exit (default: silent)
 - `--brief-stats` — on exit print only: terminated phase, longest phase, iteration count, pures count
 - `--recursion-depth N` — set Python recursion limit (default 100000)
-- `--no-congruence` — disable lazy congruence axioms (useful when there are many pures and congruence overhead is high)
 
 Note: shell `timeout` / SIGTERM is **unreliable** for this solver — z3 can block in C code and never deliver the signal to Python. Use `--timeout` instead. SIGTERM and SIGINT are handled gracefully (prints stats before exit).
 

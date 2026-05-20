@@ -1196,7 +1196,8 @@ bool LiaAbstraction::check_nia() {
     bool res = true;
 
     size_t pairs_before = _congruence_pairs_added.size();
-    add_lazy_congruence_axioms(pcol);
+    if (_opts.congruence)
+        add_lazy_congruence_axioms(pcol);
     if (_congruence_pairs_added.size() > pairs_before)
         res = false;
 

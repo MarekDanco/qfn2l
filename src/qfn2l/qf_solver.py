@@ -264,13 +264,6 @@ def main():
         help="on exit print only: terminated phase, longest phase,"
         " iteration count, pures count",
     )
-    parser.add_argument(
-        "--congruence",
-        default=True,
-        action=argparse.BooleanOptionalAction,
-        help="add lazy congruence axioms (default: on; --no-congruence disables)",
-    )
-
     opts = parser.parse_args()
     if opts.filename == "-" and sys.stdin.isatty():
         parser.print_usage()

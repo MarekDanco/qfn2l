@@ -72,6 +72,7 @@ static void print_usage(const char* prog) {
         "  --stats               Print full stats on exit\n"
         "  --brief-stats         Print brief stats on exit\n"
         "  --backend NAME        Solver backend: z3 (default) | cvc5\n"
+        "  --no-congruence       Disable lazy congruence axioms (reduces overhead with many pures)\n"
         "  --help                Show this help\n",
         prog);
 }
@@ -132,6 +133,8 @@ static Options parse_args(int argc, char** argv, std::string& filename) {
             opts.dump_abstraction_formula = next();
         else if (arg == "--backend")
             opts.backend = next();
+        else if (arg == "--no-congruence")
+            opts.congruence = false;
         else if (arg == "--help" || arg == "-h") {
             print_usage(argv[0]);
             std::exit(0);
