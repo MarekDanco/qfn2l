@@ -1,8 +1,18 @@
 #include "visitors.h"
 #include <algorithm>
+#include <exception>
 #include <unordered_map>
 
 using boost::multiprecision::cpp_int;
+
+static bool is_numeric_ground_term(const smt::Term& t) {
+    try {
+        (void)term_to_cpp_int(t);
+        return true;
+    } catch (const std::exception&) {
+        return false;
+    }
+}
 
 // ── TermTransformer ───────────────────────────────────────────────────────────
 // Iterative post-order traversal: processes children before parents so that
@@ -133,7 +143,7 @@ smt::Term SimpleSimplify::visit_add(const smt::Term& t) {
     while (!stack.empty()) {
         auto c = stack.back();
         stack.pop_back();
-        if (is_value(c))
+        if (is_numeric_ground_term(c))
             coeffs.push_back(c);
         else if (is_add(c))
             for (auto ch : get_children(c))
@@ -162,9 +172,9 @@ smt::Term SimpleSimplify::visit_mul(const smt::Term& t) {
             continue;
         if (is_zero(_ctx, c))
             return _ctx.ZERO;
-        if (is_value(c))
+        if (is_numeric_ground_term(c)) {
             coeffs.push_back(c);
-        else if (is_mul(c))
+        } else if (is_mul(c))
             for (auto ch : get_children(c))
                 stack.push_back(ch);
         else
@@ -225,7 +235,7 @@ smt::Term SimpleSimplify::visit_sub(const smt::Term& t) {
     auto chs = get_children(t);
     bool all_values = true;
     for (const auto& ch : chs) {
-        if (!ch->is_value()) {
+        if (!is_numeric_ground_term(ch)) {
             all_values = false;
             break;
         }

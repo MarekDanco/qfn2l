@@ -86,6 +86,32 @@ static void test_constant_folding(Ctx& ctx) {
     expect_cpp_int(eval_mul(ctx, {ta, tb, ctx.MIN_ONE}), -(a * b));
     expect_cpp_int(eval_exp(ctx, cpp_int_to_term(ctx, -12), 9), cpp_int("-5159780352"));
     expect_cpp_int(negate_numeral(ctx, ta), -a);
+
+    smt::Term parsed_negative =
+        ctx.solver->make_term(smt::Minus, ctx.ZERO, ctx.ONE);
+    expect_cpp_int(eval_mul(ctx, {parsed_negative, ctx.make_int(7)}), -7);
+    expect_cpp_int(eval_sum(ctx, {parsed_negative, ctx.make_int(3)}), 2);
+    expect_cpp_int(eval_mul(ctx, {parsed_negative}), -1);
+
+    smt::Term binary_minus =
+        ctx.solver->make_term(smt::Minus, ctx.make_int(3), ctx.make_int(8));
+    smt::Term nested_sum =
+        ctx.solver->make_term(smt::Plus, {ctx.make_int(4), binary_minus,
+                                          ctx.make_int(9)});
+    smt::Term nested_product =
+        ctx.solver->make_term(smt::Mult, {ctx.make_int(2), binary_minus,
+                                          ctx.make_int(-3)});
+
+    expect_cpp_int(binary_minus, -5);
+    expect_cpp_int(nested_sum, 8);
+    expect_cpp_int(nested_product, 30);
+    expect_cpp_int(eval_sum(ctx, {nested_sum, parsed_negative}), 7);
+    expect_cpp_int(eval_mul(ctx, {nested_product, binary_minus}), -150);
+
+    smt::Term nested_negative =
+        ctx.solver->make_term(smt::Minus, ctx.ZERO, nested_sum);
+    expect_cpp_int(nested_negative, -8);
+    expect_cpp_int(eval_sum(ctx, {nested_negative, nested_product}), 22);
 }
 
 static void test_mod_residue(Ctx& ctx) {

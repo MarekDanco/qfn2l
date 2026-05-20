@@ -1,5 +1,6 @@
 #include "utils.h"
 #include <cassert>
+#include <cctype>
 #include <limits>
 #include <regex>
 #include <stdexcept>
@@ -19,12 +20,63 @@ static std::string trim_copy(const std::string& s) {
     return s.substr(b, e - b + 1);
 }
 
+static std::vector<std::string> split_sexpr_items(const std::string& s) {
+    std::vector<std::string> items;
+    size_t i = 0;
+    while (i < s.size()) {
+        while (i < s.size() && std::isspace(static_cast<unsigned char>(s[i])))
+            ++i;
+        if (i == s.size())
+            break;
+        size_t start = i;
+        if (s[i] == '(') {
+            int depth = 0;
+            do {
+                if (s[i] == '(')
+                    ++depth;
+                else if (s[i] == ')')
+                    --depth;
+                ++i;
+            } while (i < s.size() && depth > 0);
+        } else {
+            while (i < s.size() && !std::isspace(static_cast<unsigned char>(s[i])))
+                ++i;
+        }
+        items.push_back(s.substr(start, i - start));
+    }
+    return items;
+}
+
 static cpp_int parse_cpp_int(const std::string& raw) {
     std::string s = trim_copy(raw);
-    static const std::regex sexpr_neg_re(R"(\(\s*-\s*(.+?)\s*\))");
-    std::smatch m;
-    if (std::regex_match(s, m, sexpr_neg_re))
-        return -parse_cpp_int(m[1].str());
+    if (s.size() >= 2 && s.front() == '(' && s.back() == ')') {
+        std::vector<std::string> items = split_sexpr_items(s.substr(1, s.size() - 2));
+        if (items.empty())
+            throw std::runtime_error("empty integer expression");
+        const std::string op = items.front();
+        if (op == "+") {
+            cpp_int sum = 0;
+            for (size_t i = 1; i < items.size(); ++i)
+                sum += parse_cpp_int(items[i]);
+            return sum;
+        }
+        if (op == "*") {
+            cpp_int product = 1;
+            for (size_t i = 1; i < items.size(); ++i)
+                product *= parse_cpp_int(items[i]);
+            return product;
+        }
+        if (op == "-") {
+            if (items.size() == 2)
+                return -parse_cpp_int(items[1]);
+            if (items.size() < 2)
+                throw std::runtime_error("minus expression without operands");
+            cpp_int result = parse_cpp_int(items[1]);
+            for (size_t i = 2; i < items.size(); ++i)
+                result -= parse_cpp_int(items[i]);
+            return result;
+        }
+    }
     return cpp_int(s);
 }
 
@@ -280,12 +332,8 @@ int64_t term_mod_int(const Ctx&, const smt::Term& val, const uint64_t k) {
 smt::Term eval_mul(const Ctx& ctx, const smt::TermVec& args) {
     if (args.empty())
         return ctx.ONE;
-    for (auto& a : args) {
-        assert(a->is_value());
-        (void)a;
-    }
     if (args.size() == 1)
-        return args[0];
+        return cpp_int_to_term(ctx, term_to_cpp_int(args[0]));
     cpp_int r = 1;
     for (auto& a : args)
         r *= term_to_cpp_int(a);
@@ -295,12 +343,8 @@ smt::Term eval_mul(const Ctx& ctx, const smt::TermVec& args) {
 smt::Term eval_sum(const Ctx& ctx, const smt::TermVec& args) {
     if (args.empty())
         return ctx.ZERO;
-    for (auto& a : args) {
-        assert(a->is_value());
-        (void)a;
-    }
     if (args.size() == 1)
-        return args[0];
+        return cpp_int_to_term(ctx, term_to_cpp_int(args[0]));
     cpp_int r = 0;
     for (auto& a : args)
         r += term_to_cpp_int(a);
