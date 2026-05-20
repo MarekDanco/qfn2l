@@ -264,7 +264,6 @@ def main():
         help="on exit print only: terminated phase, longest phase,"
         " iteration count, pures count",
     )
-
     opts = parser.parse_args()
     if opts.filename == "-" and sys.stdin.isatty():
         parser.print_usage()
