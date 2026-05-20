@@ -34,7 +34,7 @@ smt::Term triple_to_axiom(const Ctx& ctx, const smt::Term& condition,
 // Modular congruence axiom for a product of powers.
 // factors = [(variable, exponent, current_value), ...]
 std::vector<smt::Term>
-mod_ax_mul(const Ctx& ctx, int max_modulus,
+mod_ax_mul(const Ctx& ctx, unsigned int max_modulus,
            const std::vector<std::tuple<smt::Term, int, smt::Term>>& factors,
            const smt::Term& pure, const smt::Term& pure_val);
 

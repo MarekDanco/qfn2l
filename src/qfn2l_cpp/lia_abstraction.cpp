@@ -814,8 +814,8 @@ smt::TermVec LiaAbstraction::mk_pow_axioms(const smt::Term& pure,
     if (_opts.modax > 2) {
         auto pure_val_opt = get_value(pure);
         if (pure_val_opt)
-            for (auto& ax : mod_ax_mul(_ctx, _opts.modax, {{root, exp, root_val}}, pure,
-                                       *pure_val_opt))
+            for (auto& ax : mod_ax_mul(_ctx, static_cast<unsigned int>(_opts.modax),
+                                       {{root, exp, root_val}}, pure, *pure_val_opt))
                 rv.push_back(ax);
     }
     return rv;
@@ -904,7 +904,7 @@ smt::TermVec LiaAbstraction::mk_mixed_mul_axioms(const smt::Term& pure,
         auto pv = get_value(pure);
         if (pv)
             for (auto& ax : mod_ax_mul(
-                     _ctx, _opts.modax,
+                     _ctx, static_cast<unsigned int>(_opts.modax),
                      {{root1, exp1, root1_val}, {root2, exp2, root2_val}}, pure, *pv))
                 rv.push_back(ax);
     }

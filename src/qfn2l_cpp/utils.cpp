@@ -268,9 +268,9 @@ smt::Term mk_add(const Ctx& ctx, const smt::TermVec& args) {
     return r;
 }
 
-int64_t term_mod_int(const Ctx&, const smt::Term& val, int64_t k) {
-    cpp_int v = term_to_cpp_int(val);
-    cpp_int kk = k;
+int64_t term_mod_int(const Ctx&, const smt::Term& val, const uint64_t k) {
+    const cpp_int v = term_to_cpp_int(val);
+    const cpp_int kk = k;
     cpp_int r = v % kk;
     if (r < 0)
         r += kk;

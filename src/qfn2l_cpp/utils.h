@@ -47,7 +47,7 @@ int64_t term_to_int64(const smt::Term& t);
 // Compute (val % k) for a numeral term val and small integer k.
 // Compute (val % k) for a numeral term val and small integer k via cpp_int.
 // Result fits in int64_t (|result| < k).
-int64_t term_mod_int(const Ctx& ctx, const smt::Term& val, int64_t k);
+int64_t term_mod_int(const Ctx& ctx, const smt::Term& val, uint64_t k);
 
 bool is_value(const smt::Term& t);          // concrete value (int or bool)
 bool is_int_value(const smt::Term& t);      // concrete integer
