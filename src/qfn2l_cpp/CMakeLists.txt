@@ -144,6 +144,10 @@ if(BUILD_TESTING)
     add_test(NAME ${test_target} COMMAND "./${test_target}")
   endforeach()
 
+  add_test(NAME qfn2l_cli_tests
+    COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_cli.sh"
+            "$<TARGET_FILE:qfn2l>" "${CMAKE_CURRENT_SOURCE_DIR}")
+
   # Reproducer for an upstream smt-switch/Z3 term identity bug.  It is kept
   # buildable, but excluded from the default check target until upstream fixes
   # the expected failure: `build/qfn2l_smt_switch_identity_tests`.
@@ -153,7 +157,7 @@ if(BUILD_TESTING)
   # 'make check' builds and runs tests (unlike 'make test' which skips the build).
   add_custom_target(check
     COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-    DEPENDS ${TEST_TARGETS}
+    DEPENDS qfn2l ${TEST_TARGETS}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
   )
 endif()

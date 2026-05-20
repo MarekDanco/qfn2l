@@ -13,6 +13,7 @@
 #include <unistd.h>
 
 #ifdef BACKEND_Z3
+#include "z3.h"
 #include "z3_factory.h"
 #include "z3_solver.h"
 #include "z3_term.h"
@@ -167,6 +168,25 @@ static smt::SmtSolver create_solver(const std::string& backend) {
     std::fprintf(stderr, "No backend compiled in. Rebuild with -DBACKEND_Z3=ON.\n");
     std::exit(1);
 #endif
+}
+
+static void print_backend_version(const std::string& backend) {
+#ifdef BACKEND_Z3
+    if (backend == "z3") {
+        unsigned major = 0, minor = 0, build = 0, revision = 0;
+        Z3_get_version(&major, &minor, &build, &revision);
+        std::fprintf(stderr, "backend: z3 %u.%u.%u.%u\n", major, minor, build,
+                     revision);
+        return;
+    }
+#endif
+#ifdef BACKEND_CVC5
+    if (backend == "cvc5") {
+        std::fprintf(stderr, "backend: cvc5 (version unavailable)\n");
+        return;
+    }
+#endif
+    std::fprintf(stderr, "backend: %s (version unavailable)\n", backend.c_str());
 }
 
 // ── Z3 tactic preprocessing ───────────────────────────────────────────────────
@@ -324,6 +344,7 @@ int main(int argc, char** argv) {
     }
 
     // ── Create solver and context ─────────────────────────────────────────────
+    print_backend_version(opts.backend);
     smt::SmtSolver raw_solver = create_solver(opts.backend);
     Ctx ctx(raw_solver);
 
