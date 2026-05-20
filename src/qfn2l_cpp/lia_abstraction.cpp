@@ -908,6 +908,25 @@ smt::TermVec LiaAbstraction::mk_mixed_mul_axioms(const smt::Term& pure,
                      {{root1, exp1, root1_val}, {root2, exp2, root2_val}}, pure, *pv))
                 rv.push_back(ax);
     }
+    if (_opts.tangent && exp1 == 1 && exp2 == 1) {
+        // Tangent plane at (a, b) = (root1_val, root2_val) for pure = root1 * root2.
+        // T(x,y) = b*x + a*y - a*b  (linear; a and b are integer constants from model)
+        smt::Term ab = eval_mul(_ctx, {root1_val, root2_val});
+        smt::Term bx = mk_mul(_ctx, {root2_val, root1});
+        smt::Term ay = mk_mul(_ctx, {root1_val, root2});
+        smt::Term tangent_rhs =
+            _ctx.solver->make_term(smt::Minus, mk_add(_ctx, {bx, ay}), ab);
+        auto gt_a = _ctx.solver->make_term(smt::Gt, root1, root1_val);
+        auto lt_a = _ctx.solver->make_term(smt::Lt, root1, root1_val);
+        auto gt_b = _ctx.solver->make_term(smt::Gt, root2, root2_val);
+        auto lt_b = _ctx.solver->make_term(smt::Lt, root2, root2_val);
+        auto pure_lt = _ctx.solver->make_term(smt::Lt, pure, tangent_rhs);
+        auto pure_gt = _ctx.solver->make_term(smt::Gt, pure, tangent_rhs);
+        rv.push_back(mk_implies(_ctx, mk_and2(_ctx, gt_a, lt_b), pure_lt));
+        rv.push_back(mk_implies(_ctx, mk_and2(_ctx, lt_a, gt_b), pure_lt));
+        rv.push_back(mk_implies(_ctx, mk_and2(_ctx, lt_a, lt_b), pure_gt));
+        rv.push_back(mk_implies(_ctx, mk_and2(_ctx, gt_a, gt_b), pure_gt));
+    }
     return rv;
 }
 

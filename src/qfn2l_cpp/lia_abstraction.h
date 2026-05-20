@@ -25,6 +25,7 @@ struct Options {
     int preprocess_aggressive = 0;
     int preprocess_aggressive_timeout = 5000;
     bool lia_preproc = false;
+    bool tangent = false;
     bool congruence = true;
     std::string dump_qf_nia_formula;
     std::string dump_abstraction_formula;
