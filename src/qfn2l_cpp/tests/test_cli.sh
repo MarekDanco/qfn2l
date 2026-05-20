@@ -53,17 +53,17 @@ run_preprocessed_case() {
 run_preprocessed_case p -p
 run_preprocessed_case pa2 -pa 2
 
-qf_dump="$TMP_DIR/aprove.qfnia.smt2"
-abs_dump="$TMP_DIR/aprove.abs.smt2"
+qf_dump="$TMP_DIR/derive_u_eq_vx.qfnia.smt2"
+abs_dump="$TMP_DIR/derive_u_eq_vx.abs.smt2"
 "$QFN2L" --timeout 10 \
     --dump-qf-nia "$qf_dump" \
     --dump-abstraction "$abs_dump" \
-    "$DATA_DIR/aproveSMT100500964594886141.smt2" \
-    >"$TMP_DIR/aprove.out" 2>"$TMP_DIR/aprove.err"
+    "$DATA_DIR/derive_u_eq_vx_unsat.smt2" \
+    >"$TMP_DIR/dump.out" 2>"$TMP_DIR/dump.err"
 
-if [[ "$(tr -d '\r\n' <"$TMP_DIR/aprove.out")" != "unknown" ]]; then
-    echo "aprove dump run: expected unknown, got:" >&2
-    cat "$TMP_DIR/aprove.out" >&2
+if [[ "$(tr -d '\r\n' <"$TMP_DIR/dump.out")" != "unsat" ]]; then
+    echo "dump run: expected unsat, got:" >&2
+    cat "$TMP_DIR/dump.out" >&2
     exit 1
 fi
 
@@ -73,11 +73,15 @@ if [[ ! -s "$qf_dump" || ! -s "$abs_dump" ]]; then
     exit 1
 fi
 
-qf_size="$(wc -c <"$qf_dump")"
-abs_size="$(wc -c <"$abs_dump")"
-if (( abs_size <= qf_size )); then
-    echo "expected abstraction dump to be larger than QF_NIA dump" >&2
-    echo "qf=$qf_size abs=$abs_size" >&2
+if ! grep -q '(* v x)' "$qf_dump"; then
+    echo "QF_NIA dump does not contain the original nonlinear product" >&2
+    cat "$qf_dump" >&2
+    exit 1
+fi
+
+if ! grep -q 'e_vx_' "$abs_dump"; then
+    echo "abstraction dump does not contain the expected product abstraction" >&2
+    cat "$abs_dump" >&2
     exit 1
 fi
 
