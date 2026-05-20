@@ -801,7 +801,8 @@ class LiaAbstraction:
         pcol = CollectPures(pures=self.pures, axioms=self.axioms)
         pcol(self.current_pure_body)
         pairs_before = len(self._congruence_pairs_added)
-        self._add_lazy_congruence_axioms(pcol)
+        if self.opts.congruence:
+            self._add_lazy_congruence_axioms(pcol)
         if len(self._congruence_pairs_added) > pairs_before:
             res = False
 
