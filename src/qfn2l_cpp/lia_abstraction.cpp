@@ -7,6 +7,7 @@
 #include <chrono>
 #include <ctime>
 #include <iterator>
+#include <optional>
 #include <sstream>
 
 #ifdef BACKEND_Z3
@@ -52,6 +53,61 @@ static void init_lia_solver(const Ctx& ctx, const Options& opts) {
 }
 
 #define ALOG(lev, ...) LOG(LOG_TAG, lev, __VA_ARGS__)
+
+static boost::multiprecision::cpp_int
+pow_cpp_int(boost::multiprecision::cpp_int base, const int exp) {
+    assert(exp >= 0);
+    boost::multiprecision::cpp_int res = 1;
+    int e = exp;
+    while (e > 0) {
+        if (e & 1)
+            res *= base;
+        e >>= 1;
+        if (e)
+            base *= base;
+    }
+    return res;
+}
+
+static std::optional<boost::multiprecision::cpp_int>
+exact_integer_root(const boost::multiprecision::cpp_int& value, int exp) {
+    assert(exp > 0);
+    if (exp == 1)
+        return value;
+    if (value == 0)
+        return boost::multiprecision::cpp_int(0);
+    if (value < 0 && exp % 2 == 0)
+        return std::nullopt;
+
+    const boost::multiprecision::cpp_int target = value < 0 ? -value : value;
+    boost::multiprecision::cpp_int lo = 0, hi = 1;
+    while (pow_cpp_int(hi, exp) < target)
+        hi <<= 1;
+
+    while (lo <= hi) {
+        const boost::multiprecision::cpp_int mid = (lo + hi) >> 1;
+        const boost::multiprecision::cpp_int mp = pow_cpp_int(mid, exp);
+        if (mp == target)
+            return value < 0 ? -mid : mid;
+        if (mp < target)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    return std::nullopt;
+}
+
+static std::string terms_to_string(const smt::TermVec& terms) {
+    std::ostringstream out;
+    bool first = true;
+    for (const auto& t : terms) {
+        if (!first)
+            out << ", ";
+        out << t->to_string();
+        first = false;
+    }
+    return out.str();
+}
 
 // ── Purifier ──────────────────────────────────────────────────────────────────
 LiaAbstraction::Purifier::Purifier(LiaAbstraction& parent)
@@ -677,6 +733,202 @@ void LiaAbstraction::apply_zeros_heuristic(const smt::UnorderedTermSet& cur_pure
     incorporate_assumptions(assumptions, "zeros");
 }
 
+bool LiaAbstraction::apply_model_fix(const CheckVal::ModelFixInfo& info) {
+    auto restore_model = [&] {
+        STATS.begin_phase(STATS.liatime);
+        _ctx.solver->check_sat();
+        STATS.end_phase();
+        STATS.liacalls += 1;
+    };
+
+    auto try_fix = [&](const char* technique, const smt::Term& pure,
+                       const smt::Term& t, const smt::TermVec& assumptions) {
+        if (assumptions.empty())
+            return false;
+
+        ALOG(3, "model_fix: trying %zu assignments", assumptions.size());
+        ALOG(5, "model_fix: technique=%s pure=%s term=%s", technique,
+             pure->to_string().c_str(), t->to_string().c_str());
+        if (g_verbosity >= 5)
+            ALOG(5, "model_fix: assumptions=%s", terms_to_string(assumptions).c_str());
+        STATS.model_fix_attempts += 1;
+        set_solver_timeout(_ctx, _opts.heur_to);
+        STATS.begin_phase(STATS.liatime);
+        const smt::Result res = _ctx.solver->check_sat_assuming(assumptions);
+        STATS.end_phase();
+        STATS.liacalls += 1;
+        set_solver_timeout(_ctx, 0);
+
+        ALOG(5, "model_fix: check_sat_assuming -> %s",
+             res.is_sat() ? "sat" : (res.is_unsat() ? "unsat" : "unknown"));
+        if (!res.is_sat()) {
+            restore_model();
+            return false;
+        }
+
+        if (g_verbosity >= 5) {
+            for (const auto& a : assumptions) {
+                if (is_eq(a) && num_children(a) == 2) {
+                    const smt::Term lhs = get_child(a, 0);
+                    const auto mv = get_value(lhs);
+                    ALOG(5, "model_fix: repaired value %s = %s",
+                         lhs->to_string().c_str(),
+                         mv ? (*mv)->to_string().c_str() : "?");
+                }
+            }
+            const auto pv = get_value(pure);
+            const auto tv = get_value(t);
+            ALOG(5, "model_fix: repaired pure %s = %s, term value = %s",
+                 pure->to_string().c_str(), pv ? (*pv)->to_string().c_str() : "?",
+                 tv ? (*tv)->to_string().c_str() : "?");
+        }
+
+        HasUninterpreted hu(_ctx);
+        CheckVal cv(_ctx, hu, _pures, _ctx.solver);
+        if (cv.check(_current_pure_body)) {
+            STATS.model_fix_successes += 1;
+            ALOG(2, "model_fix: repaired model");
+            return true;
+        }
+        ALOG(5, "model_fix: candidate satisfied LIA but not NIA");
+        restore_model();
+        return false;
+    };
+
+    for (const auto& pure : info.wrong_pures) {
+        const smt::Term& t = _pures.get_t(pure);
+        if (!is_mul(t)) {
+            ALOG(5, "model_fix: skip %s, original term is not mul: %s",
+                 pure->to_string().c_str(), t->to_string().c_str());
+            continue;
+        }
+
+        const auto pure_val_opt = get_value(pure);
+        if (!pure_val_opt || !is_int_value(*pure_val_opt)) {
+            ALOG(5, "model_fix: skip %s, pure value is unavailable/non-int",
+                 pure->to_string().c_str());
+            continue;
+        }
+        const boost::multiprecision::cpp_int pure_val = term_to_cpp_int(*pure_val_opt);
+
+        const auto adj_it = info.adjustable_vars.find(pure);
+        if (adj_it == info.adjustable_vars.end()) {
+            ALOG(5, "model_fix: skip %s, no adjustable-variable entry",
+                 pure->to_string().c_str());
+            continue;
+        }
+        if (g_verbosity >= 5)
+            ALOG(5, "model_fix: candidate pure=%s term=%s pure_value=%s adjustable={%s}",
+                 pure->to_string().c_str(), t->to_string().c_str(),
+                 (*pure_val_opt)->to_string().c_str(),
+                 terms_to_string(adj_it->second).c_str());
+        const smt::UnorderedTermSet adjustable(adj_it->second.begin(),
+                                               adj_it->second.end());
+
+        const MulSplit split = split_mul(t);
+        if (!is_one(_ctx, split.coeff) || split.pows.size() != 2) {
+            ALOG(5, "model_fix: skip %s, expected unit-coefficient two-factor mul",
+                 pure->to_string().c_str());
+            continue;
+        }
+
+        const smt::Term& x = split.pows[0][0];
+        const smt::Term& y = split.pows[1][0];
+        const int k = static_cast<int>(split.pows[0].size());
+        const int l = static_cast<int>(split.pows[1].size());
+        ALOG(5, "model_fix: split as (%s)^%d * (%s)^%d",
+             x->to_string().c_str(), k, y->to_string().c_str(), l);
+        if (!adjustable.count(x) || !adjustable.count(y)) {
+            ALOG(5, "model_fix: skip two-adjustable repairs for %s, at least one "
+                     "split root is not adjustable",
+                 pure->to_string().c_str());
+        }
+
+        const auto eq = [&](const smt::Term& var,
+                            const boost::multiprecision::cpp_int& val) {
+            return _ctx.solver->make_term(smt::Equal, var, cpp_int_to_term(_ctx, val));
+        };
+
+        // t = x^k*y^1: keep the higher-power side harmless and put [t]'s
+        // current value into the linear side.
+        if (adjustable.count(x) && adjustable.count(y) && l == 1) {
+            if (try_fix("linear-right", pure, t, {eq(x, 1), eq(y, pure_val)}))
+                return true;
+        }
+        if (adjustable.count(x) && adjustable.count(y) && k == 1) {
+            if (try_fix("linear-left", pure, t, {eq(y, 1), eq(x, pure_val)}))
+                return true;
+        }
+
+        // If [t]'s value is an exact k-th or l-th power, assign that root and
+        // set the other adjustable factor to 1.
+        if (adjustable.count(x) && adjustable.count(y)) {
+            if (const auto root = exact_integer_root(pure_val, k)) {
+                ALOG(5, "model_fix: %s is an exact %d-th power, root=%s",
+                     (*pure_val_opt)->to_string().c_str(), k, root->str().c_str());
+                if (try_fix("exact-left-power", pure, t, {eq(x, *root), eq(y, 1)}))
+                    return true;
+            } else {
+                ALOG(5, "model_fix: %s is not an exact %d-th power",
+                     (*pure_val_opt)->to_string().c_str(), k);
+            }
+            if (const auto root = exact_integer_root(pure_val, l)) {
+                ALOG(5, "model_fix: %s is an exact %d-th power, root=%s",
+                     (*pure_val_opt)->to_string().c_str(), l, root->str().c_str());
+                if (try_fix("exact-right-power", pure, t, {eq(y, *root), eq(x, 1)}))
+                    return true;
+            } else {
+                ALOG(5, "model_fix: %s is not an exact %d-th power",
+                     (*pure_val_opt)->to_string().c_str(), l);
+            }
+        }
+
+        const auto try_one_adjustable = [&](const char* technique,
+                                            const smt::Term& adjustable_root,
+                                            const int adjustable_exp,
+                                            const smt::Term& fixed_root,
+                                            const int fixed_exp) {
+            if (!adjustable.count(adjustable_root) || adjustable.count(fixed_root))
+                return false;
+
+            const auto fixed_val = get_value(fixed_root);
+            if (!fixed_val || !is_int_value(*fixed_val)) {
+                ALOG(5, "model_fix: %s unavailable fixed value for %s", technique,
+                     fixed_root->to_string().c_str());
+                return false;
+            }
+
+            const boost::multiprecision::cpp_int fixed_pow =
+                pow_cpp_int(term_to_cpp_int(*fixed_val), fixed_exp);
+            if (fixed_pow == 0 || pure_val % fixed_pow != 0) {
+                ALOG(5, "model_fix: %s cannot divide %s by fixed factor value %s",
+                     technique, (*pure_val_opt)->to_string().c_str(),
+                     fixed_pow.str().c_str());
+                return false;
+            }
+
+            const boost::multiprecision::cpp_int quotient = pure_val / fixed_pow;
+            const auto root = exact_integer_root(quotient, adjustable_exp);
+            if (!root) {
+                ALOG(5, "model_fix: %s quotient %s is not an exact %d-th power",
+                     technique, quotient.str().c_str(), adjustable_exp);
+                return false;
+            }
+
+            ALOG(5, "model_fix: %s quotient=%s root=%s", technique,
+                 quotient.str().c_str(), root->str().c_str());
+            return try_fix(technique, pure, t, {eq(adjustable_root, *root)});
+        };
+
+        if (try_one_adjustable("one-adjustable-left", x, k, y, l))
+            return true;
+        if (try_one_adjustable("one-adjustable-right", y, l, x, k))
+            return true;
+    }
+
+    return false;
+}
+
 // ── split_mul ─────────────────────────────────────────────────────────────────
 LiaAbstraction::MulSplit LiaAbstraction::split_mul(const smt::Term& t) const {
     assert(is_mul(t));
@@ -694,7 +946,7 @@ LiaAbstraction::MulSplit LiaAbstraction::split_mul(const smt::Term& t) const {
                 stk.push_back(*it);
         } else if (_hu(c)) {
             // Look through pures-for-muls to recover original factors.
-            const smt::Term* orig = const_cast<Pures&>(_pures).find_t(c);
+            const smt::Term* orig = _pures.find_t(c);
             if (orig && is_mul(*orig)) {
                 for (auto it = (*orig)->begin(); it != (*orig)->end(); ++it)
                     stk.push_back(*it);
@@ -1209,6 +1461,26 @@ bool LiaAbstraction::check_nia() {
         if (cv.check(_current_pure_body)) {
             ALOG(2, "check_nia quick ok");
             return true;
+        }
+        if (_opts.model_fix) {
+            ScopedPhase mf_sp(STATS.model_fix_time);
+            const auto fix_info = cv.model_fix_info(_current_pure_body);
+            ALOG(3, "model_fix: implicant=%zu wrong_pures=%zu",
+                 fix_info.implicant.size(), fix_info.wrong_pures.size());
+            if (g_verbosity >= 4) {
+                for (const auto& lit : fix_info.implicant)
+                    ALOG(4, "model_fix: L %s", lit->to_string().c_str());
+                for (const auto& pure : fix_info.wrong_pures) {
+                    const auto it = fix_info.adjustable_vars.find(pure);
+                    const std::string vars =
+                        it != fix_info.adjustable_vars.end() ? terms_to_string(it->second)
+                                                             : "";
+                    ALOG(4, "model_fix: W %s adjustable={%s}",
+                         pure->to_string().c_str(), vars.c_str());
+                }
+            }
+            if (apply_model_fix(fix_info))
+                return true;
         }
     }
 

@@ -26,6 +26,16 @@ smt::Term* Pures::find_t(const smt::Term& p) {
     return it != _pure2term.end() ? &it->second : nullptr;
 }
 
+const smt::Term* Pures::find_p(const smt::Term& t) const {
+    auto it = _term2pure.find(t);
+    return it != _term2pure.end() ? &it->second : nullptr;
+}
+
+const smt::Term* Pures::find_t(const smt::Term& p) const {
+    auto it = _pure2term.find(p);
+    return it != _pure2term.end() ? &it->second : nullptr;
+}
+
 const smt::Term& Pures::get_p(const smt::Term& t) const {
     auto it = _term2pure.find(t);
     assert(it != _term2pure.end());
@@ -56,7 +66,7 @@ void CollectPures::visit(const smt::Term& root) {
         for (auto it = t->begin(); it != t->end(); ++it)
             stk.push_back(*it);
 
-        const smt::Term* orig = const_cast<Pures&>(_pures).find_t(t);
+        const smt::Term* orig = _pures.find_t(t);
         if (!orig || collected.count(t))
             continue;
 
@@ -85,15 +95,32 @@ CheckVal::CheckVal(const Ctx& ctx, HasUninterpreted& hu, const Pures& pures,
     : _ctx(ctx), _hu(hu), _pures(pures), _lia_solver(lia_solver) {}
 
 bool CheckVal::check(const smt::Term& formula) {
-    auto res = (*this)(formula);
+    const auto res = (*this)(formula);
     return res && is_true(_ctx, *res);
 }
 
+CheckVal::ModelFixInfo CheckVal::model_fix_info(const smt::Term& formula) {
+    ModelFixInfo info;
+    collect_implicant(formula, info.implicant);
+
+    for (const auto& lit : info.implicant) {
+        for (const auto& pure : pures_in(lit)) {
+            if (pure_is_wrong(pure))
+                info.wrong_pures.insert(pure);
+        }
+    }
+
+    for (const auto& pure : info.wrong_pures)
+        info.adjustable_vars[pure] = adjustable_vars_for(pure, info.implicant);
+
+    return info;
+}
+
 std::optional<smt::Term> CheckVal::operator()(const smt::Term& t) {
-    auto it = _memo.find(t);
+    const auto it = _memo.find(t);
     if (it != _memo.end())
         return it->second;
-    auto res = visit(t);
+    const auto res = visit(t);
     _memo[t] = res;
     return res;
 }
@@ -101,12 +128,12 @@ std::optional<smt::Term> CheckVal::operator()(const smt::Term& t) {
 std::optional<smt::Term> CheckVal::visit_purified(const smt::Term& orig,
                                                   const smt::Term& pure) {
     // Get the value of the pure from the LIA model.
-    auto pv_opt = try_get_value(_lia_solver, pure);
+    const auto pv_opt = try_get_value(_lia_solver, pure);
     if (!pv_opt)
         return std::nullopt;
-    smt::Term pv = *pv_opt;
+    const smt::Term pv = *pv_opt;
     // Get the actual NIA value of the original term.
-    auto tv = visit(orig);
+    const auto tv = visit(orig);
     if (!tv)
         return std::nullopt;
     return (pv == *tv) ? std::optional<smt::Term>{pv} : std::nullopt;
@@ -123,13 +150,13 @@ std::optional<smt::Term> CheckVal::visit_leaf(const smt::Term& t) {
 std::optional<smt::Term>
 CheckVal::visit_prop(const smt::Term& t,
                      const std::vector<std::optional<smt::Term>>& cvs) {
-    auto has_none = [&] {
+    const auto has_none = [&] {
         for (auto& v : cvs)
             if (!v)
                 return true;
         return false;
     };
-    auto in_cvs = [&](const smt::Term& x) {
+    const auto in_cvs = [&](const smt::Term& x) {
         for (auto& v : cvs)
             if (v && *v == x)
                 return true;
@@ -203,7 +230,7 @@ CheckVal::visit_complex(const smt::Term& t,
 
 std::optional<smt::Term> CheckVal::visit(const smt::Term& t) {
     // If it's a pure constant, check via visit_purified.
-    const smt::Term* orig = const_cast<Pures&>(_pures).find_t(t);
+    const smt::Term* orig = _pures.find_t(t);
     if (orig)
         return visit_purified(*orig, t);
 
@@ -216,4 +243,108 @@ std::optional<smt::Term> CheckVal::visit(const smt::Term& t) {
         cvs.push_back((*this)(*it));
 
     return visit_complex(t, cvs);
+}
+
+std::optional<smt::Term> CheckVal::model_value(const smt::Term& t) const {
+    return try_get_value(_lia_solver, t);
+}
+
+bool CheckVal::collect_implicant(const smt::Term& formula, smt::TermVec& out) const {
+    const auto val = model_value(formula);
+    if (!val || !is_true(_ctx, *val))
+        return false;
+
+    if (is_and(formula)) {
+        bool ok = true;
+        for (auto it = formula->begin(); it != formula->end(); ++it)
+            ok = collect_implicant(*it, out) && ok;
+        return ok;
+    }
+
+    if (is_or(formula)) {
+        for (auto it = formula->begin(); it != formula->end(); ++it) {
+            const auto child_val = model_value(*it);
+            if (child_val && is_true(_ctx, *child_val))
+                return collect_implicant(*it, out);
+        }
+        return false;
+    }
+
+    out.push_back(formula);
+    return true;
+}
+
+smt::UnorderedTermSet CheckVal::pures_in(const smt::Term& root) const {
+    smt::UnorderedTermSet res, visited;
+    std::vector<smt::Term> stk = {root};
+    while (!stk.empty()) {
+        smt::Term t = stk.back();
+        stk.pop_back();
+        if (!visited.insert(t).second)
+            continue;
+        if (_pures.find_t(t))
+            res.insert(t);
+        for (auto it = t->begin(); it != t->end(); ++it)
+            stk.push_back(*it);
+    }
+    return res;
+}
+
+bool CheckVal::pure_is_wrong(const smt::Term& pure) {
+    const smt::Term* orig = _pures.find_t(pure);
+    if (!orig)
+        return false;
+    const auto pv = try_get_value(_lia_solver, pure);
+    const auto tv = visit(*orig);
+    return pv && tv && *pv != *tv;
+}
+
+bool CheckVal::contains_var_expanded(const smt::Term& root, const smt::Term& var,
+                                     const smt::Term& skip_pure) const {
+    smt::UnorderedTermSet visited;
+    std::vector<smt::Term> stk = {root};
+    while (!stk.empty()) {
+        smt::Term t = stk.back();
+        stk.pop_back();
+        if (t == skip_pure)
+            continue;
+        if (!visited.insert(t).second)
+            continue;
+        if (t == var)
+            return true;
+
+        if (const smt::Term* orig = _pures.find_t(t)) {
+            stk.push_back(*orig);
+            continue;
+        }
+
+        for (auto it = t->begin(); it != t->end(); ++it)
+            stk.push_back(*it);
+    }
+    return false;
+}
+
+smt::TermVec CheckVal::adjustable_vars_for(const smt::Term& pure,
+                                           const smt::TermVec& implicant) const {
+    const smt::Term* orig = _pures.find_t(pure);
+    if (!orig)
+        return {};
+
+    smt::TermVec res;
+    smt::UnorderedTermSet added;
+    for (const auto& var : get_vars(*orig)) {
+        if (_pures.find_t(var))
+            continue;
+
+        bool elsewhere = false;
+        for (const auto& lit : implicant) {
+            if (contains_var_expanded(lit, var, pure)) {
+                elsewhere = true;
+                break;
+            }
+        }
+        if (!elsewhere && added.insert(var).second)
+            res.push_back(var);
+    }
+    return res;
 }

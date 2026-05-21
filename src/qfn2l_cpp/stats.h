@@ -27,6 +27,8 @@ struct Stats {
     CountStat mod_axioms{"mod_axioms"};
     CountStat div_axioms{"div_axioms"};
     CountStat liacalls{"lia_calls"};
+    CountStat model_fix_attempts{"model_fix_attempts"};
+    CountStat model_fix_successes{"model_fix_successes"};
 
     TimedStat liatime{"lia_time"};
     TimedStat parse_time{"parse_time"};
@@ -37,6 +39,7 @@ struct Stats {
     TimedStat init_time{"init_time"};
     TimedStat set_level_time{"set_level_time"};
     TimedStat check_nia_time{"check_nia_time"};
+    TimedStat model_fix_time{"model_fix_time"};
     TimedStat solve_time{"solve_time"};
     TimedStat complete_model_time{"complete_model_time"};
     TimedStat total_time{"total_time"};

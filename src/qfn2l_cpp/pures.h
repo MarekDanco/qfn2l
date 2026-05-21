@@ -10,6 +10,8 @@ class Pures {
 
     smt::Term* find_p(const smt::Term& t); // nullptr if not found
     smt::Term* find_t(const smt::Term& p); // nullptr if not found
+    const smt::Term* find_p(const smt::Term& t) const; // nullptr if not found
+    const smt::Term* find_t(const smt::Term& p) const; // nullptr if not found
     const smt::Term& get_p(const smt::Term& t) const;
     const smt::Term& get_t(const smt::Term& p) const;
 
@@ -51,11 +53,18 @@ class CollectPures {
 // or nullopt for unknown.
 class CheckVal {
   public:
+    struct ModelFixInfo {
+        smt::TermVec implicant;
+        smt::UnorderedTermSet wrong_pures;
+        std::unordered_map<smt::Term, smt::TermVec> adjustable_vars;
+    };
+
     CheckVal(const Ctx& ctx, HasUninterpreted& hu, const Pures& pures,
              const smt::SmtSolver& lia_solver);
 
     // Returns true iff formula evaluates to true under the model.
     bool check(const smt::Term& formula);
+    ModelFixInfo model_fix_info(const smt::Term& formula);
 
     std::optional<smt::Term> operator()(const smt::Term& t);
 
@@ -74,4 +83,13 @@ class CheckVal {
     visit_prop(const smt::Term& t, const std::vector<std::optional<smt::Term>>& cvs);
     std::optional<smt::Term>
     visit_complex(const smt::Term& t, const std::vector<std::optional<smt::Term>>& cvs);
+
+    std::optional<smt::Term> model_value(const smt::Term& t) const;
+    bool collect_implicant(const smt::Term& formula, smt::TermVec& out) const;
+    smt::UnorderedTermSet pures_in(const smt::Term& t) const;
+    bool pure_is_wrong(const smt::Term& pure);
+    bool contains_var_expanded(const smt::Term& t, const smt::Term& var,
+                               const smt::Term& skip_pure) const;
+    smt::TermVec adjustable_vars_for(const smt::Term& pure,
+                                     const smt::TermVec& implicant) const;
 };

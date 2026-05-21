@@ -144,6 +144,10 @@ if(BUILD_TESTING)
     add_test(NAME ${test_target} COMMAND "./${test_target}")
   endforeach()
 
+  if(BACKEND_Z3 AND Z3_LIB)
+    target_link_libraries(qfn2l_solver_smoke_tests PRIVATE "${Z3_LIB}")
+  endif()
+
   add_test(NAME qfn2l_cli_tests
     COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_cli.sh"
             "$<TARGET_FILE:qfn2l>" "${CMAKE_CURRENT_SOURCE_DIR}")
