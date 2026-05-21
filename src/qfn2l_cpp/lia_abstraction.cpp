@@ -733,6 +733,151 @@ void LiaAbstraction::apply_zeros_heuristic(const smt::UnorderedTermSet& cur_pure
     incorporate_assumptions(assumptions, "zeros");
 }
 
+bool LiaAbstraction::apply_model_fix_sub(const CheckVal::ModelFixInfo& info) {
+    if (info.wrong_pures.empty() || info.relevant_vars.empty())
+        return false;
+
+    // Build pinning equalities for original vars outside the wrong-pure neighborhood.
+    smt::TermVec pinned_smt;
+    for (const auto& var : _orig_vars) {
+        if (info.relevant_vars.count(var))
+            continue;
+        const auto val = get_value(var);
+        if (!val)
+            continue;
+        pinned_smt.push_back(_ctx.solver->make_term(smt::Equal, var, *val));
+    }
+
+    if (pinned_smt.empty()) {
+        ALOG(5, "model_fix_sub: all %zu vars are relevant, skipping",
+             _orig_vars.size());
+        return false;
+    }
+
+    STATS.model_fix_attempts += 1;
+    ALOG(3, "model_fix_sub: relevant=%zu pinning=%zu/%zu",
+         info.relevant_vars.size(), pinned_smt.size(), _orig_vars.size());
+
+#ifdef BACKEND_Z3
+    if (auto* z3s = dynamic_cast<smt::Z3Solver*>(_ctx.solver.get())) {
+        z3::context* z3ctx = z3s->get_z3_context();
+        z3::solver& main_slv = *z3s->get_z3_solver();
+
+        auto* z3t = dynamic_cast<smt::Z3Term*>(_current_instantiation.get());
+        if (!z3t)
+            return false;
+        const z3::expr lia_expr = z3t->get_z3_expr();
+
+        // Save current model so we can restore it if the sub-iteration fails.
+        const z3::model saved_mdl = main_slv.get_model();
+
+        // Replicate a z3 model into main_slv (same pattern as _solve()).
+        auto replicate_to_main = [&](const z3::model& mdl) {
+            main_slv.reset();
+            main_slv.add(lia_expr);
+            for (unsigned i = 0; i < mdl.num_consts(); i++) {
+                z3::func_decl d = mdl.get_const_decl(i);
+                main_slv.add(d() == mdl.get_const_interp(d));
+            }
+            main_slv.check();
+        };
+
+        // Fresh restricted solver: formula + pinned irrelevant vars.
+        z3::solver sub_slv(*z3ctx, "QF_LIA");
+        {
+            z3::params p(*z3ctx);
+            p.set("random_seed", (unsigned)_opts.seed);
+            p.set("timeout", (unsigned)_opts.heur_to);
+            sub_slv.set(p);
+        }
+        sub_slv.add(lia_expr);
+        for (const auto& eq : pinned_smt) {
+            auto* z3eq = dynamic_cast<smt::Z3Term*>(eq.get());
+            if (z3eq)
+                sub_slv.add(z3eq->get_z3_expr());
+        }
+
+        static constexpr int MAX_SUB_ITERS = 5;
+        for (int sub_it = 0; sub_it < MAX_SUB_ITERS; sub_it++) {
+            STATS.begin_phase(STATS.liatime);
+            const z3::check_result res = sub_slv.check();
+            STATS.end_phase();
+            STATS.liacalls += 1;
+
+            if (res != z3::sat) {
+                ALOG(5, "model_fix_sub: sub_it %d %s", sub_it,
+                     res == z3::unsat ? "unsat" : "unknown");
+                break;
+            }
+
+            replicate_to_main(sub_slv.get_model());
+
+            HasUninterpreted hu(_ctx);
+            CheckVal cv(_ctx, hu, _pures, _ctx.solver);
+            if (cv.check(_current_pure_body)) {
+                STATS.model_fix_successes += 1;
+                ALOG(2, "model_fix_sub: repaired at sub-iter %d", sub_it);
+                return true;
+            }
+
+            // NIA still wrong — generate axioms for wrong pures and feed them
+            // to sub_slv so the next sub-iteration is more constrained.
+            CollectPures pcol(_ctx, _pures, _axioms);
+            pcol(_current_pure_body);
+            bool any_new = false;
+            for (const auto& pure : pcol.collected) {
+                const smt::Term& t = _pures.get_t(pure);
+                if (is_okay(pure, t))
+                    continue;
+                any_new = true;
+                ALOG(5, "model_fix_sub: sub_it %d axioms for %s", sub_it,
+                     t->to_string().c_str());
+                smt::TermVec axs;
+                if (is_idiv(t)) {
+                    axs = mk_idiv_axiom(t);
+                    add_axioms(pure, axs, "div");
+                    STATS.div_axioms += static_cast<long>(axs.size());
+                } else if (is_mod(t)) {
+                    axs = mk_mod_axiom(t);
+                    add_axioms(pure, axs, "mod");
+                    STATS.mod_axioms += static_cast<long>(axs.size());
+                } else if (is_mul(t)) {
+                    if (!_sign_axioms_added.count(pure)) {
+                        MulSplit spl = split_mul(t);
+                        const auto sax = mk_sign_axioms(pure, spl);
+                        add_axioms(pure, sax, "smul");
+                        for (const auto& ax : sax) {
+                            auto* z3ax = dynamic_cast<smt::Z3Term*>(ax.get());
+                            if (z3ax)
+                                sub_slv.add(z3ax->get_z3_expr());
+                        }
+                        _sign_axioms_added.insert(pure);
+                    }
+                    axs = mk_mul_axioms(t);
+                    add_axioms(pure, axs, "mul");
+                    STATS.mul_axioms += static_cast<long>(axs.size());
+                }
+                for (const auto& ax : axs) {
+                    auto* z3ax = dynamic_cast<smt::Z3Term*>(ax.get());
+                    if (z3ax)
+                        sub_slv.add(z3ax->get_z3_expr());
+                }
+            }
+            if (!any_new) {
+                ALOG(5, "model_fix_sub: sub_it %d NIA wrong but no new axioms", sub_it);
+                break;
+            }
+        }
+
+        // Sub-iteration failed — restore the original model.
+        replicate_to_main(saved_mdl);
+        return false;
+    }
+#endif
+
+    return false;
+}
+
 bool LiaAbstraction::apply_model_fix(const CheckVal::ModelFixInfo& info) {
     auto restore_model = [&] {
         STATS.begin_phase(STATS.liatime);
@@ -1465,8 +1610,9 @@ bool LiaAbstraction::check_nia() {
         if (_opts.model_fix) {
             ScopedPhase mf_sp(STATS.model_fix_time);
             const auto fix_info = cv.model_fix_info(_current_pure_body);
-            ALOG(3, "model_fix: implicant=%zu wrong_pures=%zu",
-                 fix_info.implicant.size(), fix_info.wrong_pures.size());
+            ALOG(3, "model_fix: implicant=%zu wrong_pures=%zu relevant_vars=%zu",
+                 fix_info.implicant.size(), fix_info.wrong_pures.size(),
+                 fix_info.relevant_vars.size());
             if (g_verbosity >= 4) {
                 for (const auto& lit : fix_info.implicant)
                     ALOG(4, "model_fix: L %s", lit->to_string().c_str());
@@ -1478,7 +1624,14 @@ bool LiaAbstraction::check_nia() {
                     ALOG(4, "model_fix: W %s adjustable={%s}",
                          pure->to_string().c_str(), vars.c_str());
                 }
+                if (!fix_info.relevant_vars.empty()) {
+                    smt::TermVec rv(fix_info.relevant_vars.begin(),
+                                   fix_info.relevant_vars.end());
+                    ALOG(4, "model_fix: relevant_vars={%s}", terms_to_string(rv).c_str());
+                }
             }
+            if (apply_model_fix_sub(fix_info))
+                return true;
             if (apply_model_fix(fix_info))
                 return true;
         }

@@ -113,6 +113,17 @@ CheckVal::ModelFixInfo CheckVal::model_fix_info(const smt::Term& formula) {
     for (const auto& pure : info.wrong_pures)
         info.adjustable_vars[pure] = adjustable_vars_for(pure, info.implicant);
 
+    for (const auto& lit : info.implicant) {
+        const auto lp = pures_in(lit);
+        bool has_wrong = false;
+        for (const auto& p : lp)
+            if (info.wrong_pures.count(p)) { has_wrong = true; break; }
+        if (has_wrong) {
+            const auto vars = vars_in_expanded(lit);
+            info.relevant_vars.insert(vars.begin(), vars.end());
+        }
+    }
+
     return info;
 }
 
@@ -322,6 +333,28 @@ bool CheckVal::contains_var_expanded(const smt::Term& root, const smt::Term& var
             stk.push_back(*it);
     }
     return false;
+}
+
+smt::UnorderedTermSet CheckVal::vars_in_expanded(const smt::Term& root) const {
+    smt::UnorderedTermSet result, visited;
+    std::vector<smt::Term> stk = {root};
+    while (!stk.empty()) {
+        smt::Term t = stk.back();
+        stk.pop_back();
+        if (!visited.insert(t).second)
+            continue;
+        if (const smt::Term* orig = _pures.find_t(t)) {
+            stk.push_back(*orig);
+            continue;
+        }
+        if (is_symbolic_const(t)) {
+            result.insert(t);
+            continue;
+        }
+        for (auto it = t->begin(); it != t->end(); ++it)
+            stk.push_back(*it);
+    }
+    return result;
 }
 
 smt::TermVec CheckVal::adjustable_vars_for(const smt::Term& pure,

@@ -135,6 +135,7 @@ class LiaAbstraction {
     incorporate_assumptions(smt::TermVec& assumptions, const char* msg);
     void apply_zeros_heuristic(const smt::UnorderedTermSet& cur_pures,
                                smt::TermVec& assumptions);
+    bool apply_model_fix_sub(const CheckVal::ModelFixInfo& info);
     bool apply_model_fix(const CheckVal::ModelFixInfo& info);
 
     // Axiom generation.

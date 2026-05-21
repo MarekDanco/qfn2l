@@ -57,6 +57,10 @@ class CheckVal {
         smt::TermVec implicant;
         smt::UnorderedTermSet wrong_pures;
         std::unordered_map<smt::Term, smt::TermVec> adjustable_vars;
+        // Variables appearing in implicant literals that contain a wrong pure
+        // (expanding through pures to leaf vars). These form the "free zone"
+        // for the subiteration fix: everything outside gets pinned.
+        smt::UnorderedTermSet relevant_vars;
     };
 
     CheckVal(const Ctx& ctx, HasUninterpreted& hu, const Pures& pures,
@@ -92,4 +96,6 @@ class CheckVal {
                                const smt::Term& skip_pure) const;
     smt::TermVec adjustable_vars_for(const smt::Term& pure,
                                      const smt::TermVec& implicant) const;
+    // Collect all leaf variables reachable from root, expanding through pures.
+    smt::UnorderedTermSet vars_in_expanded(const smt::Term& root) const;
 };

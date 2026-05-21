@@ -14,7 +14,7 @@ Recall that $F$ is in NNF.
 ## Implicant
 
 Given a assignment $A$ that is a model of $[F]$ calculate an *implicant*, which
-are literals $L$ of $[F]$ s.t. $F\models [F]$. There may be multiple ones but
+are literals $L$ of $[F]$ s.t. $L\models [F]$. There may be multiple ones but
 we pick one arbitrarily, e.g. $x>0\lor y>3$ with $x=y=10$ has two possible
 implicants $\{x>0\}$ and $\{y>3\}$. Identify the set of pures $W$ that appear
 in $L$ and their values are incorrect, e.g. if $A$ sets $x=y=[xy]=2$, then the
