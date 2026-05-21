@@ -26,6 +26,7 @@ struct Options {
     int preprocess_aggressive_timeout = 5000;
     bool lia_preproc = false;
     bool tangent = false;
+    bool frontier = false;
     bool model_fix = false;
     bool congruence = true;
     std::string dump_qf_nia_formula;
@@ -110,6 +111,10 @@ class LiaAbstraction {
     // Track mul pures whose sign/zero axioms have already been added lazily.
     smt::UnorderedTermSet _sign_axioms_added;
 
+    // Per-pure frontier for the tangent lemma frontier strategy.
+    struct TangentFrontier { int64_t lx = 0, ux = 0, ly = 0, uy = 0; };
+    std::unordered_map<smt::Term, TangentFrontier> _frontiers;
+
     bool _in_init = true; // suppresses logging until intermediate pures are pruned
     bool _lia_sat = false;
     // Set by incorporate_assumptions when it ends with a check_sat_assuming UNSAT.
@@ -148,6 +153,9 @@ class LiaAbstraction {
     smt::TermVec mk_sign_axioms(const smt::Term& pure, const MulSplit& split);
     smt::TermVec mk_pow_axioms(const smt::Term& pure, const MulSplit& split);
     smt::TermVec mk_mixed_mul_axioms(const smt::Term& pure, const MulSplit& split);
+    smt::TermVec mk_tangent_at(const smt::Term& root1, const smt::Term& root2,
+                               const smt::Term& pure,
+                               const smt::Term& av, const smt::Term& bv);
     smt::TermVec mk_mul_axioms(const smt::Term& t);
     smt::TermVec mk_mod_axiom(const smt::Term& t);
     smt::TermVec mk_idiv_axiom(const smt::Term& t);

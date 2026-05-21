@@ -1306,25 +1306,65 @@ smt::TermVec LiaAbstraction::mk_mixed_mul_axioms(const smt::Term& pure,
                 rv.push_back(ax);
     }
     if (_opts.tangent && exp1 == 1 && exp2 == 1) {
-        // Tangent plane at (a, b) = (root1_val, root2_val) for pure = root1 * root2.
-        // T(x,y) = b*x + a*y - a*b  (linear; a and b are integer constants from model)
-        smt::Term ab = eval_mul(_ctx, {root1_val, root2_val});
-        smt::Term bx = mk_mul(_ctx, {root2_val, root1});
-        smt::Term ay = mk_mul(_ctx, {root1_val, root2});
-        smt::Term tangent_rhs =
-            _ctx.solver->make_term(smt::Minus, mk_add(_ctx, {bx, ay}), ab);
-        auto gt_a = _ctx.solver->make_term(smt::Gt, root1, root1_val);
-        auto lt_a = _ctx.solver->make_term(smt::Lt, root1, root1_val);
-        auto gt_b = _ctx.solver->make_term(smt::Gt, root2, root2_val);
-        auto lt_b = _ctx.solver->make_term(smt::Lt, root2, root2_val);
-        auto pure_lt = _ctx.solver->make_term(smt::Lt, pure, tangent_rhs);
-        auto pure_gt = _ctx.solver->make_term(smt::Gt, pure, tangent_rhs);
-        rv.push_back(mk_implies(_ctx, mk_and2(_ctx, gt_a, lt_b), pure_lt));
-        rv.push_back(mk_implies(_ctx, mk_and2(_ctx, lt_a, gt_b), pure_lt));
-        rv.push_back(mk_implies(_ctx, mk_and2(_ctx, lt_a, lt_b), pure_gt));
-        rv.push_back(mk_implies(_ctx, mk_and2(_ctx, gt_a, gt_b), pure_gt));
+        auto axs0 = mk_tangent_at(root1, root2, pure, root1_val, root2_val);
+        rv.insert(rv.end(), axs0.begin(), axs0.end());
+
+        if (_opts.frontier) {
+            int64_t a = term_to_int64(root1_val);
+            int64_t b = term_to_int64(root2_val);
+            auto& fr = _frontiers[pure];
+
+            auto add_extra = [&](int64_t av, int64_t bv) {
+                auto axs = mk_tangent_at(root1, root2, pure,
+                                         _ctx.make_int(av), _ctx.make_int(bv));
+                rv.insert(rv.end(), axs.begin(), axs.end());
+            };
+
+            if (a < fr.lx && b < fr.ly) {
+                add_extra(a, fr.uy);
+                add_extra(fr.ux, b);
+                fr = {a, fr.ux, b, fr.uy};
+            } else if (a < fr.lx && b > fr.uy) {
+                add_extra(a, fr.ly);
+                add_extra(fr.ux, b);
+                fr = {a, fr.ux, fr.ly, b};
+            } else if (a > fr.ux && b > fr.uy) {
+                add_extra(a, fr.ly);
+                add_extra(fr.lx, b);
+                fr = {fr.lx, a, fr.ly, b};
+            } else if (a > fr.ux && b < fr.ly) {
+                add_extra(a, fr.uy);
+                add_extra(fr.lx, b);
+                fr = {fr.lx, a, b, fr.uy};
+            }
+        }
     }
     return rv;
+}
+
+smt::TermVec LiaAbstraction::mk_tangent_at(const smt::Term& root1,
+                                           const smt::Term& root2,
+                                           const smt::Term& pure,
+                                           const smt::Term& av,
+                                           const smt::Term& bv) {
+    // Tangent plane T(x,y) = bv*x + av*y - av*bv for pure = root1 * root2.
+    smt::Term ab = eval_mul(_ctx, {av, bv});
+    smt::Term tangent_rhs = _ctx.solver->make_term(
+        smt::Minus,
+        mk_add(_ctx, {mk_mul(_ctx, {bv, root1}), mk_mul(_ctx, {av, root2})}),
+        ab);
+    auto gt_a = _ctx.solver->make_term(smt::Gt, root1, av);
+    auto lt_a = _ctx.solver->make_term(smt::Lt, root1, av);
+    auto gt_b = _ctx.solver->make_term(smt::Gt, root2, bv);
+    auto lt_b = _ctx.solver->make_term(smt::Lt, root2, bv);
+    auto pure_lt = _ctx.solver->make_term(smt::Lt, pure, tangent_rhs);
+    auto pure_gt = _ctx.solver->make_term(smt::Gt, pure, tangent_rhs);
+    return {
+        mk_implies(_ctx, mk_and2(_ctx, gt_a, lt_b), pure_lt),
+        mk_implies(_ctx, mk_and2(_ctx, lt_a, gt_b), pure_lt),
+        mk_implies(_ctx, mk_and2(_ctx, lt_a, lt_b), pure_gt),
+        mk_implies(_ctx, mk_and2(_ctx, gt_a, gt_b), pure_gt),
+    };
 }
 
 smt::TermVec LiaAbstraction::mk_mul_axioms(const smt::Term& t) {
