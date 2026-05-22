@@ -66,6 +66,7 @@ static void print_usage(const char* prog) {
         "  --tangent             Tangent plane axioms for x*y products\n"
         "  --frontier            Frontier strategy for tangent lemmas (requires --tangent)\n"
         "  --model-fix           Try cheap model repairs for adjustable mul factors\n"
+        "  --model-fix2          Like --model-fix but sub-iterates until NIA check succeeds\n"
         "  -p, --preproc         Preprocess with Z3 tactics\n"
         "  -pa N, --preproc-aggressive N  Z3 tactic preprocessing level (1 or 2)\n"
         "  -pt N, --preproc-timeout N     Timeout per tactic for -p/-pa in ms (default "
@@ -131,6 +132,8 @@ static Options parse_args(int argc, char** argv, std::string& filename) {
             opts.frontier = true;
         else if (arg == "--model-fix")
             opts.model_fix = true;
+        else if (arg == "--model-fix2")
+            opts.model_fix2 = true;
         else if (arg == "-p" || arg == "--preproc")
             opts.preprocess = true;
         else if (arg == "-pa" || arg == "--preproc-aggressive")

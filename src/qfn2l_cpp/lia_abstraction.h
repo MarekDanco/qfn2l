@@ -28,6 +28,7 @@ struct Options {
     bool tangent = false;
     bool frontier = false;
     bool model_fix = false;
+    bool model_fix2 = false;
     bool congruence = true;
     std::string dump_qf_nia_formula;
     std::string dump_abstraction_formula;
@@ -140,7 +141,7 @@ class LiaAbstraction {
     incorporate_assumptions(smt::TermVec& assumptions, const char* msg);
     void apply_zeros_heuristic(const smt::UnorderedTermSet& cur_pures,
                                smt::TermVec& assumptions);
-    bool apply_model_fix_sub(const CheckVal::ModelFixInfo& info);
+    bool apply_model_fix_sub(const CheckVal::ModelFixInfo& info, int max_iters = 5);
     bool apply_model_fix(const CheckVal::ModelFixInfo& info);
 
     // Axiom generation.

@@ -733,7 +733,7 @@ void LiaAbstraction::apply_zeros_heuristic(const smt::UnorderedTermSet& cur_pure
     incorporate_assumptions(assumptions, "zeros");
 }
 
-bool LiaAbstraction::apply_model_fix_sub(const CheckVal::ModelFixInfo& info) {
+bool LiaAbstraction::apply_model_fix_sub(const CheckVal::ModelFixInfo& info, int max_iters) {
     if (info.wrong_pures.empty() || info.relevant_vars.empty())
         return false;
 
@@ -797,8 +797,7 @@ bool LiaAbstraction::apply_model_fix_sub(const CheckVal::ModelFixInfo& info) {
                 sub_slv.add(z3eq->get_z3_expr());
         }
 
-        static constexpr int MAX_SUB_ITERS = 5;
-        for (int sub_it = 0; sub_it < MAX_SUB_ITERS; sub_it++) {
+        for (int sub_it = 0; max_iters < 0 || sub_it < max_iters; sub_it++) {
             STATS.begin_phase(STATS.liatime);
             const z3::check_result res = sub_slv.check();
             STATS.end_phase();
@@ -1647,7 +1646,7 @@ bool LiaAbstraction::check_nia() {
             ALOG(2, "check_nia quick ok");
             return true;
         }
-        if (_opts.model_fix) {
+        if (_opts.model_fix || _opts.model_fix2) {
             ScopedPhase mf_sp(STATS.model_fix_time);
             const auto fix_info = cv.model_fix_info(_current_pure_body);
             ALOG(3, "model_fix: implicant=%zu wrong_pures=%zu relevant_vars=%zu",
@@ -1670,7 +1669,7 @@ bool LiaAbstraction::check_nia() {
                     ALOG(4, "model_fix: relevant_vars={%s}", terms_to_string(rv).c_str());
                 }
             }
-            if (apply_model_fix_sub(fix_info))
+            if (apply_model_fix_sub(fix_info, _opts.model_fix2 ? -1 : 5))
                 return true;
             if (apply_model_fix(fix_info))
                 return true;

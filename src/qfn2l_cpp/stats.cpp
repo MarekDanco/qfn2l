@@ -76,4 +76,5 @@ void Stats::brief_prn() const {
     std::printf("model_fix_attempts: %ld\n", model_fix_attempts.value);
     std::printf("model_fix_successes: %ld\n", model_fix_successes.value);
     std::printf("model_fix_time: %.2f\n", model_fix_time.value);
+    std::printf("total_time: %.2f\n", total_time.value);
 }
