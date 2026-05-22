@@ -33,8 +33,10 @@ void Stats::prn() const {
     prn_count(mod_axioms);
     prn_count(div_axioms);
     prn_count(liacalls);
-    prn_count(model_fix_attempts);
-    prn_count(model_fix_successes);
+    if (model_fix) {
+        prn_count(model_fix_attempts);
+        prn_count(model_fix_successes);
+    }
     prn_timed(liatime);
     prn_timed(parse_time);
     prn_timed(nnf_time);
@@ -44,7 +46,8 @@ void Stats::prn() const {
     prn_timed(init_time);
     prn_timed(set_level_time);
     prn_timed(check_nia_time);
-    prn_timed(model_fix_time);
+    if (model_fix)
+        prn_timed(model_fix_time);
     prn_timed(solve_time);
     prn_timed(complete_model_time);
     prn_timed(total_time);
@@ -58,8 +61,9 @@ void Stats::brief_prn() const {
     std::vector<const TimedStat*> timed = {
         &liatime,        &parse_time,     &nnf_time,
         &simplify_time,  &propagate_time, &makedefs_time,
-        &set_level_time, &check_nia_time, &model_fix_time,
-        &complete_model_time};
+        &set_level_time, &check_nia_time, &complete_model_time};
+    if (model_fix)
+        timed.push_back(&model_fix_time);
     const TimedStat* longest = nullptr;
     for (auto* s : timed) {
         if (s->value > 0 && (!longest || s->value > longest->value))
@@ -73,8 +77,10 @@ void Stats::brief_prn() const {
     std::printf("mul_axioms: %ld\n", mul_axioms.value);
     std::printf("div_axioms: %ld\n", div_axioms.value);
     std::printf("mod_axioms: %ld\n", mod_axioms.value);
-    std::printf("model_fix_attempts: %ld\n", model_fix_attempts.value);
-    std::printf("model_fix_successes: %ld\n", model_fix_successes.value);
-    std::printf("model_fix_time: %.2f\n", model_fix_time.value);
+    if (model_fix) {
+        std::printf("model_fix_attempts: %ld\n", model_fix_attempts.value);
+        std::printf("model_fix_successes: %ld\n", model_fix_successes.value);
+        std::printf("model_fix_time: %.2f\n", model_fix_time.value);
+    }
     std::printf("total_time: %.2f\n", total_time.value);
 }

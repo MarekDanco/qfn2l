@@ -336,6 +336,7 @@ int main(int argc, char** argv) {
 
     g_print_stats = opts.print_stats;
     g_brief_stats = opts.brief_stats;
+    STATS.model_fix = opts.model_fix || opts.model_fix2;
     g_start_time = std::chrono::duration<double>(
                        std::chrono::steady_clock::now().time_since_epoch())
                        .count();

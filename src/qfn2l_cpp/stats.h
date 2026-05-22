@@ -44,6 +44,8 @@ struct Stats {
     TimedStat complete_model_time{"complete_model_time"};
     TimedStat total_time{"total_time"};
 
+    bool model_fix = false;
+
     using Clock = std::chrono::steady_clock;
     using TP = std::chrono::time_point<Clock>;
 
