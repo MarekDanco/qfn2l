@@ -8,6 +8,52 @@ qfn2l is a quantifier-free NIA (Nonlinear Integer Arithmetic) solver. It solves 
 
 The solver's approach: abstract nonlinear operations into fresh constants ("pures"), solve the resulting LIA (Linear Integer Arithmetic) abstraction, then check if the NIA semantics are satisfied, adding axioms on failures.
 
+**Development policy: all solver logic changes go in the C++ implementation (`src/qfn2l_cpp/`). The Python implementation (`src/qfn2l/`) is reference only.**
+
+## C++ Solver
+
+### Building
+
+```bash
+cd src/qfn2l_cpp/build && make -j$(nproc)
+```
+
+smt-switch is at `/home/marek/solvers/smt-switch/`. See `src/qfn2l_cpp/NOTES.md` for full first-time build instructions (CMake flags, smt-switch setup).
+
+### Running
+
+```bash
+qfn2l-cpp examples/hard.c_2.smt2
+qfn2l-cpp --timeout 30 --bounds examples/STC_0019.smt2
+```
+
+The `qfn2l-cpp` shell command resolves to `src/qfn2l_cpp/build/qfn2l`. Most flags match the Python solver (see below), with these differences:
+
+- `--preproc-aggressive N` / `-pa N` / `--preproc` / `-p` — implemented (calls z3 tactics via smt-switch)
+- `--no-congruence` — disable lazy congruence axioms
+- `--lia-preproc` — preprocess LIA formula with z3 simplify+propagate before each solve
+- `--tangent` — tangent plane axioms for x\*y products
+- `--frontier` — frontier strategy for tangent lemmas (requires `--tangent`)
+- `--model-fix` / `--model-fix2` — model repair heuristics for mul factors
+- `--backend NAME` — solver backend: `z3` (default) or `cvc5`
+- `--recursion-depth` is absent (C++ uses iterative traversal)
+
+### Testing
+
+Unit tests (CTest):
+```bash
+cd src/qfn2l_cpp/build && make check
+```
+
+Integration tests (must run from `examples/`):
+```bash
+cd examples && bash test_me_cpp.sh
+```
+
+Known open issue: intermediate pures (e.g. `e_x4` for `x²` when the formula has `x³`) are added to the prefix but not needed; see `src/qfn2l_cpp/STATUS.md`.
+
+## Python Solver (reference)
+
 ## Running the Solver
 
 The main entry point is `src/qfn2l/qf_solver.py`. SMT2 files are provided as input:
@@ -119,5 +165,6 @@ Line length is 88 (configured in `pyproject.toml`).
 
 ## Workflow
 
-- There are no unit tests. Verify fixes by running examples manually or with the fuzzing scripts in `testing/fuzzing/`.
+- C++ has CTest unit tests (`cd src/qfn2l_cpp/build && make check`) and integration tests (`cd examples && bash test_me_cpp.sh`). Python has no unit tests — verify by running examples manually or with fuzzing scripts in `testing/fuzzing/`.
 - `make_table.py` / `table.txt` — benchmark result table generation (root-level, untracked).
+- `src/qfn2l_cpp/CPP_VS_PYTHON.md` — documents behavioral divergences between the two implementations.
