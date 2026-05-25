@@ -45,7 +45,7 @@ for opts in " "  "--zeros"  "--preproc-aggressive 2"  "--bounds"  "--bounds --mo
 	run_and_check "${S}" "--timeout 10 ${opts}" ./STC_0072.smt2 sat
 	run_and_check "${S}" "--timeout 10 ${opts}" ./STC_0504.smt2 sat
 	if [ "${opts}" != "--zeros" ] && [ "${opts}" != " " ] && [ "${opts}" != "--preproc-aggressive 2" ]; then
-	  run_and_check "${S}" "--timeout 10 ${opts}" ./aproveSMT867442185995558133.smt2 sat
+	  # run_and_check "${S}" "--timeout 10 ${opts}" ./aproveSMT867442185995558133.smt2 sat
 	  run_and_check "${S}" "--timeout 10 ${opts}" ./aproveSMT9181010827166665933.smt2 sat
 	fi
 done

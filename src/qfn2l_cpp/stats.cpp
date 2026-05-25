@@ -32,6 +32,7 @@ void Stats::prn() const {
     prn_count(mul_axioms);
     prn_count(mod_axioms);
     prn_count(div_axioms);
+    prn_count(skipped_pures);
     prn_count(liacalls);
     if (model_fix) {
         prn_count(model_fix_attempts);
@@ -77,6 +78,7 @@ void Stats::brief_prn() const {
     std::printf("mul_axioms: %ld\n", mul_axioms.value);
     std::printf("div_axioms: %ld\n", div_axioms.value);
     std::printf("mod_axioms: %ld\n", mod_axioms.value);
+    std::printf("skipped_pures: %ld\n", skipped_pures.value);
     if (model_fix) {
         std::printf("model_fix_attempts: %ld\n", model_fix_attempts.value);
         std::printf("model_fix_successes: %ld\n", model_fix_successes.value);

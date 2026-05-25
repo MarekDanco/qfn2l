@@ -70,6 +70,11 @@ class CheckVal {
     bool check(const smt::Term& formula);
     ModelFixInfo model_fix_info(const smt::Term& formula);
 
+    // Collect the literals sufficient to make formula true under the current
+    // LIA model (flattens And, selects one true branch of each Or).
+    // Returns false if the formula does not evaluate to true.
+    bool collect_implicant(const smt::Term& formula, smt::TermVec& out) const;
+
     std::optional<smt::Term> operator()(const smt::Term& t);
 
   private:
@@ -89,7 +94,6 @@ class CheckVal {
     visit_complex(const smt::Term& t, const std::vector<std::optional<smt::Term>>& cvs);
 
     std::optional<smt::Term> model_value(const smt::Term& t) const;
-    bool collect_implicant(const smt::Term& formula, smt::TermVec& out) const;
     smt::UnorderedTermSet pures_in(const smt::Term& t) const;
     bool pure_is_wrong(const smt::Term& pure);
     bool contains_var_expanded(const smt::Term& t, const smt::Term& var,

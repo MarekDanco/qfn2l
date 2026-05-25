@@ -26,6 +26,7 @@ struct Stats {
     CountStat mul_axioms{"mul_axioms"};
     CountStat mod_axioms{"mod_axioms"};
     CountStat div_axioms{"div_axioms"};
+    CountStat skipped_pures{"skipped_pures"};
     CountStat liacalls{"lia_calls"};
     CountStat model_fix_attempts{"model_fix_attempts"};
     CountStat model_fix_successes{"model_fix_successes"};

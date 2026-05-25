@@ -1639,52 +1639,137 @@ bool LiaAbstraction::check_nia() {
     }
 
     // Quick three-valued check.
-    {
-        HasUninterpreted hu(_ctx);
-        CheckVal cv(_ctx, hu, _pures, _ctx.solver);
-        if (cv.check(_current_pure_body)) {
-            ALOG(2, "check_nia quick ok");
-            return true;
+    HasUninterpreted hu(_ctx);
+    CheckVal cv(_ctx, hu, _pures, _ctx.solver);
+    if (cv.check(_current_pure_body)) {
+        ALOG(2, "check_nia quick ok");
+        return true;
+    }
+    // Implicant-based targeted refinement.
+    //
+    // collect_implicant gives exactly the literals sufficient to satisfy the
+    // formula under the current LIA model. For each literal we substitute
+    // each pure with its NIA value and re-evaluate: if the literal is still
+    // true (or unknown) we need no axioms for it. We collect pures only from
+    // literals that evaluate to FALSE under NIA semantics.
+    //
+    // Key early-exit: if we got an implicant and every literal is NIA-ok,
+    // the formula is already NIA-satisfied — return true without any axioms.
+    // Falls back to full pcol when collect_implicant fails.
+    //
+    // When --model-fix is active, model_fix_info already computes the implicant
+    // internally — we reuse it rather than recomputing.
+    smt::TermVec implicant;
+    bool got_implicant = false;
+
+    if (_opts.model_fix || _opts.model_fix2) {
+        ScopedPhase mf_sp(STATS.model_fix_time);
+        const auto fix_info = cv.model_fix_info(_current_pure_body);
+        ALOG(3, "model_fix: implicant=%zu wrong_pures=%zu relevant_vars=%zu",
+             fix_info.implicant.size(), fix_info.wrong_pures.size(),
+             fix_info.relevant_vars.size());
+        if (g_verbosity >= 4) {
+            for (const auto& lit : fix_info.implicant)
+                ALOG(4, "model_fix: L %s", lit->to_string().c_str());
+            for (const auto& pure : fix_info.wrong_pures) {
+                const auto it = fix_info.adjustable_vars.find(pure);
+                const std::string vars =
+                    it != fix_info.adjustable_vars.end() ? terms_to_string(it->second)
+                                                         : "";
+                ALOG(4, "model_fix: W %s adjustable={%s}",
+                     pure->to_string().c_str(), vars.c_str());
+            }
+            if (!fix_info.relevant_vars.empty()) {
+                smt::TermVec rv(fix_info.relevant_vars.begin(),
+                                fix_info.relevant_vars.end());
+                ALOG(4, "model_fix: relevant_vars={%s}", terms_to_string(rv).c_str());
+            }
         }
-        if (_opts.model_fix || _opts.model_fix2) {
-            ScopedPhase mf_sp(STATS.model_fix_time);
-            const auto fix_info = cv.model_fix_info(_current_pure_body);
-            ALOG(3, "model_fix: implicant=%zu wrong_pures=%zu relevant_vars=%zu",
-                 fix_info.implicant.size(), fix_info.wrong_pures.size(),
-                 fix_info.relevant_vars.size());
-            if (g_verbosity >= 4) {
-                for (const auto& lit : fix_info.implicant)
-                    ALOG(4, "model_fix: L %s", lit->to_string().c_str());
-                for (const auto& pure : fix_info.wrong_pures) {
-                    const auto it = fix_info.adjustable_vars.find(pure);
-                    const std::string vars =
-                        it != fix_info.adjustable_vars.end() ? terms_to_string(it->second)
-                                                             : "";
-                    ALOG(4, "model_fix: W %s adjustable={%s}",
-                         pure->to_string().c_str(), vars.c_str());
-                }
-                if (!fix_info.relevant_vars.empty()) {
-                    smt::TermVec rv(fix_info.relevant_vars.begin(),
-                                   fix_info.relevant_vars.end());
-                    ALOG(4, "model_fix: relevant_vars={%s}", terms_to_string(rv).c_str());
+        if (apply_model_fix_sub(fix_info, _opts.model_fix2 ? -1 : 5))
+            return true;
+        if (apply_model_fix(fix_info))
+            return true;
+        implicant = fix_info.implicant;
+        got_implicant = !implicant.empty();
+    } else {
+        got_implicant = cv.collect_implicant(_current_pure_body, implicant);
+    }
+
+    CollectPures targeted_pcol(_ctx, _pures, _axioms);
+    if (got_implicant) {
+        // Pre-compute NIA values for all active pures.
+        smt::UnorderedTermMap nia_vals;
+        for (const auto& pure : pcol.collected) {
+            auto nv = get_value(_pures.get_t(pure));
+            if (nv) nia_vals[pure] = *nv;
+        }
+
+        // Collect pures directly visible in t (stops at pcol.collected members).
+        auto direct_pures_in = [&](const smt::Term& t) {
+            smt::TermVec result;
+            smt::UnorderedTermSet seen;
+            std::vector<smt::Term> stk = {t};
+            while (!stk.empty()) {
+                smt::Term node = stk.back();
+                stk.pop_back();
+                if (!seen.insert(node).second)
+                    continue;
+                if (pcol.collected.count(node)) {
+                    result.push_back(node);
+                } else {
+                    for (auto it = node->begin(); it != node->end(); ++it)
+                        stk.push_back(*it);
                 }
             }
-            if (apply_model_fix_sub(fix_info, _opts.model_fix2 ? -1 : 5))
-                return true;
-            if (apply_model_fix(fix_info))
-                return true;
+            return result;
+        };
+
+        for (const auto& lit : implicant) {
+            const auto pures_in_lit = direct_pures_in(lit);
+            if (pures_in_lit.empty())
+                continue;
+            smt::UnorderedTermMap subst;
+            bool any_wrong = false;
+            for (const auto& p : pures_in_lit) {
+                auto it = nia_vals.find(p);
+                if (it == nia_vals.end())
+                    continue;
+                subst[p] = it->second;
+                auto lv = get_value(p);
+                if (!lv || !(*lv == it->second))
+                    any_wrong = true;
+            }
+            if (!any_wrong)
+                continue;  // all pures in this literal match NIA — no axioms needed
+            const smt::Term subst_lit = do_substitute(_ctx, lit, subst);
+            auto val = get_value(subst_lit);
+            if (val && is_false(_ctx, *val))
+                targeted_pcol(lit);
+        }
+
+        if (targeted_pcol.collected.empty()) {
+            ALOG(2, "check_nia ok (all implicant literals NIA-satisfied)");
+            return true;
         }
     }
+
+    const bool use_targeted = got_implicant;
+    const CollectPures& active_pcol = use_targeted ? targeted_pcol : pcol;
+    if (use_targeted)
+        STATS.skipped_pures += static_cast<long>(pcol.collected.size()) -
+                               static_cast<long>(targeted_pcol.collected.size());
+    ALOG(3, "check_nia: targeted=%d active=%zu/%zu", use_targeted,
+         active_pcol.collected.size(), pcol.collected.size());
 
     bool res = true;
 
     size_t pairs_before = _congruence_pairs_added.size();
     if (_opts.congruence)
-        add_lazy_congruence_axioms(pcol);
+        add_lazy_congruence_axioms(active_pcol);
     if (_congruence_pairs_added.size() > pairs_before)
         res = false;
 
-    for (auto& pure : pcol.collected) {
+    for (auto& pure : active_pcol.collected) {
         const smt::Term& t = _pures.get_t(pure);
         if (is_okay(pure, t))
             continue;
