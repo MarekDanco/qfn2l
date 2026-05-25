@@ -30,6 +30,7 @@ struct Options {
     bool model_fix = false;
     bool model_fix2 = false;
     bool congruence = true;
+    bool use_uf = false; // use uninterpreted functions instead of fresh constants
     std::string dump_qf_nia_formula;
     std::string dump_abstraction_formula;
     std::string backend = "z3"; // "z3" | "cvc5"
@@ -115,6 +116,14 @@ class LiaAbstraction {
     // Per-pure frontier for the tangent lemma frontier strategy.
     struct TangentFrontier { int64_t lx = 0, ux = 0, ly = 0, uy = 0; };
     std::unordered_map<smt::Term, TangentFrontier> _frontiers;
+
+    // UIF mode (--uf): function symbols, created lazily.
+    std::unordered_map<size_t, smt::Term> _mul_uf;
+    smt::Term _idiv_uf;
+    smt::Term _mod_uf;
+    smt::Term get_mul_uf(size_t arity);
+    smt::Term get_idiv_uf();
+    smt::Term get_mod_uf();
 
     bool _in_init = true; // suppresses logging until intermediate pures are pruned
     bool _lia_sat = false;

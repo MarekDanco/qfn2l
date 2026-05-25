@@ -78,6 +78,7 @@ static void print_usage(const char* prog) {
         "  --brief-stats         Print brief stats on exit\n"
         "  --backend NAME        Solver backend: z3 (default) | cvc5\n"
         "  --no-congruence       Disable lazy congruence axioms (reduces overhead with many pures)\n"
+        "  --uf                  Abstract nonlinear ops as uninterpreted functions (experimental)\n"
         "  --help                Show this help\n",
         prog);
 }
@@ -148,6 +149,8 @@ static Options parse_args(int argc, char** argv, std::string& filename) {
             opts.backend = next();
         else if (arg == "--no-congruence")
             opts.congruence = false;
+        else if (arg == "--uf")
+            opts.use_uf = true;
         else if (arg == "--help" || arg == "-h") {
             print_usage(argv[0]);
             std::exit(0);
@@ -367,6 +370,11 @@ static void print_model(const Ctx& /*ctx*/, const LiaAbstraction& abstr,
 int main(int argc, char** argv) {
     std::string filename;
     Options opts = parse_args(argc, argv, filename);
+
+    if (opts.use_uf && !opts.congruence)
+        std::fprintf(stderr,
+                     "warning: --no-congruence has no effect with --uf "
+                     "(EUF theory handles congruence automatically)\n");
 
     g_print_stats = opts.print_stats;
     g_brief_stats = opts.brief_stats;

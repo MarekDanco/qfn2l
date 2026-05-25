@@ -36,7 +36,8 @@ static void set_solver_timeout(const Ctx& ctx, int ms) {
 
 // One-time solver initialisation for LIA options.
 static void init_lia_solver(const Ctx& ctx, const Options& opts) {
-    ctx.solver->set_logic("QF_NIA"); // permissive; the purified formula is LIA
+    // QF_UFNIA when using uninterpreted functions, QF_NIA otherwise.
+    ctx.solver->set_logic(opts.use_uf ? "QF_UFNIA" : "QF_NIA");
 
 #ifdef BACKEND_Z3
     // set_logic resets the z3::solver object, so seed must be set afterwards.
@@ -237,6 +238,36 @@ LiaAbstraction::LiaAbstraction(const Ctx& ctx, const Options& opts,
     }
 }
 
+// ── UIF helpers ───────────────────────────────────────────────────────────────
+smt::Term LiaAbstraction::get_mul_uf(size_t arity) {
+    auto it = _mul_uf.find(arity);
+    if (it != _mul_uf.end())
+        return it->second;
+    smt::SortVec sorts(arity + 1, _ctx.int_sort); // arity inputs + Int return
+    smt::Sort fs = _ctx.solver->make_sort(smt::FUNCTION, sorts);
+    smt::Term uf =
+        _ctx.solver->make_symbol("mul_uf_" + std::to_string(arity), fs);
+    return _mul_uf[arity] = uf;
+}
+
+smt::Term LiaAbstraction::get_idiv_uf() {
+    if (!_idiv_uf) {
+        smt::Sort ii2i =
+            _ctx.solver->make_sort(smt::FUNCTION, {_ctx.int_sort, _ctx.int_sort, _ctx.int_sort});
+        _idiv_uf = _ctx.solver->make_symbol("idiv_uf", ii2i);
+    }
+    return _idiv_uf;
+}
+
+smt::Term LiaAbstraction::get_mod_uf() {
+    if (!_mod_uf) {
+        smt::Sort ii2i =
+            _ctx.solver->make_sort(smt::FUNCTION, {_ctx.int_sort, _ctx.int_sort, _ctx.int_sort});
+        _mod_uf = _ctx.solver->make_symbol("mod_uf", ii2i);
+    }
+    return _mod_uf;
+}
+
 // ── make_pure_constant ────────────────────────────────────────────────────────
 std::string LiaAbstraction::make_fancy_name(const smt::Term& term) const {
     std::string pfx = (_is_exists ? "e_" : "u_");
@@ -281,14 +312,35 @@ smt::Term LiaAbstraction::make_pure_constant(const smt::Term& term) {
     if (auto* p = _pures.find_p(term))
         return *p;
 
-    std::string fname = make_fancy_name(term);
-    smt::Term pure = _ctx.fresh_symbol(term->get_sort(), fname);
+    smt::Term pure;
+    if (_opts.use_uf) {
+        if (is_mul(term)) {
+            smt::TermVec factors;
+            for (auto it = term->begin(); it != term->end(); ++it)
+                factors.push_back(*it);
+            smt::Term uf = get_mul_uf(factors.size());
+            smt::TermVec args = {uf};
+            args.insert(args.end(), factors.begin(), factors.end());
+            pure = _ctx.solver->make_term(smt::Apply, args);
+        } else if (is_idiv(term)) {
+            auto x = get_child(term, 0), y = get_child(term, 1);
+            pure = _ctx.solver->make_term(smt::Apply, {get_idiv_uf(), x, y});
+        } else { // mod
+            auto x = get_child(term, 0), y = get_child(term, 1);
+            pure = _ctx.solver->make_term(smt::Apply, {get_mod_uf(), x, y});
+        }
+        // UIF applications are not free variables — do NOT add to _prefix
+    } else {
+        std::string fname = make_fancy_name(term);
+        pure = _ctx.fresh_symbol(term->get_sort(), fname);
+        _prefix[0].add_var(pure);
+    }
+
     _pures.map_t2p(term, pure);
     STATS.pures += 1;
     if (!_in_init)
         ALOG(4, "mapping %s -> %s", term->to_string().c_str(),
              pure->to_string().c_str());
-    _prefix[0].add_var(pure);
 
     // Sign/zero axioms for mul pures are added lazily in check_nia (mk_sign_axioms).
     return pure;
@@ -387,7 +439,7 @@ void LiaAbstraction::_solve() {
         z3::context* z3ctx = z3s->get_z3_context();
 
         // Fresh solver per call, tuned for LIA — mirrors Python's SolverFor("LIA").
-        z3::solver lia_slv(*z3ctx, "QF_LIA");
+        z3::solver lia_slv(*z3ctx, _opts.use_uf ? "QF_UFLIA" : "QF_LIA");
         z3::params p(*z3ctx);
         p.set("random_seed", (unsigned)_opts.seed);
         if (_opts.timeout > 0) {
@@ -604,6 +656,18 @@ void LiaAbstraction::_solve() {
             z3::expr interp = mdl.get_const_interp(d);
             slv.add(d() == interp);
         }
+        if (_opts.use_uf) {
+            // Pin each UIF application's value from the UFLIA model so that
+            // CheckVal (which uses _ctx.solver) sees the same values.
+            for (auto& [term, pure] : _pures.term2pure()) {
+                auto* z3p = dynamic_cast<smt::Z3Term*>(pure.get());
+                if (!z3p)
+                    continue;
+                z3::expr pure_z3 = z3p->get_z3_expr();
+                z3::expr pure_val = mdl.eval(pure_z3, /*model_completion=*/true);
+                slv.add(pure_z3 == pure_val);
+            }
+        }
         slv.check(); // trivially SAT; makes the model available via get_value()
         _lia_sat = true;
 
@@ -779,11 +843,20 @@ bool LiaAbstraction::apply_model_fix_sub(const CheckVal::ModelFixInfo& info, int
                 z3::func_decl d = mdl.get_const_decl(i);
                 main_slv.add(d() == mdl.get_const_interp(d));
             }
+            if (_opts.use_uf) {
+                for (auto& [term, pure] : _pures.term2pure()) {
+                    auto* z3p = dynamic_cast<smt::Z3Term*>(pure.get());
+                    if (!z3p)
+                        continue;
+                    z3::expr pure_z3 = z3p->get_z3_expr();
+                    main_slv.add(pure_z3 == mdl.eval(pure_z3, true));
+                }
+            }
             return main_slv.check();
         };
 
         // Fresh restricted solver: formula + pinned irrelevant vars.
-        z3::solver sub_slv(*z3ctx, "QF_LIA");
+        z3::solver sub_slv(*z3ctx, _opts.use_uf ? "QF_UFLIA" : "QF_LIA");
         {
             z3::params p(*z3ctx);
             p.set("random_seed", (unsigned)_opts.seed);
@@ -1080,6 +1153,22 @@ bool LiaAbstraction::apply_model_fix(const CheckVal::ModelFixInfo& info) {
 }
 
 // ── split_mul ─────────────────────────────────────────────────────────────────
+// Called on the ORIGINAL NIA term stored in _pures (i.e. _pures.get_t(pure)),
+// never on the pure itself (fresh constant or UIF application).  Because axiom
+// generation is driven entirely by this original term and the current model
+// values, it is blind to whether the abstraction is a fresh constant or a UIF
+// application -- the dedicated mk_pow_axioms / mk_mixed_mul_axioms logic works
+// identically in both --uf and default modes.
+//
+// z3 represents products of REPEATED variables as flat n-ary terms: after
+// FlattenMul, x*x*x*y*y*y*y arrives here as the 7-child term (* x x x y y y y),
+// and the expansion below correctly identifies pows = {x:[x,x,x], y:[y,y,y,y]}
+// -> two distinct bases -> mk_mixed_mul_axioms.
+//
+// Products of DISTINCT variables (e.g. x*y*z) are binary-nested by z3 even
+// after FlattenMul: (* x*y z) or (* x (* y z)).  The purifier therefore creates
+// two separate pures (e.g. p_yz then p_x_pyz), each treated as a 2-factor
+// product.  This is identical behaviour in both modes and is not a regression.
 LiaAbstraction::MulSplit LiaAbstraction::split_mul(const smt::Term& t) const {
     assert(is_mul(t));
     // Flatten nested muls so that x*(x*x) is recognised as x^3, not x*(x^2).
@@ -1095,7 +1184,9 @@ LiaAbstraction::MulSplit LiaAbstraction::split_mul(const smt::Term& t) const {
             for (auto it = c->begin(); it != c->end(); ++it)
                 stk.push_back(*it);
         } else if (_hu(c)) {
-            // Look through pures-for-muls to recover original factors.
+            // If c is a pure whose original term is itself a mul (e.g. a
+            // fresh constant e_x2 standing for x*x), expand it so the outer
+            // product x * e_x2 is recognised as x^3 rather than two factors.
             const smt::Term* orig = _pures.find_t(c);
             if (orig && is_mul(*orig)) {
                 for (auto it = (*orig)->begin(); it != (*orig)->end(); ++it)
@@ -1772,7 +1863,7 @@ bool LiaAbstraction::check_nia() {
     bool res = true;
 
     size_t pairs_before = _congruence_pairs_added.size();
-    if (_opts.congruence)
+    if (_opts.congruence && !_opts.use_uf)
         add_lazy_congruence_axioms(active_pcol);
     if (_congruence_pairs_added.size() > pairs_before)
         res = false;
