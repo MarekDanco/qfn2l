@@ -772,14 +772,14 @@ bool LiaAbstraction::apply_model_fix_sub(const CheckVal::ModelFixInfo& info, int
         const z3::model saved_mdl = main_slv.get_model();
 
         // Replicate a z3 model into main_slv (same pattern as _solve()).
-        auto replicate_to_main = [&](const z3::model& mdl) {
+        auto replicate_to_main = [&](const z3::model& mdl) -> z3::check_result {
             main_slv.reset();
             main_slv.add(lia_expr);
             for (unsigned i = 0; i < mdl.num_consts(); i++) {
                 z3::func_decl d = mdl.get_const_decl(i);
                 main_slv.add(d() == mdl.get_const_interp(d));
             }
-            main_slv.check();
+            return main_slv.check();
         };
 
         // Fresh restricted solver: formula + pinned irrelevant vars.
@@ -869,7 +869,13 @@ bool LiaAbstraction::apply_model_fix_sub(const CheckVal::ModelFixInfo& info, int
         }
 
         // Sub-iteration failed — restore the original model.
-        replicate_to_main(saved_mdl);
+        if (replicate_to_main(saved_mdl) != z3::sat) {
+            // saved_mdl no longer satisfies lia_expr (axioms added during sub-iterations
+            // tightened it). Fall back: solve lia_expr alone to recover any valid model.
+            main_slv.reset();
+            main_slv.add(lia_expr);
+            main_slv.check();
+        }
         return false;
     }
 #endif

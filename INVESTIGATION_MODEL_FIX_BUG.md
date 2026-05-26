@@ -1,4 +1,4 @@
-# Bug investigation: --model-fix produces invalid models
+# Bug investigation: --model-fix produces invalid models [FIXED 2026-05-26]
 
 **Symptoms**: Running with `--bounds --tangent --no-congruence --model-fix` on the
 `bugs/Stroeder_15__GulwaniJainKoskinen-PLDI2009-Fig1_true-termination.c__p2XXXX_edge_closing_0.smt2`
@@ -157,7 +157,7 @@ python3 testing/check_model_cpp.py --ref-solver cvc5 \
   -- --bounds --tangent --no-congruence --model-fix
 ```
 
-Expected: FAIL (still fails as of this writing).
+Expected: FAIL (was failing before fix; now returns unknown — no longer produces an invalid model).
 
 Verbose investigation:
 ```bash

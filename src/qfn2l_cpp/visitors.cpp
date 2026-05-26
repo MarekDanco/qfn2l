@@ -304,6 +304,7 @@ smt::Term SimplePropagate::propagate(bool pos, const smt::Term& node) {
     // Under Or (pos=false): extract not(x==c).
     using EqPair = std::pair<smt::Term, smt::Term>;
     std::vector<EqPair> eqs;
+    smt::UnorderedTermSet extracted_lhs;
 
     for (int i = static_cast<int>(chs.size()) - 1; i >= 0; --i) {
         smt::Term ch = chs[i];
@@ -324,6 +325,12 @@ smt::Term SimplePropagate::propagate(bool pos, const smt::Term& node) {
         // but reject compound rhs (x=a+b) which can cause circular substitution.
         if (!is_symbolic_const(lhs) || (!is_symbolic_const(rhs) && !is_value(rhs)))
             continue;
+        // If lhs already has an equality extracted, leave this one in chs so
+        // the substitution rewrites it (x=y, x=z → x=y, y=z) rather than
+        // dropping one constraint silently.
+        if (extracted_lhs.count(lhs))
+            continue;
+        extracted_lhs.insert(lhs);
         eqs.push_back({lhs, rhs});
         // Swap-remove.
         chs[i] = chs.back();

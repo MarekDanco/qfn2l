@@ -1,5 +1,33 @@
 # Known Bugs / Bug History
 
+## [FIXED] SimplePropagate drops duplicate-lhs equalities — visitors.cpp
+
+**Introduced:** initial C++ port
+**Fixed:** 2026-05-26
+**Severity:** Soundness — LIA abstraction is weaker than the original NIA formula; solver can produce models that fail the original constraints
+**Trigger:** Any formula where the same variable appears as lhs in two equalities within the same `and` block, e.g. `(and (= x a) (= x b) ...)`. All `bugs/Stroeder_15__GulwaniJainKoskinen-PLDI2009-Fig1_true-termination.c__p2XXXX_edge_closing_0.smt2` files triggered this.
+
+### Root cause
+
+`SimplePropagate::propagate` extracts equalities of the form `(= lhs rhs)` from an `and` block, removes them from the child list, and builds a substitution map `subst[lhs] = rhs`. When two equalities share the same `lhs` (e.g., `x=y` and `x=z`), both are removed from the child list but `subst[lhs]` is overwritten — only the last value survives. The rebuild step emits one equality (`x=y` or `x=z`), silently dropping the other.
+
+In the triggering formulas, `(and (= UndefCntr0_undef6 UndefCntr1_undef6) (= UndefCntr0_undef6 UndefCntr2_undef6) ...)` had the second equality dropped. The LIA abstraction became logically weaker, allowing models where `UndefCntr1_undef6 ≠ UndefCntr2_undef6` — invalid under the original formula.
+
+### Fix
+
+Track which lhs variables have already been extracted (`extracted_lhs` set). If a second equality has a lhs already in the set, skip extracting it (leave it in `chs`). The substitution then rewrites it in-place: `x=z` with `subst[x]=y` becomes `y=z`, preserving the constraint.
+
+```cpp
+smt::UnorderedTermSet extracted_lhs;
+// ...
+if (extracted_lhs.count(lhs)) continue;
+extracted_lhs.insert(lhs);
+eqs.push_back({lhs, rhs});
+chs[i] = chs.back(); chs.pop_back();
+```
+
+---
+
 ## [FIXED] Bounds heuristic skipped when zeros heuristic fails — lia_abstraction.cpp
 
 **Introduced:** initial C++ port

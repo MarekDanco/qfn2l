@@ -206,8 +206,21 @@ static void print_backend_version(const std::string& backend) {
 
 // ── Z3 tactic preprocessing ───────────────────────────────────────────────────
 #ifdef BACKEND_Z3
-static smt::Term apply_tactic(z3::context& zctx, const z3::expr& e, const z3::tactic& t,
-                              int timeout_ms) {
+struct PreprocessResult {
+    smt::Term formula;
+    // Subgoals in application order (one per tactic that succeeded and produced
+    // exactly one subgoal). goal_chain[i].convert_model(m) converts a model of
+    // goal_chain[i]'s formula back to a model of the preceding (parent) goal.
+    // Apply in reverse order to recover values of eliminated variables.
+    std::vector<z3::goal> goal_chain;
+};
+
+// Apply tactic t to expr e. On success with exactly one subgoal, append the
+// subgoal to goal_chain and update e. On timeout/failure/split, leave both
+// unchanged (or update e without recording an MC entry).
+static void run_tactic(z3::context& zctx, z3::expr& e,
+                       std::vector<z3::goal>& goal_chain,
+                       const z3::tactic& t, int timeout_ms) {
     try {
         z3::goal g(zctx);
         g.add(e);
@@ -216,40 +229,37 @@ static smt::Term apply_tactic(z3::context& zctx, const z3::expr& e, const z3::ta
         for (unsigned i = 0; i < res.size(); ++i)
             for (unsigned j = 0; j < res[i].size(); ++j)
                 all.push_back(res[i][j]);
-        return std::make_shared<smt::Z3Term>(z3::mk_and(all), zctx);
-    } catch (const z3::exception&) {
-        return std::make_shared<smt::Z3Term>(e, zctx);
-    }
+        e = z3::mk_and(all);
+        // Only record the MC entry when there is exactly one subgoal; if the
+        // tactic produced a case split we cannot chain convert_model cleanly.
+        if (res.size() == 1)
+            goal_chain.push_back(res[0]);
+    } catch (const z3::exception&) {}
 }
 
-static smt::Term preprocess_plain(const Ctx& ctx, const smt::Term& formula,
-                                  int timeout_ms) {
+static PreprocessResult preprocess_plain(const Ctx& ctx, const smt::Term& formula,
+                                         int timeout_ms) {
     auto* z3s = dynamic_cast<smt::Z3Solver*>(ctx.solver.get());
     z3::context& zctx = *z3s->get_z3_context();
-    auto* z3t = dynamic_cast<smt::Z3Term*>(formula.get());
-    z3::expr e = z3t->get_z3_expr();
+    z3::expr e = dynamic_cast<smt::Z3Term*>(formula.get())->get_z3_expr();
 
+    std::vector<z3::goal> goal_chain;
     for (const char* name : {"simplify", "propagate-values", "solve-eqs", "simplify"})
-        e = dynamic_cast<smt::Z3Term*>(
-                apply_tactic(zctx, e, z3::tactic(zctx, name), timeout_ms).get())
-                ->get_z3_expr();
+        run_tactic(zctx, e, goal_chain, z3::tactic(zctx, name), timeout_ms);
 
-    return std::make_shared<smt::Z3Term>(e, zctx);
+    return {std::make_shared<smt::Z3Term>(e, zctx), std::move(goal_chain)};
 }
 
-static smt::Term preprocess_aggressive(const Ctx& ctx, const smt::Term& formula,
-                                       int level, int timeout_ms) {
+static PreprocessResult preprocess_aggressive(const Ctx& ctx, const smt::Term& formula,
+                                              int level, int timeout_ms) {
     auto* z3s = dynamic_cast<smt::Z3Solver*>(ctx.solver.get());
     z3::context& zctx = *z3s->get_z3_context();
-    auto* z3t = dynamic_cast<smt::Z3Term*>(formula.get());
-    z3::expr e = z3t->get_z3_expr();
+    z3::expr e = dynamic_cast<smt::Z3Term*>(formula.get())->get_z3_expr();
+
+    std::vector<z3::goal> goal_chain;
+    auto run = [&](z3::tactic t) { run_tactic(zctx, e, goal_chain, t, timeout_ms); };
 
     using P = z3::params;
-    auto run = [&](z3::tactic t) {
-        e = dynamic_cast<smt::Z3Term*>(apply_tactic(zctx, e, t, timeout_ms).get())
-                ->get_z3_expr();
-    };
-
     auto p_simplify = [&](bool hoist) {
         P p(zctx);
         p.set("arith_lhs", true);
@@ -284,7 +294,7 @@ static smt::Term preprocess_aggressive(const Ctx& ctx, const smt::Term& formula,
         p_simplify(false);
     }
 
-    return std::make_shared<smt::Z3Term>(e, zctx);
+    return {std::make_shared<smt::Z3Term>(e, zctx), std::move(goal_chain)};
 }
 #endif
 
@@ -316,6 +326,26 @@ static smt::Term parse_input(const Ctx& ctx, const std::string& filename) {
 }
 
 // ── Model printing ────────────────────────────────────────────────────────────
+#ifdef BACKEND_Z3
+// Apply the preprocessing MC chain in reverse to reconstruct values for
+// variables eliminated by tactics like solve-eqs, then print all orig_syms.
+static void print_model(const Ctx& ctx, const smt::UnorderedTermSet& orig_syms,
+                        const std::vector<z3::goal>& goal_chain) {
+    std::printf(";; model-start\n");
+    auto* z3s = dynamic_cast<smt::Z3Solver*>(ctx.solver.get());
+    z3::model m = z3s->get_z3_solver()->get_model();
+    for (int i = static_cast<int>(goal_chain.size()) - 1; i >= 0; --i)
+        m = goal_chain[i].convert_model(m);
+    for (auto& sym : orig_syms) {
+        auto* z3t = dynamic_cast<smt::Z3Term*>(sym.get());
+        z3::expr val = m.eval(z3t->get_z3_expr(), /*model_completion=*/true);
+        if (val.is_numeral())
+            std::printf("(define-fun %s () Int %s)\n",
+                        sym->to_string().c_str(), val.to_string().c_str());
+    }
+    std::printf(";; model-end\n");
+}
+#else
 static void print_model(const Ctx& /*ctx*/, const LiaAbstraction& abstr,
                         const smt::UnorderedTermSet& orig_syms) {
     std::printf(";; model-start\n");
@@ -328,6 +358,7 @@ static void print_model(const Ctx& /*ctx*/, const LiaAbstraction& abstr,
     }
     std::printf(";; model-end\n");
 }
+#endif
 
 // ── main ─────────────────────────────────────────────────────────────────────
 int main(int argc, char** argv) {
@@ -375,22 +406,27 @@ int main(int argc, char** argv) {
     }
     STATS.end_phase();
 
-    // Collect original symbols before preprocessing so eliminated variables
-    // are still printed in the model.
+    // Collect symbols before preprocessing so the MC can reconstruct values
+    // for variables that tactics like solve-eqs eliminate.
     smt::UnorderedTermSet orig_syms;
     if (opts.print_model)
         for (auto& v : get_vars(formula))
             orig_syms.insert(v);
 
 #ifdef BACKEND_Z3
+    std::vector<z3::goal> goal_chain;
     if (opts.preprocess_aggressive > 0) {
         STATS.begin_phase(STATS.parse_time);
-        formula = preprocess_aggressive(ctx, formula, opts.preprocess_aggressive,
+        auto pr = preprocess_aggressive(ctx, formula, opts.preprocess_aggressive,
                                         opts.preprocess_aggressive_timeout);
+        formula = std::move(pr.formula);
+        goal_chain = std::move(pr.goal_chain);
         STATS.end_phase();
     } else if (opts.preprocess) {
         STATS.begin_phase(STATS.parse_time);
-        formula = preprocess_plain(ctx, formula, opts.preprocess_aggressive_timeout);
+        auto pr = preprocess_plain(ctx, formula, opts.preprocess_aggressive_timeout);
+        formula = std::move(pr.formula);
+        goal_chain = std::move(pr.goal_chain);
         STATS.end_phase();
     }
 #endif
@@ -426,7 +462,11 @@ int main(int argc, char** argv) {
             std::printf("unknown\n");
         } else if (*res) {
             if (opts.print_model)
+#ifdef BACKEND_Z3
+                print_model(ctx, orig_syms, goal_chain);
+#else
                 print_model(ctx, solver.abstraction(), orig_syms);
+#endif
             std::printf("sat\n");
         } else {
             std::printf("unsat\n");
