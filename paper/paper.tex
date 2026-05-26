@@ -1,15 +1,11 @@
 \documentclass[runningheads]{llncs}
 \usepackage[T1]{fontenc}
 \usepackage{graphicx}
-% Used for displaying a sample figure. If possible, figure files should
-% be included in EPS format.
-%
-% If you use the hyperref package, please uncomment the following two lines
-% to display URLs in blue roman font according to Springer's eBook style:
-%\usepackage{color}
-%\renewcommand\UrlFont{\color{blue}\rmfamily}
-%\urlstyle{rm}
-%
+\usepackage{color}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{amsmath}
+\usepackage{import}
 \begin{document}
 %
 \title{Revisiting Incremental Linearization for Nonlinear Integer Arithmetic}
@@ -43,6 +39,24 @@
 
 
 \section{Linearization of non-linear terms}
+
+\subsection{Terms of the form $x^m$}
+
+\begin{figure}[h]
+\centering
+\input{figures/secant/secant.tex}
+\caption{Bounds for $x^2$}
+\end{figure}
+
+\begin{example}
+\begin{align*}
+	x^3 + y^3 + z^3 = 79
+\end{align*}
+\end{example}
+
+
+\subsection{Terms of the form $x*y$}
+\subsection{Terms of the form $x^m*y^n$}
 
 
 \section{Experiments}
