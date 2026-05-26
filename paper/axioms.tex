@@ -1,0 +1,28 @@
+\section{Linearization of non-linear terms}
+
+\subsection{Terms of the form $x^m$}
+
+\begin{figure}[ht]
+\centering
+\input{figures/secant/secant.tex}
+\caption{
+Blue lines show the functions $y=x$, $y=2x$, $y=3x$, and $y=4x$, which provide lower and upper linear bounds
+for $x^2$ on unit intervals between $0$ and $4$. For each $x$, the active bounds are the maximal lower bound
+and the minimal upper bound among all available bounds (shown as solid lines).}
+\end{figure}
+
+\begin{example}
+Consider the following “sum of three cubes” benchmark\footnote{Benchmark \texttt{STC\_0079.smt2} from the
+\texttt{20220315-MathProblems} family in the SMT-LIB QF\_NIA suite.}:
+\begin{align*}
+	x^3 + y^3 + z^3 = 79.
+\end{align*}
+\end{example}
+
+\subsection{Terms of the form $x*y$}
+
+
+\subsection{Terms of the form $x^m*y^n$}
+
+
+

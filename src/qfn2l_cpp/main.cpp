@@ -283,7 +283,10 @@ static PreprocessResult preprocess_aggressive(const Ctx& ctx, const smt::Term& f
     p_simplify(true);
     p_propagate_values();
     run(z3::tactic(zctx, "propagate-ineqs"));
-    run(z3::tactic(zctx, "normalize-bounds"));
+    // normalize-bounds is omitted: it introduces fresh k! variables that appear
+    // in nonlinear products, creating new NIA terms absent from the original
+    // formula. The model converter then reconstructs wrong values for the
+    // original variables.
     p_solve_eqs();
     p_simplify(true);
     run(z3::tactic(zctx, "ctx-simplify"));

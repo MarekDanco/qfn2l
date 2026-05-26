@@ -1,0 +1,36 @@
+\begin{tikzpicture}
+\begin{axis}[
+    domain=0:4,
+    ymax=17,
+    xlabel={$x$},
+    ylabel={$y$},
+    axis lines=middle,
+]
+
+\addplot[black, thick] {x^2};
+
+\addplot[blue, domain=3:4] {4*x};
+\addplot[blue, dotted, domain=0:3] {4*x};
+
+\addplot[blue, domain=2:4] {3*x};
+\addplot[blue, dotted, domain=0:2] {3*x};
+
+\addplot[blue, dotted, domain=3:4] {2*x};
+\addplot[blue, domain=1:3] {2*x};
+\addplot[blue, dotted, domain=0:1] {2*x};
+
+\addplot[blue, domain=0:2] {x};
+\addplot[blue, dotted, domain=2:4] {x};
+
+\addplot[
+    red,
+] coordinates {(1,0) (1,2)};
+\addplot[
+    red,
+] coordinates {(2,2) (2,6)};
+\addplot[
+    red,
+] coordinates {(3,6) (3,12)};
+
+\end{axis}
+\end{tikzpicture}
