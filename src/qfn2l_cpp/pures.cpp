@@ -233,9 +233,31 @@ CheckVal::visit_complex(const smt::Term& t,
     if ((is_mod(t) || is_idiv(t)) && cvs.size() == 2 && is_zero(_ctx, *cvs[1]))
         return std::nullopt;
 
-    // All children have values — evaluate via the solver.
-    // TODO: rebuild with concrete child values and call solver->get_value or
-    // solver->simplify.  For now, use get_value on the original term.
+    // All children have concrete values. Compute directly to avoid relying on
+    // the LIA solver evaluating nonlinear terms (which it can't do reliably).
+    {
+        using cpp_int = boost::multiprecision::cpp_int;
+        bool all_int = true;
+        for (auto& v : cvs)
+            if (!is_int_value(*v)) { all_int = false; break; }
+
+        if (all_int) {
+            if (is_mul(t)) {
+                cpp_int r = 1;
+                for (auto& v : cvs) r *= term_to_cpp_int(*v);
+                return cpp_int_to_term(_ctx, r);
+            }
+            if ((is_idiv(t) || is_mod(t)) && cvs.size() == 2) {
+                cpp_int a = term_to_cpp_int(*cvs[0]);
+                cpp_int b = term_to_cpp_int(*cvs[1]);
+                // b != 0 already checked above; SMT-LIB Euclidean: mod >= 0
+                cpp_int r = a % b;
+                if (r < 0) r += (b > 0 ? b : -b);
+                if (is_mod(t)) return cpp_int_to_term(_ctx, r);
+                return cpp_int_to_term(_ctx, (a - r) / b);
+            }
+        }
+    }
     return try_get_value(_lia_solver, t);
 }
 
