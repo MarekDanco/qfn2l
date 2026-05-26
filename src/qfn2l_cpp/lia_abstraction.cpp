@@ -1695,11 +1695,13 @@ bool LiaAbstraction::check_nia() {
             return true;
         if (apply_model_fix(fix_info))
             return true;
-        implicant = fix_info.implicant;
-        got_implicant = !implicant.empty();
-    } else {
-        got_implicant = cv.collect_implicant(_current_pure_body, implicant);
+        // Model-fix failed. Don't reuse fix_info.implicant: the failure-restore
+        // path in apply_model_fix_sub may have put a different model in main_slv
+        // (via main_slv.reset()+lia_expr+check()), making the stale implicant
+        // inconsistent with the current model — pure-free literals that are now
+        // FALSE would be silently skipped, causing a spurious "NIA ok".
     }
+    got_implicant = cv.collect_implicant(_current_pure_body, implicant);
 
     CollectPures targeted_pcol(_ctx, _pures, _axioms);
     if (got_implicant) {

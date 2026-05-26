@@ -1,5 +1,43 @@
 # Known Bugs / Bug History
 
+## [FIXED] Stale implicant causes spurious "NIA ok" after model-fix modifies main_slv — lia_abstraction.cpp
+
+**Introduced:** when `apply_model_fix_sub` failure restore was added
+**Fixed:** 2026-05-26
+**Severity:** Soundness — solver reports SAT with a model that doesn't satisfy the formula
+**Trigger:** Formulas where `--model-fix` + `-pa N` (preprocessing) are both active, `apply_model_fix_sub` fails and its restore path runs `main_slv.reset(); main_slv.add(lia_expr); main_slv.check()`, producing a different model than the original.
+
+### Root cause
+
+`check_nia` computes `fix_info = cv.model_fix_info(...)` which derives an implicant from the current model M10. After `apply_model_fix_sub` fails, its failure-restore path may execute:
+
+```cpp
+main_slv.reset();
+main_slv.add(lia_expr);
+main_slv.check();   // finds a new model M' ≠ M10
+```
+
+The stale implicant (computed from M10) is then used as-is for the NIA check. Literals in the implicant that contain **no pures** (e.g. `lam0n1 == 0`) are skipped silently, even if they are FALSE in M'. As a result, every implicant literal passes the check, `targeted_pcol.collected` stays empty, and `check_nia` returns `true` — with M' in `main_slv`. M' does not satisfy the original formula.
+
+Concrete example from `bugs/11.smt2` with `-pa 2`:  
+- `solve-eqs` eliminates `global_invc1_0` → `-lam0n1`; M10 has `lam0n1=0`, implicant includes `lam0n1==0` (pure-free).  
+- Failure restore finds M' with `lam0n1=1`, `global_V0_1=7`, `global_invc1_1=2`.  
+- Implicant check skips `lam0n1==0` (no pures) → "NIA ok".  
+- `goal_chain.convert_model` recovers `global_invc1_0=-1`. The formula requires `global_invc1_1 + global_invc1_0*global_V0_1 > 0` = `2−7 = −5 > 0` → FALSE.
+
+### Fix
+
+Replace the stale-implicant reuse with a fresh `collect_implicant` call on the current model after model-fix fails:
+
+```cpp
+// was:   implicant = fix_info.implicant; got_implicant = !implicant.empty();
+got_implicant = cv.collect_implicant(_current_pure_body, implicant);
+```
+
+This keeps the implicant and the model in `main_slv` consistent, so pure-free literals that are false in M' are not silently skipped.
+
+---
+
 ## [FIXED] SimplePropagate drops duplicate-lhs equalities — visitors.cpp
 
 **Introduced:** initial C++ port
