@@ -60,7 +60,7 @@ def model_to_assertions(model_lines):
     """Convert (define-fun x () Int 5) lines to (assert (= x 5)) lines."""
     assertions = []
     for line in model_lines:
-        m = re.match(r"\(define-fun\s+(\S+)\s+\(\)\s+Int\s+(-?\d+)\)", line)
+        m = re.match(r"\(define-fun\s+(\|[^|]*\||\S+)\s+\(\)\s+Int\s+(-?\d+)\)", line)
         if m:
             name, value = m.group(1), m.group(2)
             assertions.append(f"(assert (= {name} {value}))")
