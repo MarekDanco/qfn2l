@@ -79,6 +79,7 @@ static void print_usage(const char* prog) {
         "  --backend NAME        Solver backend: z3 (default) | cvc5\n"
         "  --no-congruence       Disable lazy congruence axioms (reduces overhead with many pures)\n"
         "  --uf                  Abstract nonlinear ops as uninterpreted functions (experimental)\n"
+        "  --version             Show version and backend info\n"
         "  --help                Show this help\n",
         prog);
 }
@@ -151,6 +152,8 @@ static Options parse_args(int argc, char** argv, std::string& filename) {
             opts.congruence = false;
         else if (arg == "--uf")
             opts.use_uf = true;
+        else if (arg == "--version")
+            opts.show_version = true;
         else if (arg == "--help" || arg == "-h") {
             print_usage(argv[0]);
             std::exit(0);
@@ -186,6 +189,32 @@ static smt::SmtSolver create_solver(const std::string& backend) {
     std::fprintf(stderr, "No backend compiled in. Rebuild with -DBACKEND_Z3=ON.\n");
     std::exit(1);
 #endif
+}
+
+static void print_version(const std::string& backend) {
+#ifndef QFN2L_VERSION
+#define QFN2L_VERSION "unknown"
+#endif
+#ifndef QFN2L_BUILD_TYPE
+#define QFN2L_BUILD_TYPE "unknown"
+#endif
+    std::printf("qfn2l %s\n", QFN2L_VERSION);
+#ifdef BACKEND_Z3
+    if (backend == "z3") {
+        unsigned major = 0, minor = 0, build = 0, revision = 0;
+        Z3_get_version(&major, &minor, &build, &revision);
+        std::printf("backend: z3 %u.%u.%u.%u\n", major, minor, build, revision);
+    } else
+#endif
+#ifdef BACKEND_CVC5
+    if (backend == "cvc5") {
+        std::printf("backend: cvc5\n");
+    } else
+#endif
+    {
+        std::printf("backend: %s\n", backend.c_str());
+    }
+    std::printf("build: %s\n", QFN2L_BUILD_TYPE);
 }
 
 static void print_backend_version(const std::string& backend) {
@@ -370,6 +399,11 @@ static void print_model(const Ctx& /*ctx*/, const LiaAbstraction& abstr,
 int main(int argc, char** argv) {
     std::string filename;
     Options opts = parse_args(argc, argv, filename);
+
+    if (opts.show_version) {
+        print_version(opts.backend);
+        return 0;
+    }
 
     if (opts.use_uf && !opts.congruence)
         std::fprintf(stderr,

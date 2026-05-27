@@ -24,12 +24,16 @@ else
     source venv/bin/activate
 fi
 
-if ! command -v qfn2l-cpp &>/dev/null; then
+# FULL_PATH=${HOME}/git/qfn2l/src/qfn2l_cpp/build/qfn2l
+FULL_PATH=qfn2l
+if ! command -v ${FULL_PATH} &>/dev/null; then
     echo "qfn2l-cpp not found in PATH. Build first with ./configure && make." >&2
     exit 1
 fi
 
-S1="qfn2l-cpp --lia-preproc --maxits 20 --timeout 5"
+S1="${FULL_PATH} --lia-preproc --maxits 20 --timeout 5 --uf"
 S2="venv/bin/z3 -T:5 -in"
+
+${FULL_PATH} --version
 
 "$SCRIPT_DIR/nia_fuzzer.py" --no-nia -j 12 "$@" "$its" "$S1" "$S2"

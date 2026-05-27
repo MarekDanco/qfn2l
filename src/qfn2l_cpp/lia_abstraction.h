@@ -34,6 +34,7 @@ struct Options {
     std::string dump_qf_nia_formula;
     std::string dump_abstraction_formula;
     std::string backend = "z3"; // "z3" | "cvc5"
+    bool show_version = false;
 };
 
 class LIAFail : public std::runtime_error {

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(qfn2l_cpp CXX)
+project(qfn2l_cpp VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -98,6 +98,16 @@ function(configure_qfn2l_target target)
   endif()
 
   target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+
+  if(NOT CMAKE_BUILD_TYPE)
+    set(_build_type "unknown")
+  else()
+    set(_build_type "${CMAKE_BUILD_TYPE}")
+  endif()
+  target_compile_definitions(${target} PRIVATE
+    "QFN2L_VERSION=\"${PROJECT_VERSION}\""
+    "QFN2L_BUILD_TYPE=\"${_build_type}\""
+  )
 endfunction()
 
 if(BACKEND_Z3)
