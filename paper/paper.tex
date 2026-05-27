@@ -1,12 +1,29 @@
 \documentclass[runningheads]{llncs}
 \usepackage[T1]{fontenc}
 \usepackage{graphicx}
-\usepackage{color}
+\usepackage[dvipsnames]{xcolor}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
-\usepackage{amsmath}
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{stmaryrd}
 \usepackage{import}
-\begin{document}
+
+\usepackage[textwidth=3cm,tickmarkheight=3pt]{todonotes}
+\newcommand{\marek}[1]{\todo[color=red!10]{#1 \\-Marek}}
+
+\usepackage[colorlinks=true, linktoc=all, 
+    linkcolor=BlueViolet,
+    citecolor=RoyalBlue,
+    filecolor=magenta,
+    urlcolor=Fuchsia,
+    pdftitle={Revisiting Incremental Linearization for Nonlinear Integer Arithmetic},
+    pdfauthor={Anonymous}]{hyperref}
+\renewcommand\UrlFont{\color{blue}\rmfamily}
+\urlstyle{rm}
+
+\newcommand{\model}[1]{\mathcal{M}(#1)}
+\newcommand{\pure}[1]{\llbracket #1 \rrbracket}
+
 %
 \title{Revisiting Incremental Linearization for Nonlinear Integer Arithmetic}
 %
@@ -15,11 +32,13 @@
 % Mikol\'{a}\v{s} Janota\orcidID{0000-0003-3487-784X}}
 % \authorrunning{M. Dan\v{c}o et al.}
 % \institute{Czech Technical University in Prague}
+%
 \author{Anonymous}
 \institute{Anonymous}
 %
+\begin{document}
 \maketitle
-%
+
 \begin{abstract}
 	Incremental Linearization has previously been proposed for solving SMT problems over quantifier-free
 	nonlinear integer arithmetic and has proven effective despite its conceptual simplicity.
@@ -38,5 +57,7 @@
 \input{experiments}
 \input{conclusion}
 
+\bibliographystyle{splncs04}
+\bibliography{refs}
 
 \end{document}

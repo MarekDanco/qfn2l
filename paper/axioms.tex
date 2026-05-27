@@ -1,28 +1,62 @@
 \section{Linearization of non-linear terms}
 
-\subsection{Terms of the form $x^m$}
+\subsection{Terms of the form $x^k$}
 
 \begin{figure}[ht]
-\centering
-\input{figures/secant/secant.tex}
-\caption{
-Blue lines show the functions $y=x$, $y=2x$, $y=3x$, and $y=4x$, which provide lower and upper linear bounds
-for $x^2$ on unit intervals between $0$ and $4$. For each $x$, the active bounds are the maximal lower bound
-and the minimal upper bound among all available bounds (shown as solid lines).}
+	\centering
+	\input{figures/secant}
+	\caption{
+		Blue lines show the functions $y=x$, $y=2x$, $y=3x$, and $y=4x$, which provide lower and upper linear bounds
+		for $x^2$ on unit intervals between $0$ and $4$. For each $x$, the active bounds are the maximal lower bound
+		and the minimal upper bound among all available bounds (shown as solid lines).}
 \end{figure}
 
 \begin{example}
-Consider the following “sum of three cubes” benchmark\footnote{Benchmark \texttt{STC\_0079.smt2} from the
-\texttt{20220315-MathProblems} family in the SMT-LIB QF\_NIA suite.}:
-\begin{align*}
-	x^3 + y^3 + z^3 = 79.
-\end{align*}
+	Consider the following “sum of three cubes” benchmark\footnote{Benchmark \texttt{STC\_0079.smt2} from the
+		\texttt{20220315-MathProblems} family in the SMT-LIB QF\_NIA suite.}:
+	\begin{align*}
+		x^3 + y^3 + z^3 = 79.
+	\end{align*}
+	Although there do exist specialized solvers\marek{cite techniques} for ``sum of three cubes'' problems, they still
+	are posed as a challenge for contemporary SMT solvers to solve automatically, that is, without any specialized background theory
+	of the said problem. However, none of \textsc{cvc5}, \textsc{mathsat}, \textsc{yices}
+	or \textsc{z3} can solve it within a 3-minute time limit. Our solver can solve this example is \textsc{sat} in roughly 21
+	seconds in its basic configuration, using only secant axioms. The model it finds is $x=-19, \,y=35, \,z=-33$.
+	This is one of 231 ``sum of three cubes'' problems in the benchmark set our solver solves uniquely.
 \end{example}
 
-\subsection{Terms of the form $x*y$}
+\input{tables/exp_ax}
+
+triggered when the
+current model value $v = \mathcal{M}(x)$ witnesses a NIA violation.
+For the gap axiom with even $k$ we write $\bar{v} = |v|$.
+\textit{Mod} is optional (flag \texttt{---modax M}): for the first
+modulus $m \in [2,M]$ whose expected residue disagrees with
+$\mathcal{M}(p)$, the generic implication is emitted; a biconditional
+is used when $m$ is prime and the expected residue is $0$, or when
+$m = 2$ and the expected residue is $1$.%
 
 
-\subsection{Terms of the form $x^m*y^n$}
+\subsection{Terms of the form $x^k y^l$}
 
+\input{tables/mul_ax}
 
+triggered when
+model values $v = \mathcal{M}(x)$, $w = \mathcal{M}(y)$ witness a NIA
+violation.
+$\pure{y^l}$ denotes the pure for $y^l$ (equal to $y$ when
+$l = 1$), and $\pure{x^k}$ similarly; the \textit{otherwise}
+row fires when the required pure does not yet exist.
+\textit{Lin.\,LB/UB} conditions are shown for $v, w \geq 0$; when either
+model value is negative the conditions inherit the sign- and parity-dependent
+region structure from Table~\ref{tab:pow-axioms}, with LB and UB directions
+swapped for the linearised factor when the constant factor's model value is
+negative, and vice versa.
+\textit{Tangent} is optional (\texttt{---tangent}); the two rows encode the
+four quadrant cases $(x \gtrless v,\, y \gtrless w)$ via the sign of the
+product $(x-v)(y-w)$.
+\textit{Mod} is optional (\texttt{---modax}): $m$ ranges over $[2, M]$ and
+the axiom is emitted for the first $m$ whose expected residue disagrees with
+$\mathcal{M}(p)$; a biconditional replaces the implication for prime $m$ with
+expected residue $0$, or for $m = 2$ with expected residue $1$.%
 
