@@ -1,0 +1,18 @@
+\begin{table}[ht]
+	\centering
+	\setlength{\tabcolsep}{1.2em}
+	\renewcommand{\arraystretch}{1.3}
+	\begin{tabular}{@{}ll@{}}
+		\hline
+		\textbf{Name}    & \textbf{Axiom}                                        \\
+		\hline
+		\textit{Tangent} & $x > v \land y < w \implies \pure{xy} < wx + vy - vw$ \\
+		                 & $x < v \land y > w \implies \pure{xy} < wx + vy - vw$ \\
+		                 & $x < v \land y < w \implies \pure{xy} > wx + vy - vw$ \\
+		                 & $x > v \land y > w \implies \pure{xy} > wx + vy - vw$ \\
+		\hline
+	\end{tabular}
+	\vspace{0.9em}
+	\caption{%
+		\textit{Tangent} axioms generated for $\pure{xy}$ when $\model{x}=v$, $\model{y}=w$ and $\model{\pure{xy}}\neq vw$.\label{tab:mul-tangent-axioms}}
+\end{table}

@@ -1,6 +1,6 @@
-\section{Linearization of non-linear terms}
+\section{Linearization of Non-Linear Terms}
 
-\subsection{Terms of the form $x^k$}
+\subsection{Terms of The Form $x^k$}
 
 \begin{figure}[ht]
 	\centering
@@ -27,36 +27,46 @@
 
 \input{tables/exp_ax}
 
-triggered when the
-current model value $v = \mathcal{M}(x)$ witnesses a NIA violation.
-For the gap axiom with even $k$ we write $\bar{v} = |v|$.
-\textit{Mod} is optional (flag \texttt{---modax M}): for the first
-modulus $m \in [2,M]$ whose expected residue disagrees with
-$\mathcal{M}(p)$, the generic implication is emitted; a biconditional
-is used when $m$ is prime and the expected residue is $0$, or when
-$m = 2$ and the expected residue is $1$.%
 
+\subsection{Terms of The Form $x^k y^l$}
 
-\subsection{Terms of the form $x^k y^l$}
+\input{tables/mul_ax_basic}
+\input{tables/mul_ax_secant_conds}
+\input{tables/mul_ax_secant_lb}
+\input{tables/mul_ax_secant_ub}
+\input{tables/mul_ax_tangent}
 
-\input{tables/mul_ax}
+By inspection of Table~\ref{tab:secant-conds}, the two conditions satisfy the chains
+\[
+	\mathit{C}(x,v,\downarrow) \implies v^k \leq v^{k-1}x \leq x^k,
+	\qquad
+	\mathit{C}(x,v,\uparrow) \implies x^k \leq v^{k-1}x \leq v^k,
+\]
+so each condition simultaneously makes both $v^k$ and $v^{k-1}x$ lower (resp.\ upper) bounds on $x^k$,
+with the linear bound $v^{k-1}x$ always the tighter of the two.
 
-triggered when
-model values $v = \mathcal{M}(x)$, $w = \mathcal{M}(y)$ witness a NIA
-violation.
-$\pure{y^l}$ denotes the pure for $y^l$ (equal to $y$ when
-$l = 1$), and $\pure{x^k}$ similarly; the \textit{otherwise}
-row fires when the required pure does not yet exist.
-\textit{Lin.\,LB/UB} conditions are shown for $v, w \geq 0$; when either
-model value is negative the conditions inherit the sign- and parity-dependent
-region structure from Table~\ref{tab:pow-axioms}, with LB and UB directions
-swapped for the linearised factor when the constant factor's model value is
-negative, and vice versa.
-\textit{Tangent} is optional (\texttt{---tangent}); the two rows encode the
-four quadrant cases $(x \gtrless v,\, y \gtrless w)$ via the sign of the
-product $(x-v)(y-w)$.
-\textit{Mod} is optional (\texttt{---modax}): $m$ ranges over $[2, M]$ and
-the axiom is emitted for the first $m$ whose expected residue disagrees with
-$\mathcal{M}(p)$; a biconditional replaces the implication for prime $m$ with
-expected residue $0$, or for $m = 2$ with expected residue $1$.%
+The validity of the lower-bound axioms (Table~\ref{tab:mul-axioms-lb}) follows from a two-step chain.
+Under the conditions of any given row,
+\[
+	\pure{x^k y^l} \;\geq\; x^k \cdot w^l \;\geq\; v^{k-1}x \cdot w^l.
+\]
+\emph{Step~1} (right inequality).
+$\mathit{C}(x,v,{\cdot})$ (Table~\ref{tab:secant-conds}) bounds $x^k$ relative to $v^{k-1}x$.
+Multiplying by $w^l$ preserves the direction when $w^l>0$ and reverses it when $w^l<0$.
+The table compensates: it selects $\downarrow$ (i.e.\ $x^k \geq v^{k-1}x$) when $w^l>0$
+and $\uparrow$ (i.e.\ $x^k \leq v^{k-1}x$) when $w^l<0$,
+so that $x^k \cdot w^l \geq v^{k-1}x \cdot w^l$ in all four sign combinations.
 
+\emph{Step~2} (left inequality).
+$\mathit{C}(y,w,{\cdot})$ bounds $y^l$ relative to $w^l$.
+Multiplying by $x^k$ preserves the direction when $x^k>0$ and reverses it when $x^k<0$.
+Within the region defined by $\mathit{C}(x,v,{\cdot})$, the sign of $x^k$ matches the sign of $v^k$:
+for even $k$ both are non-negative, and for odd $k$ the conditions in Table~\ref{tab:secant-conds}
+confine $x$ and $v$ to the same side of zero.
+The table selects $\downarrow$ (i.e.\ $y^l \geq w^l$) when $v^k>0$
+and $\uparrow$ (i.e.\ $y^l \leq w^l$) when $v^k<0$,
+so that $\pure{x^k y^l} = x^k \cdot y^l \geq x^k \cdot w^l$.
+
+The upper-bound axioms (Table~\ref{tab:mul-axioms-ub}) follow from the symmetric chain
+$\pure{x^k y^l} \leq x^k \cdot w^l \leq v^{k-1}x \cdot w^l$,
+with $\downarrow$ and $\uparrow$ swapped throughout.

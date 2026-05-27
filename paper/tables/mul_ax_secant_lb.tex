@@ -1,0 +1,20 @@
+\begin{table}[ht]
+	\centering
+	\setlength{\tabcolsep}{1.2em}
+	\renewcommand{\arraystretch}{1.3}
+	\begin{tabular}{@{}lll@{}}
+		\hline
+		\textbf{Name}    & \textbf{Case}        & \textbf{Axiom}                                                                                          \\
+		\hline
+		\textit{Lin. LB} & $v^k > 0, \,w^l > 0$ & $\mathit{C}(x, v, \downarrow) \land \mathit{C}(y, w, \downarrow) \implies \pure{x^k y^l} > v^{k-1}xw^l$ \\
+		                 & $v^k > 0, \,w^l < 0$ & $\mathit{C}(x, v, \uparrow) \land \mathit{C}(y, w, \downarrow) \implies \pure{x^k y^l} > v^{k-1}xw^l$   \\
+		                 & $v^k < 0, \,w^l > 0$ & $\mathit{C}(x, v, \downarrow) \land \mathit{C}(y, w, \uparrow) \implies \pure{x^k y^l} > v^{k-1}xw^l$   \\
+		                 & $v^k < 0, \,w^l < 0$ & $\mathit{C}(x, v, \uparrow) \land \mathit{C}(y, w, \uparrow) \implies \pure{x^k y^l} > v^{k-1}xw^l$     \\
+		\hline
+	\end{tabular}
+	\vspace{0.9em}
+	\caption{%
+		\textit{Linear Lower Bound} axioms generated for $\pure{x^k y^l}$ when $\model{x}=v$, $\model{y}=w$, $\model{\pure{x^k y^l}}\neq v^kw^l$ and
+		$x$ is linearized while $y$ is kept constant.
+		Conditions $\mathit{C}(\cdot,\cdot,\downarrow/\uparrow)$ are defined in Table~\ref{tab:secant-conds}.\label{tab:mul-axioms-lb}}
+\end{table}
