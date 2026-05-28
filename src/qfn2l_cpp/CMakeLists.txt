@@ -32,24 +32,11 @@ if(NOT smt-switch_FOUND)
   find_library(SMT_SWITCH_Z3_LIB smt-switch-z3
     PATHS "${SMT_SWITCH_DIR}" "${SMT_SWITCH_DIR}/z3" NO_DEFAULT_PATH)
   find_path(SMT_SWITCH_INCLUDE smt.h
-    PATHS
-      "${SMT_SWITCH_SOURCE_DIR}/src"
-      "${SMT_SWITCH_SOURCE_DIR}/include"
-      "${SMT_SWITCH_DIR}/include"
-      "${SMT_SWITCH_DIR}"
+    PATHS "${SMT_SWITCH_SOURCE_DIR}/src" "${SMT_SWITCH_SOURCE_DIR}/include"
     NO_DEFAULT_PATH)
   if(NOT SMT_SWITCH_LIB)
     message(FATAL_ERROR
-      "smt-switch library not found in '${SMT_SWITCH_DIR}'. "
-      "Set -DSMT_SWITCH_DIR to the smt-switch build directory.")
-  endif()
-  if(NOT SMT_SWITCH_INCLUDE)
-    message(FATAL_ERROR
-      "smt-switch headers (smt.h) not found. "
-      "Searched: ${SMT_SWITCH_SOURCE_DIR}/src, ${SMT_SWITCH_SOURCE_DIR}/include, "
-      "${SMT_SWITCH_DIR}/include, ${SMT_SWITCH_DIR}. "
-      "Set -DSMT_SWITCH_DIR to the smt-switch build directory "
-      "(headers are expected in its parent or a sibling include/ dir).")
+      "smt-switch not found. Set SMT_SWITCH_DIR or install smt-switch system-wide.")
   endif()
   add_library(smt-switch::smt-switch INTERFACE IMPORTED)
   target_include_directories(smt-switch::smt-switch INTERFACE "${SMT_SWITCH_INCLUDE}")
