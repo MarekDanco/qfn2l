@@ -38,9 +38,9 @@
 
 By inspection of Table~\ref{tab:secant-conds}, the two conditions satisfy the chains
 \[
-	\mathit{C}(x^k,v,\downarrow) \implies v^k \leq v^{k-1}x \leq x^k,
+	\mathit{C}(x^k,v^k,\downarrow) \implies v^k \leq v^{k-1}x \leq x^k,
 	\qquad
-	\mathit{C}(x^k,v,\uparrow) \implies x^k \leq v^{k-1}x \leq v^k,
+	\mathit{C}(x^k,v^k,\uparrow) \implies x^k \leq v^{k-1}x \leq v^k,
 \]
 so each condition simultaneously makes both $v^k$ and $v^{k-1}x$ lower (resp.\ upper) bounds on $x^k$,
 with the linear bound $v^{k-1}x$ always the tighter of the two.
@@ -52,16 +52,16 @@ Under the conditions of any given row,
 \]
 
 \emph{Step~1} (right inequality).
-$\mathit{C}(x^k,v,{\cdot})$ bounds $x^k$ relative to $v^{k-1}x$.
+$\mathit{C}(x^k,v^k,{\cdot})$ bounds $x^k$ relative to $v^{k-1}x$.
 Multiplying by $w^l$ preserves the direction when $w^l>0$ and reverses it when $w^l<0$.
 The table compensates: it selects $\downarrow$ (i.e.\ $x^k \geq v^{k-1}x$) when $w^l>0$
 and $\uparrow$ (i.e.\ $x^k \leq v^{k-1}x$) when $w^l<0$,
 so that $x^k w^l \geq v^{k-1}x w^l$ in all four sign combinations.
 
 \emph{Step~2} (left inequality).
-$\mathit{C}(y^l,w,{\cdot})$ bounds $y^l$ relative to $w^l$.
+$\mathit{C}(y^l,w^l,{\cdot})$ bounds $y^l$ relative to $w^l$.
 Multiplying by $x^k$ preserves the direction when $x^k>0$ and reverses it when $x^k<0$.
-Within the region defined by $\mathit{C}(x^k,v,{\cdot})$, the sign of $x^k$ matches the sign of $v^k$:
+Within the region defined by $\mathit{C}(x^k,v^k,{\cdot})$, the sign of $x^k$ matches the sign of $v^k$:
 for even $k$ both are non-negative, and for odd $k$ the conditions in Table~\ref{tab:secant-conds}
 confine $x$ and $v$ to the same side of zero.
 The table selects $\downarrow$ (i.e.\ $y^l \geq w^l$) when $v^k>0$
