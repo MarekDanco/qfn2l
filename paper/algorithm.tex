@@ -1,1 +1,109 @@
 \section{Algorithm}\label{sec:algorithm}
+
+\paragraph{Purification.}
+Given a QF\_NIA formula $\varphi$, the first step is \emph{purification}: every
+nonlinear subterm $t$ (a product whose factors are not all constants, or an
+integer division/modulo with a non-constant divisor) is replaced by a fresh
+integer constant $\pure{t}$, called a \emph{pure}.
+Equal subterms share the same pure.
+The result $\hat\varphi$ is a QF\_LIA formula over the original variables and
+the new pure constants.
+
+\paragraph{Main loop.}
+\Cref{alg:solve} shows the top-level procedure.
+We maintain a set $\mathcal{A}$ of linear \emph{axioms}---constraints that
+relate each pure $\pure{t}$ to its factors---accumulated across iterations.
+Each iteration calls a QF\_LIA solver on $\hat\varphi \land \bigwedge\mathcal{A}$.
+If the LIA problem is unsatisfiable, so is the original QF\_NIA formula.
+Otherwise we obtain a model $\mu$ and check whether it is consistent with the
+nonlinear semantics (\Cref{alg:checknia}).
+If yes, $\mu$ witnesses satisfiability.
+If no, new axioms are added and the loop continues.
+
+\begin{algorithm}[t]
+\caption{QF-NIA-SOLVE($\varphi$)}\label{alg:solve}
+\DontPrintSemicolon
+$\hat\varphi,\, P \leftarrow \textrm{PURIFY}(\varphi)$\;
+$\mathcal{A} \leftarrow \emptyset$\;
+\Repeat{}{
+  $\mathit{res} \leftarrow \textrm{CHECK-LIA}(\hat\varphi \land \bigwedge\mathcal{A})$\;
+  \lIf{$\mathit{res} = \mathit{unsat}$}{\Return $\mathit{unsat}$}
+  $\mu \leftarrow \textrm{model}(\mathit{res})$\;
+  \lIf{\upshape CHECK-NIA$(P,\mu,\mathcal{A})$}{\Return $\mathit{sat},\, \mu$}
+}
+\end{algorithm}
+
+\begin{algorithm}[t]
+\caption{CHECK-NIA($P, \mu, \mathcal{A}$)}\label{alg:checknia}
+\DontPrintSemicolon
+\lIf{\upshape QUICK-CHECK$(P,\mu)$}{\Return \upshape true}
+$I \leftarrow \textrm{IMPLICANT}(\hat\varphi, \mu)$\tcp*{literals of $\hat\varphi$ satisfied by $\mu$}
+$R \leftarrow \{\,p \in P \mid p \in I,\; \mu(p) \neq \mu(\mathrm{term}(p))\,\}$\tcp*{failing pures}
+\lIf{$R = \emptyset$}{\Return \upshape true}
+add lazy congruence axioms for $R$ to $\mathcal{A}$\;
+\ForEach{$p \in R$}{
+  $\mathcal{A} \leftarrow \mathcal{A} \cup \textrm{AXIOMS}(p, \mu)$\tcp*{all violated axioms for $\mathrm{term}(p)$}
+}
+\Return \upshape false\;
+\end{algorithm}
+
+\paragraph{Quick check.}
+Before collecting failing pures, we perform a fast three-valued evaluation of
+$\hat\varphi$ under $\mu$, substituting each pure $\pure{t}$ with the actual
+value $\mu(t)$ (evaluated under NIA semantics).
+If the result is \TRUE, no axioms are needed and we return immediately.
+
+\paragraph{Implicant-based targeting.}
+Rather than scanning all pures in $\hat\varphi$, we first compute an
+\emph{implicant}: a minimal subset $I$ of literals of $\hat\varphi$ that are
+jointly sufficient for $\mu \models \hat\varphi$.
+We then restrict attention to pures appearing in literals of $I$ that are
+falsified under NIA semantics, ignoring pures in satisfied literals.
+This reduces the number of axioms generated per iteration and focuses
+refinement on the parts of the formula that actually need it.
+
+\paragraph{Axiom generation.}
+For each failing pure $\pure{t}$, we add to $\mathcal{A}$ every axiom in our
+axiom set for $t$ that is violated by $\mu$.
+Axiom classes are described in \Cref{sec:axioms}; they cover sign and zero
+conditions, secant-based linear bounds for monomials $x^k$, bounds for mixed
+products $x^k y^l$, tangent-plane lemmas, and integer division and modulo
+constraints.
+All violated axioms are added in a single pass---there is no round structure.
+Lazy congruence axioms (requiring $\pure{t_1} = \pure{t_2}$ whenever
+$t_1 = t_2$ holds in $\mu$ but $\mu(\pure{t_1}) \neq \mu(\pure{t_2})$) are
+handled separately before per-pure axiom generation.
+
+\paragraph{Comparison with~\cite{cimatti2018sat}.}
+The overall CEGAR skeleton is the same.
+The key differences are as follows.
+
+\emph{Abstract domain.}
+Cimatti et al.\ replace each product $x \cdot y$ with an uninterpreted
+function symbol $f(x,y)$, yielding a QF\_UFLIA abstraction; congruence
+($f(a,b) = f(a,b)$ for equal arguments) is then automatic.
+We use plain fresh constants instead, so the abstract domain is QF\_LIA, and
+congruence must be added as explicit axioms when violated.
+
+\emph{Axiom generation.}
+Cimatti et al.\ generate lemmas in three sequential rounds (basic axioms,
+proportionality, tangent-plane), stopping as soon as a round produces at
+least one lemma.
+We add all violated axioms in a single pass, regardless of type.
+
+\emph{Failing-term selection.}
+Cimatti et al.\ scan all constraints of $\varphi$ falsified by $\mu$ and
+collect every product $x \cdot y$ in those constraints.
+We use an implicant of $\hat\varphi$ under $\mu$ and restrict to pures in
+literals that fail under NIA semantics, which is more targeted.
+
+\emph{Axiom set.}
+The axioms in~\cite{cimatti2018sat} cover sign, zero, neutrality,
+proportionality, and tangent-plane conditions for binary products.
+We retain sign and tangent-plane axioms and add secant-based bounds for
+monomials $x^k$ and mixed products $x^k y^l$, described in \Cref{sec:axioms}.
+For tangent-plane lemmas we optionally employ the \emph{frontier} strategy
+of~\cite{cimatti2017tacas}: a per-pure bounding box tracks all model values
+seen so far, and whenever a new point extends the box, extra tangent planes
+are instantiated at the two mixed corners to ensure both upper and lower
+bounds exist in every region.
