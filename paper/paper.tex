@@ -19,6 +19,9 @@
     urlcolor=Fuchsia,
     pdftitle={Revisiting Incremental Linearization for Nonlinear Integer Arithmetic},
     pdfauthor={Anonymous}]{hyperref}
+\usepackage[nameinlink,capitalize,noabbrev]{cleveref} % must come after hyperref
+\crefname{algocf}{Algorithm}{Algorithms}
+\Crefname{algocf}{Algorithm}{Algorithms}
 \renewcommand\UrlFont{\color{blue}\rmfamily}
 \urlstyle{rm}
 
@@ -53,7 +56,8 @@
 
 
 \input{intro}
-\input{prelim}
+\input{background}
+\input{algorithm}
 \input{axioms}
 \input{experiments}
 \input{conclusion}

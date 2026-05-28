@@ -1,4 +1,4 @@
-\section{Linearization of Non-Linear Terms}
+\section{Incremental Linearization of Non-Linear Terms}\label{sec:axioms}
 
 \subsection{Terms of The Form $x^k$}
 
@@ -11,19 +11,6 @@
 		and the minimal upper bound among all available bounds (shown as solid lines).}
 \end{figure}
 
-\begin{example}
-	Consider the following “sum of three cubes” benchmark\footnote{Benchmark \texttt{STC\_0079.smt2} from the
-		\texttt{20220315-MathProblems} family in the SMT-LIB QF\_NIA suite.}:
-	\begin{align*}
-		x^3 + y^3 + z^3 = 79.
-	\end{align*}
-	Although there do exist specialized solvers\marek{cite techniques} for ``sum of three cubes'' problems, they still
-	are posed as a challenge for contemporary SMT solvers to solve automatically, that is, without any specialized background theory
-	of the said problem. However, none of \textsc{cvc5}, \textsc{mathsat}, \textsc{yices}
-	or \textsc{z3} can solve it within a 3-minute time limit. Our solver can solve this example is \textsc{sat} in roughly 21
-	seconds in its basic configuration, using only secant axioms. The model it finds is $x=-19, \,y=35, \,z=-33$.
-	This is one of 231 ``sum of three cubes'' problems in the benchmark set our solver solves uniquely.
-\end{example}
 
 \input{tables/exp_ax}
 
@@ -35,6 +22,8 @@
 \input{tables/mul_ax_secant_lb}
 \input{tables/mul_ax_secant_ub}
 \input{tables/mul_ax_tangent}
+
+\marek{Claude mentioned this is reminiscent of ``McCormick Linearization''}
 
 By inspection of Table~\ref{tab:secant-conds}, the two conditions satisfy the chains
 \[

@@ -1,1 +1,21 @@
-\section{Conclusion}
+\section{Conclusion and Future Work}\label{sec:related}
+
+
+% \paragraph{Related work.}
+% Several SMT solvers support nonlinear integer arithmetic.
+% The \emph{bit-blasting} approach, used by Z3~\cite{z3} and
+% SMT-RAT~\cite{smtrat}, iteratively bounds the integer variables and encodes
+% the bounded problem into SAT; this strategy can find models effectively but
+% cannot prove unsatisfiability unless the problem is known to be bounded.
+% In~\cite{jovanovic-moura}, SMT(NIA) is reduced to SMT(LIA) by performing case
+% analysis on the signs of nonlinear monomials; when the domain is bounded, an
+% equisatisfiable linear formula is generated, otherwise bounds on selected
+% variables are incrementally tightened.
+% CVC5~\cite{cvc5} uses a hybrid approach combining incremental linearization
+% for NRA with bit-blasting.
+% Recent work~\cite{jovanovic-mcsat,kremer2020} combines CAD and virtual
+% substitution with branch-and-bound in the MCSAT and DPLL($T$) frameworks,
+% as used in the Yices~2 solver.
+% Compared to these approaches, our method avoids expensive geometric
+% computations and operates entirely within LIA, with performance driven by
+% the quality of the axiom set.
