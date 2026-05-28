@@ -1,1 +1,60 @@
 \section{Background}\label{sec:background}
+
+In this paper, we assume the standard many-sorted first-order logic
+with equality. We focus on satisfiability modulo theories (SMT) for
+formulas in Quantifier-Free Nonlinear Integer Arithmetic (QF\_NIA) and
+Quantifier-Free Linear Integer Arithmetic (QF\_LIA), optionally extended
+with uninterpreted functions (QF\_UFLIA). Following the SMT-LIB~\cite{smtlib}
+standard, the signature of QF\_NIA comprises integer constants (numerals),
+functions $\{+, -, \cdot, \mathit{div}, \mathit{mod}, \mathit{abs}\}$, and
+predicates $\{<, \leq, \approx, \geq, >\}$.\footnote{For simplicity, we
+	tacitly ignore the sort Bool and treat some symbols as predicates not as
+	functions over Bool.}
+In QF\_LIA, only multiplication by constants and
+$\{\mathit{div},\mathit{mod}\}$ by nonzero constants are allowed. In
+QF\_UFLIA, arbitrary uninterpreted function symbols are also allowed.
+
+Let $\vars$ be an infinite set of variables. We use
+lowercase letters (e.g., $x, y, z$) to denote individual
+variables and lowercase letters with bar (e.g.,
+$\xs, \ys, \zs$) to denote vectors of variables. The set
+$\terms$ of all terms, as well as atoms, literals, and
+(sub)formulas are defined in the standard way. Formulas are
+denoted $\varphi$ or $\psi$.
+
+We assume input formulas are in Negation Normal Form (NNF); that is,
+negations appear only in literals, and the only connectives are
+conjunction and disjunction.
+
+A model (or interpretation) of a QF\_NIA (or QF\_LIA) formula $\varphi$, which shows that $\varphi$ is satisfiable,
+has integers and \{\TRUE,\FALSE\} as its domains, and all the function and predicate symbols are
+interpreted in the standard way. In QF\_UFLIA, a model also has to interpret the uninterpreted function symbols.
+We say that a formula $\varphi$ is refutable if it is unsatisfiable. Equivalently, a formula $\varphi$
+is refutable iff $\lnot\varphi$ is satisfiable.
+
+A substitution, denoted
+$\sigma\colon\vars\to\terms$, is a function that
+assigns terms to variables. Here, we only consider its
+(finite) nonidentity part
+$\sigma=\{x_1\mapsto t_1,\dots,x_n\mapsto t_n\}$, where
+$x_i\neq t_i$, and $\dom(\sigma)=\{x_1,\dots,x_n\}$. An
+application of such a substitution $\sigma$ to a formula
+$\varphi$, denoted $\varphi[\sigma]$, consists in replacing
+all free variables $x_i$ by the corresponding term $t_i$
+simultaneously.
+By abuse of notation, a substitution $\sigma=\{x_1\mapsto t_1,\dots,x_n\mapsto t_n\}$ is an assignment if all the terms $t_i$ are integer or Boolean constants with the standard interpretation.
+We also use $\mu$ and $\tau$ to denote assignments or substitutions.
+
+
+Let $\mathbb{Z}$ be the set of
+integers. For
+our convenience, we use standard terminology for arithmetic terms. A
+\emph{monomial} in variables $\xs=x_1,x_2,\dots,x_n$ is a product
+$x_1^{k_1}x_2^{k_2}\cdots x_n^{k_n}$, where $k_i$ are nonnegative
+integers called exponents. The sum of exponents $\sum_{i=1}^n k_i$ is
+called the degree of the monomial. A \emph{polynomial} $p(\xs)$ is a
+finite linear combination of monomials in $\xs$ with coefficients
+in~$\mathbb{Z}$. The degree of a polynomial is the maximum degree among its monomials with nonzero coefficients. A
+polynomial $p(\xs)$ is \emph{linear} if each of its monomials has
+degree at most one; otherwise, it is \emph{nonlinear}.
+
