@@ -1705,13 +1705,6 @@ bool LiaAbstraction::check_nia() {
 
     CollectPures targeted_pcol(_ctx, _pures, _axioms);
     if (got_implicant) {
-        // Pre-compute NIA values for all active pures.
-        smt::UnorderedTermMap nia_vals;
-        for (const auto& pure : pcol.collected) {
-            auto nv = get_value(_pures.get_t(pure));
-            if (nv) nia_vals[pure] = *nv;
-        }
-
         // Collect pures directly visible in t (stops at pcol.collected members).
         auto direct_pures_in = [&](const smt::Term& t) {
             smt::TermVec result;
@@ -1732,27 +1725,21 @@ bool LiaAbstraction::check_nia() {
             return result;
         };
 
+        // Evaluate each implicant literal with proper NIA semantics.
+        // get_value on the pure's original term is wrong when the term contains
+        // nested pures: the LIA solver uses their (potentially incorrect) LIA
+        // model values instead of their NIA values, producing a false match.
+        // CheckVal::visit resolves nested pures correctly; nullopt (undecidable)
+        // is treated conservatively as "may need axioms".
+        HasUninterpreted hu2(_ctx);
+        CheckVal cv2(_ctx, hu2, _pures, _ctx.solver);
         for (const auto& lit : implicant) {
-            const auto pures_in_lit = direct_pures_in(lit);
-            if (pures_in_lit.empty())
+            if (direct_pures_in(lit).empty())
                 continue;
-            smt::UnorderedTermMap subst;
-            bool any_wrong = false;
-            for (const auto& p : pures_in_lit) {
-                auto it = nia_vals.find(p);
-                if (it == nia_vals.end())
-                    continue;
-                subst[p] = it->second;
-                auto lv = get_value(p);
-                if (!lv || !(*lv == it->second))
-                    any_wrong = true;
-            }
-            if (!any_wrong)
-                continue;  // all pures in this literal match NIA — no axioms needed
-            const smt::Term subst_lit = do_substitute(_ctx, lit, subst);
-            auto val = get_value(subst_lit);
-            if (val && is_false(_ctx, *val))
-                targeted_pcol(lit);
+            const auto cv_val = cv2(lit);
+            if (cv_val && is_true(_ctx, *cv_val))
+                continue;  // NIA-satisfied
+            targeted_pcol(lit);
         }
 
         if (targeted_pcol.collected.empty()) {
