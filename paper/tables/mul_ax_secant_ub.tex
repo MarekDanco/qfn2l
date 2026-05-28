@@ -4,12 +4,12 @@
 	\renewcommand{\arraystretch}{1.3}
 	\begin{tabular}{@{}lll@{}}
 		\hline
-		\textbf{Name}    & \textbf{Case}        & \textbf{Axiom}                                                                                          \\
+		\textbf{Name}    & \textbf{Condition}        & \textbf{Axiom}                                                                                          \\
 		\hline
-		\textit{Lin. UB} & $v^k > 0, \,w^l > 0$ & $\mathit{C}(x, v, \uparrow) \land \mathit{C}(y, w, \uparrow) \implies \pure{x^k y^l} < v^{k-1}xw^l$     \\
-		                 & $v^k > 0, \,w^l < 0$ & $\mathit{C}(x, v, \downarrow) \land \mathit{C}(y, w, \uparrow) \implies \pure{x^k y^l} < v^{k-1}xw^l$   \\
-		                 & $v^k < 0, \,w^l > 0$ & $\mathit{C}(x, v, \uparrow) \land \mathit{C}(y, w, \downarrow) \implies \pure{x^k y^l} < v^{k-1}xw^l$   \\
-		                 & $v^k < 0, \,w^l < 0$ & $\mathit{C}(x, v, \downarrow) \land \mathit{C}(y, w, \downarrow) \implies \pure{x^k y^l} < v^{k-1}xw^l$ \\
+		\textit{Lin. UB} & $v^k > 0, \,w^l > 0$ & $\mathit{C}(x^k, v, \uparrow) \land \mathit{C}(y^l, w, \uparrow) \implies \pure{x^k y^l} \leq v^{k-1}xw^l$     \\
+		                 & $v^k > 0, \,w^l < 0$ & $\mathit{C}(x^k, v, \downarrow) \land \mathit{C}(y^l, w, \uparrow) \implies \pure{x^k y^l} \leq v^{k-1}xw^l$   \\
+		                 & $v^k < 0, \,w^l > 0$ & $\mathit{C}(x^k, v, \uparrow) \land \mathit{C}(y^l, w, \downarrow) \implies \pure{x^k y^l} \leq v^{k-1}xw^l$   \\
+		                 & $v^k < 0, \,w^l < 0$ & $\mathit{C}(x^k, v, \downarrow) \land \mathit{C}(y^l, w, \downarrow) \implies \pure{x^k y^l} \leq v^{k-1}xw^l$ \\
 		\hline
 	\end{tabular}
 	\vspace{0.9em}
