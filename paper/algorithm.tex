@@ -24,7 +24,7 @@ Otherwise we expand $\mathcal{A}$ with $\Delta\mathcal{A}$ and repeat.
 	\DontPrintSemicolon
 	$\hat\varphi,\, P \leftarrow \textrm{PURIFY}(\varphi)$\;
 	$\mathcal{A} \leftarrow \emptyset$\;
-	\Repeat{}{
+	\While{$\mathit{true}$}{
 		$\mathit{res} \leftarrow \textrm{CHECK-LIA}(\hat\varphi \land \bigwedge\mathcal{A})$\;
 		\lIf{$\mathit{res} = \mathit{unsat}$}{\Return $\mathit{unsat}$}
 		$\mu \leftarrow \textrm{model}(\mathit{res})$\;
