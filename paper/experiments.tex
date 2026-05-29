@@ -1,6 +1,5 @@
 \section{Experiments}\label{sec:experiments}
 
-\paragraph{Setup.}
 All experiments were run on a server with four AMD EPYC 7513 32-core processors at 2.6\,GHz
 and 504\,GB of memory.
 Each instance was allocated a wall-clock timeout of 180\,seconds and a memory limit of 40\,GB.
@@ -10,5 +9,26 @@ and Yices~2.6.4 on the QF\_NIA benchmark set from SMT-LIB~\cite{smtlib}.
 linked against the same Z3~4.15.4 build used as the standalone Z3 baseline,
 so any difference in results is due to the solving strategy rather than the underlying LIA engine.
 
-\marek{mathsat is closed source, Z3 and cvc5 are big and complicated also Z3 uses portfolio,
-we have simple open source implementation}
+Table~\ref{tab:results} summarises the results.
+We report three configurations of \solver: the base solver (\solver), the base solver with
+the frontier strategy for tangent-plane lemmas (\solver+\textsc{Frontier}), and an ablation
+with lazy congruence axioms enabled (\solver+\textsc{Congr.}); the first two run without
+congruence.
+
+\input{tables/results}
+
+On the full benchmark set \solver is competitive with cvc5 and trails Z3, MathSAT, and
+Yices. Z3 combines a large number of built-in tactics and heuristics; MathSAT is
+closed source. \solver, by contrast, is a concise open-source implementation with a
+single LIA backend and no problem-specific tuning.\marek{what do we know about yices?}
+
+Enabling the frontier strategy adds a small but consistent improvement at no cost.
+Enabling congruence axioms (\solver+\textsc{Congr.}) reduces the overall count by around
+1\,600 instances, confirming that the overhead of pairwise congruence checks outweighs
+their benefit on the general benchmark set.
+
+The \texttt{20220315-MathProblems} family consists of 1\,100 instances encoding number-theoretic
+problems, many of which involve sums of cubes ($x^3 + y^3 + z^3 = n$).
+\solver solves 585--587 of these (53\%). This gap directly reflects the contribution of the
+secant-based axioms for $x^k$: the convergence on cubic constraints requires bounds that go
+beyond tangent-plane lemmas.

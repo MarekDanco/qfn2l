@@ -1,6 +1,6 @@
 \section{Algorithm}\label{sec:algorithm}
 
-\paragraph{Purification.}
+\emph{Purification.}
 Given a QF\_NIA formula $\varphi$, the first step is \emph{purification}: every
 nonlinear subterm $t$ (a product whose factors are not all constants, or an
 integer division/modulo with a non-constant divisor) is replaced by a fresh
@@ -9,7 +9,7 @@ Equal subterms share the same pure.
 The result $\hat\varphi$ is a QF\_LIA formula over the original variables and
 the new pure constants.
 
-\paragraph{Main loop.}
+\emph{Main loop.}
 \Cref{alg:solve} shows the top-level procedure.
 We maintain a set $\mathcal{A}$ of linear \emph{axioms} accumulated across iterations.
 Each iteration calls a QF\_LIA solver on $\hat\varphi \land \bigwedge\mathcal{A}$.
@@ -49,7 +49,7 @@ Otherwise we expand $\mathcal{A}$ with $\mathcal{N}$ and repeat.
 	\Return $\mathcal{N}$\;
 \end{algorithm}
 
-\paragraph{Implicant-based targeting.}
+\emph{Implicant-based targeting.}
 We evaluate $\hat\varphi$ under $\mu$ using \emph{three-valued NIA semantics}:
 each pure $\pure{t}$ is assigned value $\mu(t)$ if its LIA model value
 $\mu(\pure{t})$ agrees with its NIA value, and $\mathit{unknown}$ otherwise.
@@ -66,7 +66,7 @@ for $\mu \models \hat\varphi$.
 We then collect into $R$ the pures appearing in literals of $I$ that evaluate
 to false under NIA semantics.
 
-\paragraph{Model repair.}
+\emph{Model repair.}
 When $R \neq \emptyset$ we first attempt \textsc{Model-Fix}: a heuristic that pins
 non-relevant variables and runs a small number of sub-iterations on a
 restricted LIA problem, generating and accumulating axioms along the way.
@@ -74,7 +74,7 @@ If a NIA-valid model is found, \textsc{Check-Nia} returns $\emptyset$ immediatel
 If not, the axioms generated during model repair are retained and we fall
 through to the standard axiom generation step.
 
-\paragraph{Axiom generation.}
+\emph{Axiom generation.}
 For each failing pure $\pure{t} \in R$, we add to $\mathcal{N}$ every
 axiom in our axiom set for $t$ that is violated by $\mu$.
 Axiom classes are described in \Cref{sec:axioms}; they cover sign and zero
@@ -85,7 +85,7 @@ Lazy congruence axioms (requiring $\pure{t_1} = \pure{t_2}$ whenever
 $t_1 = t_2$ holds in $\mu$ but $\mu(\pure{t_1}) \neq \mu(\pure{t_2})$) are
 collected into $\mathcal{N}$ before per-pure axiom generation.
 
-\paragraph{Comparison with~\cite{cimatti2018sat}.}
+\emph{Comparison with~\cite{cimatti2018sat}.}
 Both approaches instantiate the same CEGAR skeleton; the differences lie in the abstract domain, axiom generation, failing-term selection, and model repair.
 The key differences are as follows.
 
