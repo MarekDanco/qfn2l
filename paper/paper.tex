@@ -8,7 +8,9 @@
 \numberwithin{table}{section}
 \usepackage{stmaryrd}
 \usepackage{import}
-\usepackage[ruled,linesnumbered]{algorithm2e}
+\usepackage[linesnumbered,ruled,vlined]{algorithm2e} % ,noend
+\DontPrintSemicolon%
+
 
 \usepackage[textwidth=3cm,tickmarkheight=3pt]{todonotes}
 \newcommand{\marek}[1]{\todo[color=red!10]{#1 \\-Marek}}
