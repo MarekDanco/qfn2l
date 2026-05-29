@@ -1,7 +1,5 @@
 \section{Incremental Linearization of Non-Linear Terms}\label{sec:axioms}
 
-\marek{mod and div axioms}
-
 \subsection{Terms of The Form $x^k$}
 
 \input{tables/exp_ax}
@@ -97,3 +95,36 @@ The upper-bound axioms (Table~\ref{tab:mul-axioms-ub}) follow from the symmetric
 $x^k y^l \leq x^k w^l \leq v^{k-1}x w^l$,
 with $\downarrow$ and $\uparrow$ swapped throughout. Note that similar axioms can be
 constructed also by linearizing $y$ while fixing constant $x$.
+
+\subsection{Integer Division and Modulo}
+
+The pure $\pure{x \,\mathit{div}\, y}$ (and symmetrically $\pure{x \,\mathit{mod}\, y}$) is
+axiomatized by two families of axioms, generated when $\mu(x) = v$, $\mu(y) = w$, and the
+pure's model value disagrees with the correct result.
+
+\emph{Fix-divisor.}
+Pinning $y$ to its model value $w$ makes the expression linear in $x$:
+\[
+  y = w \;\implies\; \pure{x \,\mathit{div}\, y} = x \,\mathit{div}\, w,
+  \qquad
+  y = w \;\implies\; \pure{x \,\mathit{mod}\, y} = x \,\mathit{mod}\, w.
+\]
+The right-hand sides are QF\_LIA expressions since $w$ is a numeral, so the LIA solver can
+reason about them directly.
+
+\emph{Large-divisor.}
+When $|y|$ exceeds the magnitude of the dividend $x$, the result is determined.
+For $v \geq 0$:
+\[
+  x = v \land |y| > v \;\implies\; \pure{x \,\mathit{div}\, y} = 0,
+  \qquad
+  x = v \land |y| > v \;\implies\; \pure{x \,\mathit{mod}\, y} = v.
+\]
+For $v < 0$ the conclusions reflect SMT-LIB semantics, where $\mathit{mod}$ is always
+non-negative:
+\begin{align*}
+  x = v \land |y| \geq |v| &\;\implies\; \pure{x \,\mathit{div}\, y} = \begin{cases} -1 & y > 0 \\ 1 & y < 0, \end{cases} \\
+  x = v \land |y| > |v| &\;\implies\; \pure{x \,\mathit{mod}\, y} = |y| - |v|.
+\end{align*}
+These axioms rule out spurious model values when the LIA solver assigns a nonzero quotient
+or an incorrect remainder for a small dividend.
