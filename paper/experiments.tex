@@ -1,6 +1,6 @@
 \section{Experiments}\label{sec:experiments}
 
-All experiments were run on a server with four AMD EPYC 7513 32-core processors at 2.6\,GHz
+\emph{Setup.} All experiments were run on a server with four AMD EPYC 7513 32-core processors at 2.6\,GHz
 and 504\,GB of memory.
 Each instance was allocated a wall-clock timeout of 180\,seconds and a memory limit of 40\,GB.
 We evaluated our solver, \solver, against Z3~4.15.4, cvc5~1.3.2, MathSAT5~5.6.16,
@@ -16,6 +16,12 @@ with lazy congruence axioms enabled (\solver+\textsc{Congr.}); the first two run
 congruence.
 
 \input{tables/results}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.9\linewidth]{figures/cactus}
+    \caption{Instances solved within a given wall-clock time limit.\label{fig:cactus}}
+\end{figure}
 
 On the full benchmark set \solver is competitive with cvc5 and trails Z3, MathSAT, and
 Yices. Z3 combines a large number of built-in tactics and heuristics; MathSAT is
