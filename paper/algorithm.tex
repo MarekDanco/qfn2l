@@ -20,31 +20,31 @@ If $\mathcal{N} = \emptyset$, the current model $\mu$ is NIA-valid and we return
 Otherwise we expand $\mathcal{A}$ with $\mathcal{N}$ and repeat.
 
 \begin{algorithm}[t]
-	\caption{QF-NIA-SOLVE($\varphi$)}\label{alg:solve}
+	\caption{\textsc{Qf-Nia-Solve}($\varphi$)}\label{alg:solve}
 	\DontPrintSemicolon
-	$\hat\varphi,\, P \leftarrow \textrm{PURIFY}(\varphi)$\;
+	$\hat\varphi,\, P \leftarrow \textsc{Purify}(\varphi)$\;
 	$\mathcal{A} \leftarrow \emptyset$\;
 	\While{$\mathit{true}$}{
-		$\mathit{res} \leftarrow \textrm{CHECK-LIA}(\hat\varphi \land \bigwedge\mathcal{A})$\;
+		$\mathit{res} \leftarrow \textsc{Check-Lia}(\hat\varphi \land \bigwedge\mathcal{A})$\;
 		\lIf{$\mathit{res} = \mathit{unsat}$}{\Return $\mathit{unsat}$}
-		$\mu \leftarrow \textrm{model}(\mathit{res})$\;
-		$\mathcal{N} \leftarrow \textrm{CHECK-NIA}(P,\mu,\mathcal{A})$\;
+		$\mu \leftarrow \textsc{Model}(\mathit{res})$\;
+		$\mathcal{N} \leftarrow \textsc{Check-Nia}(P,\mu,\mathcal{A})$\;
 		\lIf{$\mathcal{N} = \emptyset$}{\Return $\mathit{sat},\, \mu$}
 		$\mathcal{A} \leftarrow \mathcal{A} \cup \mathcal{N}$\;
 	}
 \end{algorithm}
 
 \begin{algorithm}[t]
-	\caption{CHECK-NIA($P, \mu, \mathcal{A}$)}\label{alg:checknia}
+	\caption{\textsc{Check-Nia}($P, \mu, \mathcal{A}$)}\label{alg:checknia}
 	\DontPrintSemicolon
-	$I \leftarrow \textrm{IMPLICANT}(\hat\varphi, \mu)$\;
+	$I \leftarrow \textsc{Implicant}(\hat\varphi, \mu)$\;
 	\lIf{$\mu \models_{\mathrm{NIA}} \varphi$}{\Return $\emptyset$}
 	$R \leftarrow \{\,p \in P \mid p \in I,\;\text{literal of $I$ containing $p$ is NIA-false}\,\}$\;
-	\lIf{\upshape MODEL-FIX$(\mu, R)$}{\Return $\emptyset$}
-	$\mathcal{N} \leftarrow \emptyset$\;
-	$\mathcal{N} \leftarrow \mathcal{N} \cup$ congruence axioms for $R$\;
+	$\mathit{res}, \mathcal{N} \leftarrow \textsc{Model-Fix}(\mu, R)$\;
+	\lIf{$\mathit{res}$}{\Return $\emptyset$}
+	$\mathcal{N} \leftarrow \mathcal{N} \cup {}$ congruence axioms for $R$\;
 	\ForEach{$p \in R$}{
-		$\mathcal{N} \leftarrow \mathcal{N} \cup \textrm{AXIOMS}(p, \mu)$\;
+		$\mathcal{N} \leftarrow \mathcal{N} \cup \textsc{Axioms}(p, \mu)$\;
 	}
 	\Return $\mathcal{N}$\;
 \end{algorithm}
@@ -67,7 +67,7 @@ We then collect into $R$ the pures appearing in literals of $I$ that evaluate
 to false under NIA semantics.
 
 \paragraph{Model repair.}
-When $R \neq \emptyset$ we first attempt MODEL-FIX: a heuristic that pins
+When $R \neq \emptyset$ we first attempt \textsc{Model-Fix}: a heuristic that pins
 non-relevant variables and runs a small number of sub-iterations on a
 restricted LIA problem, generating and accumulating axioms along the way.
 If a NIA-valid model is found, \textsc{Check-Nia} returns $\emptyset$ immediately.
@@ -110,7 +110,7 @@ literals that fail under NIA semantics, which is more targeted.
 
 \emph{Model repair.}
 Cimatti et al.\ generate axioms and immediately return to the main LIA solve.
-We first attempt MODEL-FIX: a heuristic sub-loop that pins irrelevant variables,
+We first attempt \textsc{Model-Fix}: a heuristic sub-loop that pins irrelevant variables,
 accumulates axioms over several restricted LIA calls, and tries to find a
 NIA-valid model without returning to the outer loop.
 When successful this saves an outer LIA call; when not, the axioms gathered

@@ -42,15 +42,7 @@ simultaneously.
 By abuse of notation, a substitution $\sigma=\{x_1\mapsto t_1,\dots,x_n\mapsto t_n\}$ is an assignment if all the terms $t_i$ are integer or Boolean constants with the standard interpretation.
 We also use $\mu$ to denote assignments.
 
-
-Let $\mathbb{Z}$ be the set of integers.
 A \emph{monomial} in variables $\xs=x_1,x_2,\dots,x_n$ is a product
-$x_1^{k_1}x_2^{k_2}\cdots x_n^{k_n}$, where $k_i$ are nonnegative
-integers called exponents. The sum of exponents $\sum_{i=1}^n k_i$ is
-called the degree of the monomial. A \emph{polynomial} $p(\xs)$ is a
-finite linear combination of monomials in $\xs$ with coefficients
-in~$\mathbb{Z}$. The degree of a polynomial is the maximum degree among its monomials with nonzero coefficients. A
-polynomial $p(\xs)$ is \emph{linear} if each of its monomials has
-degree at most one; otherwise, it is \emph{nonlinear}.
-This paper concerns the satisfiability of QF\_NIA formulas whose constraints involve nonlinear polynomial terms over the integers.
+$x_1^{k_1}x_2^{k_2}\cdots x_n^{k_n}$, where $k_i$ are nonnegative integers.
+Monomials that involve a product of variables are the nonlinear terms axiomatized in \Cref{sec:axioms}.
 
