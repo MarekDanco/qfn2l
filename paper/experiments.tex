@@ -1,1 +1,11 @@
 \section{Experiments}\label{sec:experiments}
+
+\paragraph{Setup.}
+All experiments were run on a server with four AMD EPYC 7513 32-core processors at 2.6\,GHz
+and 504\,GB of memory.
+Each instance was allocated a wall-clock timeout of 180\,seconds and a memory limit of 40\,GB.
+We evaluated our solver, \solver, against Z3~4.15.4, cvc5~1.3.2, MathSAT5~5.6.16,
+and Yices~2.6.4 on the QF\_NIA benchmark set from SMT-LIB~\cite{smtlib}.
+\solver is implemented in C++ using the smt-switch abstraction layer~\cite{mann2021smt},
+linked against the same Z3~4.15.4 build used as the standalone Z3 baseline,
+so any difference in results is due to the solving strategy rather than the underlying LIA engine.
