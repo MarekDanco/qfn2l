@@ -1,4 +1,20 @@
 \section{Conclusion and Future Work}\label{sec:related}
+We presented a novel incremental linearization approach for quantifier-free
+nonlinear integer arithmetic.
+Since the problem is undecidable in general, no complete procedure exists;
+we therefore focused on techniques that perform well on benchmarks arising
+in practice.
+The key distinguishing feature of our approach is the explicit treatment of
+power terms with fixed exponents, such as $x^3$, as first-class abstractions.
+This yields a measurable advantage on problems where such expressions occur,
+as confirmed by our experimental evaluation against state-of-the-art solvers.
+
+Several directions remain for future work.
+We plan to add a bit-blasting~\cite{bitblast} preprocessing phase to quickly discharge
+satisfiable instances whose solutions are of small magnitude.
+We also intend to prune axioms that become redundant upon the addition of
+stronger ones, and to develop new axiom schemas targeting specific classes
+of problems.
 
 
 % \paragraph{Related work.}
