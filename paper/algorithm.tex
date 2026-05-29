@@ -11,75 +11,85 @@ the new pure constants.
 
 \paragraph{Main loop.}
 \Cref{alg:solve} shows the top-level procedure.
-We maintain a set $\mathcal{A}$ of linear \emph{axioms}---constraints that
-relate each pure $\pure{t}$ to its factors---accumulated across iterations.
+We maintain a set $\mathcal{A}$ of linear \emph{axioms} accumulated across iterations.
 Each iteration calls a QF\_LIA solver on $\hat\varphi \land \bigwedge\mathcal{A}$.
 If the LIA problem is unsatisfiable, so is the original QF\_NIA formula.
-Otherwise we obtain a model $\mu$ and check whether it is consistent with the
-nonlinear semantics (\Cref{alg:checknia}).
-If yes, $\mu$ witnesses satisfiability.
-If no, new axioms are added and the loop continues.
+Otherwise we obtain a model $\mu$ and call \textsc{Check-Nia} (\Cref{alg:checknia}),
+which returns a set $\Delta\mathcal{A}$ of new axioms.
+If $\Delta\mathcal{A} = \emptyset$, the current model $\mu$ is NIA-valid and we return~$\mathit{sat}$.
+Otherwise we expand $\mathcal{A}$ with $\Delta\mathcal{A}$ and repeat.
 
 \begin{algorithm}[t]
-\caption{QF-NIA-SOLVE($\varphi$)}\label{alg:solve}
-\DontPrintSemicolon
-$\hat\varphi,\, P \leftarrow \textrm{PURIFY}(\varphi)$\;
-$\mathcal{A} \leftarrow \emptyset$\;
-\Repeat{}{
-  $\mathit{res} \leftarrow \textrm{CHECK-LIA}(\hat\varphi \land \bigwedge\mathcal{A})$\;
-  \lIf{$\mathit{res} = \mathit{unsat}$}{\Return $\mathit{unsat}$}
-  $\mu \leftarrow \textrm{model}(\mathit{res})$\;
-  \lIf{\upshape CHECK-NIA$(P,\mu,\mathcal{A})$}{\Return $\mathit{sat},\, \mu$}
-}
+	\caption{QF-NIA-SOLVE($\varphi$)}\label{alg:solve}
+	\DontPrintSemicolon
+	$\hat\varphi,\, P \leftarrow \textrm{PURIFY}(\varphi)$\;
+	$\mathcal{A} \leftarrow \emptyset$\;
+	\Repeat{}{
+		$\mathit{res} \leftarrow \textrm{CHECK-LIA}(\hat\varphi \land \bigwedge\mathcal{A})$\;
+		\lIf{$\mathit{res} = \mathit{unsat}$}{\Return $\mathit{unsat}$}
+		$\mu \leftarrow \textrm{model}(\mathit{res})$\;
+		$\Delta\mathcal{A} \leftarrow \textrm{CHECK-NIA}(P,\mu,\mathcal{A})$\;
+		\lIf{$\Delta\mathcal{A} = \emptyset$}{\Return $\mathit{sat},\, \mu$}
+		$\mathcal{A} \leftarrow \mathcal{A} \cup \Delta\mathcal{A}$\;
+	}
 \end{algorithm}
 
 \begin{algorithm}[t]
-\caption{CHECK-NIA($P, \mu, \mathcal{A}$)}\label{alg:checknia}
-\DontPrintSemicolon
-\lIf{\upshape QUICK-CHECK$(P,\mu)$}{\Return \upshape true}
-$I \leftarrow \textrm{IMPLICANT}(\hat\varphi, \mu)$\tcp*{literals of $\hat\varphi$ satisfied by $\mu$}
-$R \leftarrow \{\,p \in P \mid p \in I,\; \mu(p) \neq \mu(\mathrm{term}(p))\,\}$\tcp*{failing pures}
-\lIf{$R = \emptyset$}{\Return \upshape true}
-add lazy congruence axioms for $R$ to $\mathcal{A}$\;
-\ForEach{$p \in R$}{
-  $\mathcal{A} \leftarrow \mathcal{A} \cup \textrm{AXIOMS}(p, \mu)$\tcp*{all violated axioms for $\mathrm{term}(p)$}
-}
-\Return \upshape false\;
+	\caption{CHECK-NIA($P, \mu, \mathcal{A}$)}\label{alg:checknia}
+	\DontPrintSemicolon
+	$I \leftarrow \textrm{IMPLICANT}(\hat\varphi, \mu)$\;
+	\lIf{$\mu \models_{\mathrm{NIA}} \varphi$}{\Return $\emptyset$}
+	$R \leftarrow \{\,p \in P \mid p \in I,\;\text{literal of $I$ containing $p$ is NIA-false}\,\}$\;
+	\lIf{\upshape MODEL-FIX$(\mu, R)$}{\Return $\emptyset$}
+	$\Delta\mathcal{A} \leftarrow$ congruence axioms for $R$\;
+	\ForEach{$p \in R$}{
+		$\Delta\mathcal{A} \leftarrow \Delta\mathcal{A} \cup \textrm{AXIOMS}(p, \mu)$\;
+	}
+	\Return $\Delta\mathcal{A}$\;
 \end{algorithm}
-
-\paragraph{Quick check.}
-Before collecting failing pures, we perform a fast three-valued evaluation of
-$\hat\varphi$ under $\mu$, substituting each pure $\pure{t}$ with the actual
-value $\mu(t)$ (evaluated under NIA semantics).
-If the result is \TRUE, no axioms are needed and we return immediately.
 
 \paragraph{Implicant-based targeting.}
-Rather than scanning all pures in $\hat\varphi$, we first compute an
-\emph{implicant}: a minimal subset $I$ of literals of $\hat\varphi$ that are
-jointly sufficient for $\mu \models \hat\varphi$.
-We then restrict attention to pures appearing in literals of $I$ that are
-falsified under NIA semantics, ignoring pures in satisfied literals.
-This reduces the number of axioms generated per iteration and focuses
-refinement on the parts of the formula that actually need it.
+We evaluate $\hat\varphi$ under $\mu$ using \emph{three-valued NIA semantics}:
+each pure $\pure{t}$ is assigned value $\mu(t)$ if its LIA model value
+$\mu(\pure{t})$ agrees with its NIA value, and $\mathit{unknown}$ otherwise.
+The result propagates by standard three-valued logic.
+Because the LIA model already satisfies $\hat\varphi$, every literal needed
+for satisfaction is either pure-free (same truth value under NIA) or
+pure-containing (at worst $\mathit{unknown}$, never $\mathit{false}$), so the
+overall result is either $\mathit{true}$ or $\mathit{unknown}$.
+If it is $\mathit{true}$, the original variable assignment already satisfies
+$\varphi$ and we return $\emptyset$ immediately.
+Otherwise the traversal's cached per-literal truth values are used to extract
+an \emph{implicant}: a subset $I$ of literals of $\hat\varphi$ sufficient
+for $\mu \models \hat\varphi$.
+We then collect into $R$ the pures appearing in literals of $I$ that evaluate
+to false under NIA semantics.
+
+\paragraph{Model repair.}
+When $R \neq \emptyset$ we first attempt MODEL-FIX: a heuristic that pins
+non-relevant variables and runs a small number of sub-iterations on a
+restricted LIA problem, generating and accumulating axioms along the way.
+If a NIA-valid model is found, \textsc{Check-Nia} returns $\emptyset$ immediately.
+If not, the axioms generated during model repair are retained and we fall
+through to the standard axiom generation step.
 
 \paragraph{Axiom generation.}
-For each failing pure $\pure{t}$, we add to $\mathcal{A}$ every axiom in our
-axiom set for $t$ that is violated by $\mu$.
+For each failing pure $\pure{t} \in R$, we add to $\Delta\mathcal{A}$ every
+axiom in our axiom set for $t$ that is violated by $\mu$.
 Axiom classes are described in \Cref{sec:axioms}; they cover sign and zero
 conditions, secant-based linear bounds for monomials $x^k$, bounds for mixed
 products $x^k y^l$, tangent-plane lemmas, and integer division and modulo
 constraints.
-All violated axioms are added in a single pass---there is no round structure.
 Lazy congruence axioms (requiring $\pure{t_1} = \pure{t_2}$ whenever
 $t_1 = t_2$ holds in $\mu$ but $\mu(\pure{t_1}) \neq \mu(\pure{t_2})$) are
-handled separately before per-pure axiom generation.
+collected into $\Delta\mathcal{A}$ before per-pure axiom generation.
 
 \paragraph{Comparison with~\cite{cimatti2018sat}.}
 The overall CEGAR skeleton is the same.
 The key differences are as follows.
 
 \emph{Abstract domain.}
-Cimatti et al.\ replace each product $x \cdot y$ with an uninterpreted
+Cimatti et al.\ replace each product $x y$ with an uninterpreted
 function symbol $f(x,y)$, yielding a QF\_UFLIA abstraction; congruence
 ($f(a,b) = f(a,b)$ for equal arguments) is then automatic.
 We use plain fresh constants instead, so the abstract domain is QF\_LIA, and
@@ -93,14 +103,22 @@ We add all violated axioms in a single pass, regardless of type.
 
 \emph{Failing-term selection.}
 Cimatti et al.\ scan all constraints of $\varphi$ falsified by $\mu$ and
-collect every product $x \cdot y$ in those constraints.
+collect every product $x y$ in those constraints.
 We use an implicant of $\hat\varphi$ under $\mu$ and restrict to pures in
 literals that fail under NIA semantics, which is more targeted.
+
+\emph{Model repair.}
+Cimatti et al.\ generate axioms and immediately return to the main LIA solve.
+We first attempt MODEL-FIX: a heuristic sub-loop that pins irrelevant variables,
+accumulates axioms over several restricted LIA calls, and tries to find a
+NIA-valid model without returning to the outer loop.
+When successful this saves an outer LIA call; when not, the axioms gathered
+during the attempt are still retained and the outer loop continues as normal.
 
 \emph{Axiom set.}
 The axioms in~\cite{cimatti2018sat} cover sign, zero, neutrality,
 proportionality, and tangent-plane conditions for binary products.
-We retain sign and tangent-plane axioms and add secant-based bounds for
+We retain sign, zero, and tangent-plane axioms and add secant-based bounds for
 monomials $x^k$ and mixed products $x^k y^l$, described in \Cref{sec:axioms}.
 For tangent-plane lemmas we optionally employ the \emph{frontier} strategy
 of~\cite{cimatti2017tacas}: a per-pure bounding box tracks all model values
