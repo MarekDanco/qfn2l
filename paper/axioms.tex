@@ -2,18 +2,31 @@
 
 \subsection{Terms of The Form $x^k$}
 
+\input{tables/exp_ax}
+
+Table~\ref{tab:pow-axioms} lists the axioms generated for $\pure{x^k}$ when $\mu(x) = v$ but
+$\mu(\pure{x^k}) \neq v^k$.
+The \textit{Eq-zero} and \textit{Eq} axioms enforce the correct value directly: the pure equals $v^k$
+if and only if $x = v$ (or $x = -v$ for even $k$).
+The \textit{Gap} axiom states that $\pure{x^k}$ cannot lie in the open gap between consecutive achievable values of $x^k$.
+The \textit{Mod} axiom adds a modular congruence: $x \equiv v \pmod{m}$ implies
+$x^k \equiv v^k \pmod{m}$; for prime $m$ the converse holds as well.
+By default we instantiate it only for $m = 2$.
+
+The \textit{Lin.\,LB} and \textit{Lin.\,UB} axioms provide secant-based linear bounds using the
+line $v^{k-1}x$, which passes through the origin and the point $(v,\,v^k)$.
+On each side of $v$ this line bounds $x^k$ from below or above (see \Cref{fig:secant}).
+Tangent-plane lemmas, by contrast, only yield lower bounds for a convex monomial $x^k$;
+the secant construction is therefore necessary to obtain two-sided constraints.
+
 \begin{figure}[ht]
 	\centering
 	\input{figures/secant}
 	\caption{
 		Blue lines show the functions $y=x$, $y=2x$, $y=3x$, and $y=4x$, which provide lower and upper linear bounds
 		for $x^2$ on unit intervals between $0$ and $4$. For each $x$, the active bounds are the maximal lower bound
-		and the minimal upper bound among all available bounds (shown as solid lines).}
+		and the minimal upper bound among all available bounds (shown as solid lines).}\label{fig:secant}
 \end{figure}
-
-
-\input{tables/exp_ax}
-
 
 \subsection{Terms of The Form $x^k y^l$}
 
