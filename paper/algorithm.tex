@@ -15,10 +15,9 @@ We maintain a set $\mathcal{A}$ of linear \emph{axioms} accumulated across itera
 Each iteration calls a QF\_LIA solver on $\hat\varphi \land \bigwedge\mathcal{A}$.
 If the LIA problem is unsatisfiable, so is the original QF\_NIA formula.
 Otherwise we obtain a model $\mu$ and call \textsc{Check-Nia} (\Cref{alg:checknia}),
-which returns a set $\Delta\mathcal{A}$ of new axioms\mj{I'd use only one letter
-for $\Delta\mathcal{A}$}.
-If $\Delta\mathcal{A} = \emptyset$, the current model $\mu$ is NIA-valid and we return~$\mathit{sat}$.
-Otherwise we expand $\mathcal{A}$ with $\Delta\mathcal{A}$ and repeat.
+which returns a set $\mathcal{N}$ of new axioms.
+If $\mathcal{N} = \emptyset$, the current model $\mu$ is NIA-valid and we return~$\mathit{sat}$.
+Otherwise we expand $\mathcal{A}$ with $\mathcal{N}$ and repeat.
 
 \begin{algorithm}[t]
 	\caption{QF-NIA-SOLVE($\varphi$)}\label{alg:solve}
@@ -29,9 +28,9 @@ Otherwise we expand $\mathcal{A}$ with $\Delta\mathcal{A}$ and repeat.
 		$\mathit{res} \leftarrow \textrm{CHECK-LIA}(\hat\varphi \land \bigwedge\mathcal{A})$\;
 		\lIf{$\mathit{res} = \mathit{unsat}$}{\Return $\mathit{unsat}$}
 		$\mu \leftarrow \textrm{model}(\mathit{res})$\;
-		$\Delta\mathcal{A} \leftarrow \textrm{CHECK-NIA}(P,\mu,\mathcal{A})$\;
-		\lIf{$\Delta\mathcal{A} = \emptyset$}{\Return $\mathit{sat},\, \mu$}
-		$\mathcal{A} \leftarrow \mathcal{A} \cup \Delta\mathcal{A}$\;
+		$\mathcal{N} \leftarrow \textrm{CHECK-NIA}(P,\mu,\mathcal{A})$\;
+		\lIf{$\mathcal{N} = \emptyset$}{\Return $\mathit{sat},\, \mu$}
+		$\mathcal{A} \leftarrow \mathcal{A} \cup \mathcal{N}$\;
 	}
 \end{algorithm}
 
@@ -42,11 +41,12 @@ Otherwise we expand $\mathcal{A}$ with $\Delta\mathcal{A}$ and repeat.
 	\lIf{$\mu \models_{\mathrm{NIA}} \varphi$}{\Return $\emptyset$}
 	$R \leftarrow \{\,p \in P \mid p \in I,\;\text{literal of $I$ containing $p$ is NIA-false}\,\}$\;
 	\lIf{\upshape MODEL-FIX$(\mu, R)$}{\Return $\emptyset$}
-	$\Delta\mathcal{A} \leftarrow$ congruence axioms for $R$\;
+	$\mathcal{N} \leftarrow \emptyset$\;
+	$\mathcal{N} \leftarrow \mathcal{N} \cup$ congruence axioms for $R$\;
 	\ForEach{$p \in R$}{
-		$\Delta\mathcal{A} \leftarrow \Delta\mathcal{A} \cup \textrm{AXIOMS}(p, \mu)$\;
+		$\mathcal{N} \leftarrow \mathcal{N} \cup \textrm{AXIOMS}(p, \mu)$\;
 	}
-	\Return $\Delta\mathcal{A}$\;
+	\Return $\mathcal{N}$\;
 \end{algorithm}
 
 \paragraph{Implicant-based targeting.}
@@ -75,7 +75,7 @@ If not, the axioms generated during model repair are retained and we fall
 through to the standard axiom generation step.
 
 \paragraph{Axiom generation.}
-For each failing pure $\pure{t} \in R$, we add to $\Delta\mathcal{A}$ every
+For each failing pure $\pure{t} \in R$, we add to $\mathcal{N}$ every
 axiom in our axiom set for $t$ that is violated by $\mu$.
 Axiom classes are described in \Cref{sec:axioms}; they cover sign and zero
 conditions, secant-based linear bounds for monomials $x^k$, bounds for mixed
@@ -83,10 +83,10 @@ products $x^k y^l$, tangent-plane lemmas, and integer division and modulo
 constraints.
 Lazy congruence axioms (requiring $\pure{t_1} = \pure{t_2}$ whenever
 $t_1 = t_2$ holds in $\mu$ but $\mu(\pure{t_1}) \neq \mu(\pure{t_2})$) are
-collected into $\Delta\mathcal{A}$ before per-pure axiom generation.
+collected into $\mathcal{N}$ before per-pure axiom generation.
 
 \paragraph{Comparison with~\cite{cimatti2018sat}.}
-The overall CEGAR skeleton is the same\mj{sentence doesn't sound good}.
+Both approaches instantiate the same CEGAR skeleton; the differences lie in the abstract domain, axiom generation, failing-term selection, and model repair.
 The key differences are as follows.
 
 \emph{Abstract domain.}

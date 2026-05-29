@@ -36,9 +36,30 @@ the secant construction is therefore necessary to obtain two-sided constraints.
 \input{tables/mul_ax_secant_ub}
 \input{tables/mul_ax_tangent}
 
-\marek{Claude mentioned this is reminiscent of ``McCormick Linearization''}
+Table~\ref{tab:mul-axioms} lists the basic axioms for $\pure{x^k y^l}$, generated when
+$\mu(x)=v$, $\mu(y)=w$, and $\mu(\pure{x^k y^l}) \neq v^k w^l$.
+The \textit{Eq-zero} and \textit{Eq} axioms play the same role as in the $x^k$ case;
+the \textit{Eq} axiom additionally exploits existing pures $\pure{x^k}$ or $\pure{y^l}$ when
+available, replacing one factor by its pure rather than its model value.
 
-By inspection of Table~\ref{tab:secant-conds}, the two conditions satisfy the chains
+The \textit{Lin.\,LB} and \textit{Lin.\,UB} axioms
+(Tables~\ref{tab:mul-axioms-lb}--\ref{tab:mul-axioms-ub}) linearize $x^k$ via the secant
+conditions of Table~\ref{tab:secant-conds} while treating $w^l$ as a constant coefficient,
+yielding the linear bound $v^{k-1}x w^l$.
+The choice of $\downarrow$ or $\uparrow$ for each factor depends on the signs of $v^k$ and
+$w^l$ so that the inequality direction is preserved under multiplication; the four cases are
+proved below.
+
+The \textit{Tangent} axioms (Table~\ref{tab:mul-tangent-axioms}) apply only to the bilinear
+case $k = l = 1$.
+The tangent plane of $xy$ at $(v, w)$ is $wx + vy - vw$, and the sign of
+$xy - (wx + vy - vw) = (x-v)(y-w)$ determines whether $\pure{xy}$ lies above or below this
+plane.
+These axioms coincide with the McCormick envelope~\cite{mccormick1976} evaluated at the
+model point; the secant-based bounds above extend the same idea to higher-degree monomials
+$x^k y^l$.
+
+By inspection of Table~\ref{tab:secant-conds}, the two conditions satisfy the inequality chains
 \[
 	\mathit{C}(x^k,v^k,\downarrow) \implies v^k \leq v^{k-1}x \leq x^k,
 	\qquad
