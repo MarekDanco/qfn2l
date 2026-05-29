@@ -63,7 +63,7 @@ enabling the solver to converge on hard polynomial benchmarks.
 	\]
 	Such instances are a well-known challenge for SMT solvers, which must find
 	a solution without any specialized knowledge of the number-theoretic
-	structure. CVC5, MathSAT, Yices~2, and Z3 all time out on this instance
+	structure. cvc5, MathSAT, Yices~2, and Z3 all time out on this instance
 	within a 3-minute limit, while our solver finds the model
 	$x = -19,\; y = 35,\; z = -33$ in around 20 seconds.
 \end{example}
@@ -84,7 +84,7 @@ we make the following contributions:
 	\item A complete description of our incremental linearization algorithm for
 	      QF\_NIA, including purification and axiom selection (\Cref{sec:algorithm}).
 	\item An experimental evaluation on the full QF\_NIA benchmark suite from
-	      SMT-LIB, comparing against Z3, CVC5, Yices~2, and MathSAT
+	      SMT-LIB, comparing against Z3, cvc5, Yices~2, and MathSAT
 	      (\Cref{sec:experiments}).
 \end{itemize}
 

@@ -15,7 +15,8 @@ We maintain a set $\mathcal{A}$ of linear \emph{axioms} accumulated across itera
 Each iteration calls a QF\_LIA solver on $\hat\varphi \land \bigwedge\mathcal{A}$.
 If the LIA problem is unsatisfiable, so is the original QF\_NIA formula.
 Otherwise we obtain a model $\mu$ and call \textsc{Check-Nia} (\Cref{alg:checknia}),
-which returns a set $\Delta\mathcal{A}$ of new axioms.
+which returns a set $\Delta\mathcal{A}$ of new axioms\mj{I'd use only one letter
+for $\Delta\mathcal{A}$}.
 If $\Delta\mathcal{A} = \emptyset$, the current model $\mu$ is NIA-valid and we return~$\mathit{sat}$.
 Otherwise we expand $\mathcal{A}$ with $\Delta\mathcal{A}$ and repeat.
 
@@ -85,7 +86,7 @@ $t_1 = t_2$ holds in $\mu$ but $\mu(\pure{t_1}) \neq \mu(\pure{t_2})$) are
 collected into $\Delta\mathcal{A}$ before per-pure axiom generation.
 
 \paragraph{Comparison with~\cite{cimatti2018sat}.}
-The overall CEGAR skeleton is the same.
+The overall CEGAR skeleton is the same\mj{sentence doesn't sound good}.
 The key differences are as follows.
 
 \emph{Abstract domain.}
