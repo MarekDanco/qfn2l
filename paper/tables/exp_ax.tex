@@ -6,6 +6,9 @@
 		\hline
 		\textbf{Name}     & \textbf{Condition}     & \textbf{Axiom}                                              \\
 		\hline
+		\textit{Sign}     & $k$ even               & $\pure{x^k} \geq 0$                                         \\
+		                  & $k$ odd                & $x > 0 \iff \pure{x^k} > 0$                                 \\
+		\hline
 		\textit{Eq-zero}  & $v = 0$                & $(\pure{x^k} = 0) \iff (x = 0)$                             \\
 		\hline
 		\textit{Eq}       & $v \neq 0$, \,$k$ odd  & $(\pure{x^k} = v^k) \iff (x = v)$                           \\
@@ -27,5 +30,5 @@
 	\end{tabular}
 	\vspace{0.9em}
 	\caption{%
-		Axioms generated for $\pure{x^k}$ when $\model{x}=v$ and $\model{\pure{x^k}}\neq v^k$.\label{tab:pow-axioms}}
+		Axioms generated for $\pure{x^k}$. \textit{Sign} is model-independent and added on the first NIA check failure; the remaining axioms are generated when $\model{x}=v$ and $\model{\pure{x^k}}\neq v^k$.\label{tab:pow-axioms}}
 \end{table}

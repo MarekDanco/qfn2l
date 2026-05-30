@@ -28,14 +28,14 @@ Otherwise we expand $\mathcal{A}$ with $\mathcal{N}$ and repeat.
 		$\mathit{res} \leftarrow \textsc{Check-Lia}(\hat\varphi \land \bigwedge\mathcal{A})$\;
 		\lIf{$\mathit{res} = \mathit{unsat}$}{\Return $\mathit{unsat}$}
 		$\mu \leftarrow \textsc{Model}(\mathit{res})$\;
-		$\mathcal{N} \leftarrow \textsc{Check-Nia}(P,\mu,\mathcal{A})$\;
+		$\mathcal{N} \leftarrow \textsc{Check-Nia}(\varphi,\hat\varphi,P,\mu,\mathcal{A})$\;
 		\lIf{$\mathcal{N} = \emptyset$}{\Return $\mathit{sat},\, \mu$}
 		$\mathcal{A} \leftarrow \mathcal{A} \cup \mathcal{N}$\;
 	}
 \end{algorithm}
 
 \begin{algorithm}[t]
-	\caption{\textsc{Check-Nia}($P, \mu, \mathcal{A}$)}\label{alg:checknia}
+	\caption{\textsc{Check-Nia}($\varphi, \hat\varphi, P, \mu, \mathcal{A}$)}\label{alg:checknia}
 	\DontPrintSemicolon
 	$I \leftarrow \textsc{Implicant}(\hat\varphi, \mu)$\;
 	\lIf{$\mu \models_{\mathrm{NIA}} \varphi$}{\Return $\emptyset$}
@@ -92,7 +92,7 @@ The key differences are as follows.
 \emph{Abstract domain.}
 Cimatti et al.\ replace each product $x y$ with an uninterpreted
 function symbol $f(x,y)$, yielding a QF\_UFLIA abstraction; congruence
-($f(a,b) = f(a,b)$ for equal arguments) is then automatic.
+($f(a,b) = f(a',b')$ whenever $a=a'$ and $b=b'$) is then automatic.
 We use plain fresh constants instead, so the abstract domain is QF\_LIA, and
 congruence must be added as explicit axioms when violated.
 

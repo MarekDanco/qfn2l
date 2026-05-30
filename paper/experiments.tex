@@ -38,3 +38,11 @@ problems, many of which involve sums of cubes ($x^3 + y^3 + z^3 = n$).
 \solver solves 585--587 of these (53\%). This gap directly reflects the contribution of the
 secant-based axioms for $x^k$: the convergence on cubic constraints requires bounds that go
 beyond tangent-plane lemmas.
+
+\emph{Remark on uninterpreted functions.}
+\solver targets QF\_NIA and does not handle uninterpreted functions (UF) natively.
+This is not a fundamental limitation: the Ackermann encoding~\cite{ackermann54} reduces
+QF\_UFLIA to QF\_LIA by replacing each UF application with a fresh integer variable and
+adding congruence axioms of the form
+$x_1 = y_1 \land \cdots \land x_n = y_n \implies f(x_1,\ldots,x_n) = f(y_1,\ldots,y_n)$.
+Hence UF over integers does not add expressive power beyond plain LIA.

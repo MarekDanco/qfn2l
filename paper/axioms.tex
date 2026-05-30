@@ -28,6 +28,20 @@ the secant construction is therefore necessary to obtain two-sided constraints.
 		and the minimal upper bound among all available bounds (shown as solid lines).}\label{fig:secant}
 \end{figure}
 
+\begin{example}
+Consider $x^2 \leq x \land x \geq 2$.
+Purifying $x^2$ to a fresh integer $p$ gives the LIA abstraction $p \leq x \land x \geq 2$,
+which is satisfiable.
+Iteration~1 returns the model $x = 2$, $p = 1$; the NIA check fails since $2^2 = 4 \neq 1$,
+and the \textit{Lin.\,LB} axiom at $v = 2$ is added:
+\[
+  x \geq 2 \;\implies\; p \geq 2x.
+\]
+Together with $p \leq x$ and $x \geq 2$ from the formula, the LIA solver derives
+$2x \leq p \leq x$, hence $x \leq 0$, contradicting $x \geq 2$.
+The solver returns \textit{unsat} after two iterations.
+\end{example}
+
 \subsection{Terms of The Form $x^k y^l$}
 
 \input{tables/mul_ax_basic}

@@ -19,28 +19,21 @@ $\terms$ of all terms, as well as atoms, literals, and
 (sub)formulas are defined in the standard way. Formulas are
 denoted $\varphi$.
 
-We assume input formulas are in Negation Normal Form (NNF); that is,
-negations appear only in literals, and the only connectives are
-conjunction and disjunction.
-
 A model (or interpretation) of a QF\_NIA (or QF\_LIA) formula $\varphi$, which shows that $\varphi$ is satisfiable,
 has integers and \{\TRUE,\FALSE\} as its domains, and all the function and predicate symbols are
 interpreted in the standard way. In QF\_UFLIA, a model also has to interpret the uninterpreted function symbols.
-We say that a formula $\varphi$ is refutable if it is unsatisfiable. Equivalently, a formula $\varphi$
-is refutable iff $\lnot\varphi$ is satisfiable.
 
 A substitution, denoted
-$\sigma\colon\vars\to\terms$, is a function that
+$\mu\colon\vars\to\terms$, is a function that
 assigns terms to variables. Here, we only consider its
 (finite) nonidentity part
-$\sigma=\{x_1\mapsto t_1,\dots,x_n\mapsto t_n\}$, where
-$x_i\neq t_i$, and $\dom(\sigma)=\{x_1,\dots,x_n\}$. An
-application of such a substitution $\sigma$ to a formula
-$\varphi$, denoted $\varphi[\sigma]$, consists in replacing
+$\mu=\{x_1\mapsto t_1,\dots,x_n\mapsto t_n\}$, where
+$x_i\neq t_i$, and $\dom(\mu)=\{x_1,\dots,x_n\}$. An
+application of such a substitution $\mu$ to a formula
+$\varphi$, denoted $\varphi[\mu]$, consists in replacing
 all free variables $x_i$ by the corresponding term $t_i$
 simultaneously.
-By abuse of notation, a substitution $\sigma=\{x_1\mapsto t_1,\dots,x_n\mapsto t_n\}$ is an assignment if all the terms $t_i$ are integer or Boolean constants with the standard interpretation.
-We also use $\mu$ to denote assignments.
+By abuse of notation, $\mu$ is an assignment if all the terms $t_i$ are integer or Boolean constants with the standard interpretation.
 
 A \emph{monomial} in variables $\xs=x_1,x_2,\dots,x_n$ is a product
 $x_1^{k_1}x_2^{k_2}\cdots x_n^{k_n}$, where $k_i$ are nonnegative integers.

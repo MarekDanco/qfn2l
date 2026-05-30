@@ -15,8 +15,7 @@ Extending these advances to nonlinear arithmetic is considerably harder.
 Moving from QF\_LIA to QF\_NIA introduces a fundamental barrier: not only is
 the theory undecidable, but even its rational relaxation, QF\_NRA, requires
 doubly exponential procedures such as Cylindrical Algebraic Decomposition
-(CAD)~\cite{collins75} in the worst case. Adding integrality constraints
-aggravates the problem further.
+(CAD)~\cite{collins75} in the worst case.
 
 A conceptually simple yet effective approach for dealing with nonlinear
 arithmetic is \emph{incremental linearization}~\cite{cimatti2017,cimatti-tcl18,cimatti2018sat}.
@@ -44,7 +43,7 @@ on formulae dominated by \emph{polynomial} constraints, terms of the form
 $x^k$ or mixed products $x^k y^l$, on which prior axiomatizations can
 struggle to converge within practical time limits.
 
-In this paper, we revisit incremental linearization for QF\_NIA with a focus
+We revisit incremental linearization for QF\_NIA with a focus
 on strengthening the axiom set for polynomial terms.
 Our main contribution is a family of \emph{secant-based} linear bounds for
 monomials $x^k$ and mixed products $x^k y^l$, derived from the observation
