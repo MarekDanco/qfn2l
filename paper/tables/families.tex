@@ -1,0 +1,29 @@
+\begin{table}[t]
+    \centering
+    \resizebox{\linewidth}{!}{%
+    \begin{tabular}{l | lll | llll}
+        \hline
+        \textbf{Family} & \textbf{\solver+\textsc{Fr.}} & \textbf{\solver} & \textbf{\solver+\textsc{Cg.}} & \textbf{Z3} & \textbf{MathSAT} & \textbf{Yices} & \textbf{cvc5} \\
+        \hline
+        ITS (17046) & 4203/3908 & 4197/3881 & 3016/3738 & 8154/4452 & 6777/3569 & 6446/3434 & 4957/2843 \\
+        AProVE (2409) & 1418/579 & 1397/579 & 1262/561 & 1642/687 & 1608/557 & 1590/708 & 1405/601 \\
+        SAT14 (1926) & 1568/61 & 1566/61 & 1536/62 & 1853/72 & 1722/66 & 1809/65 & 1573/72 \\
+        CInteger (1818) & 387/580 & 373/576 & 294/575 & 704/655 & 652/435 & 503/448 & 262/368 \\
+        ReachSafety-Loops (350) & 9/310 & 9/310 & 9/317 & 11/339 & 10/320 & 6/302 & 11/322 \\
+        mcm (186) & \textbf{11/0} & \textbf{12/0} & \textbf{11/0} & 8/0 & 7/0 & 6/0 & 9/0 \\
+        calypto (177) & \textbf{80/97} & \textbf{80/97} & \textbf{80/97} & 79/97 & 79/90 & 79/95 & 79/96 \\
+        leipzig (167) & 96/1 & 94/1 & 81/1 & 131/1 & 127/2 & 100/1 & 78/2 \\
+        LassoRanker (106) & 4/91 & 4/92 & 4/91 & 4/100 & 4/101 & 4/85 & 4/92 \\
+        UltimateAutomizerSvcomp2023 (58) & \textbf{7/15} & \textbf{7/15} & \textbf{7/15} & 8/12 & 7/10 & 5/0 & 6/0 \\
+        UltimateLassoRanker (32) & 6/26 & 6/26 & 6/26 & 6/26 & 6/26 & 6/26 & 6/26 \\
+        sqrtmodinv-hoenicke (27) & 0/17 & 0/17 & 0/17 & 0/17 & 0/0 & 0/0 & 0/1 \\
+        ConcurrencySafety-Main (24) & 5/8 & 5/9 & 5/9 & 2/14 & 7/9 & 0/3 & 4/8 \\
+        elster (9) & 4/0 & 3/0 & 5/0 & 5/0 & 7/0 & 6/0 & 6/0 \\
+        UltimateAutomizer (7) & 0/7 & 0/7 & 0/7 & 0/7 & 0/7 & 0/7 & 0/7 \\
+        LCTES (2) & \textbf{0/2} & \textbf{0/2} & \textbf{0/2} & 0/1 & 0/1 & 0/0 & 0/1 \\
+        \hline
+    \end{tabular}%
+    }
+    \vspace{0.9em}
+    \caption{Sat/unsat instances solved per benchmark family within 180\,s (excluding \texttt{20220315-MathProblems}, see Table~\ref{tab:results}).\label{tab:families}}
+\end{table}

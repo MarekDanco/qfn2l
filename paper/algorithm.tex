@@ -87,12 +87,11 @@ collected into $\mathcal{N}$ before per-pure axiom generation.
 
 \emph{Comparison with~\cite{cimatti2018sat}.}
 Both approaches instantiate the same CEGAR skeleton; the differences lie in the abstract domain, axiom generation, failing-term selection, and model repair.
-The key differences are as follows.
 
 \emph{Abstract domain.}
 Cimatti et al.\ replace each product $x y$ with an uninterpreted
 function symbol $f(x,y)$, yielding a QF\_UFLIA abstraction; congruence
-($f(a,b) = f(a',b')$ whenever $a=a'$ and $b=b'$) is then automatic.
+($f(a,b) = f(a',b')$ whenever $a=a'$ and $b=b'$) is then automatic.\footnote{This also means the Ackermann encoding~\cite{ackermann54} can reduce any QF\_UFLIA formula to QF\_LIA, so UF over integers does not add expressive power.}
 We use plain fresh constants instead, so the abstract domain is QF\_LIA, and
 congruence must be added as explicit axioms when violated.
 

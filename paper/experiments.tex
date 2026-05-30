@@ -17,11 +17,7 @@ congruence.
 
 \input{tables/results}
 
-\begin{figure}[t]
-    \centering
-    \includegraphics[width=0.9\linewidth]{figures/cactus}
-    \caption{Instances solved within a given wall-clock time limit.\label{fig:cactus}}
-\end{figure}
+\input{tables/families}
 
 On the full benchmark set \solver is competitive with cvc5 and trails Z3, MathSAT, and
 Yices. Z3 combines a large number of built-in tactics and heuristics; MathSAT is
@@ -33,16 +29,19 @@ Enabling congruence axioms (\solver+\textsc{Congr.}) reduces the overall count b
 1\,600 instances, confirming that the overhead of pairwise congruence checks outweighs
 their benefit on the general benchmark set.
 
-The \texttt{20220315-MathProblems} family consists of 1\,100 instances encoding number-theoretic
+The gap on satisfiable instances is most visible in large families such as ITS, AProVE, and
+SAT14 (Table~\ref{tab:families}), and is largely structural: \solver must witness satisfiability
+by iterative axiom refinement over a LIA abstraction, and each candidate solution is validated
+purely through linear arithmetic.
+Competing solvers employ complementary techniques, such as bit-blasting to fixed-width
+integers, that can more directly enumerate satisfying
+assignments for large-variable instances without the overhead of abstraction-refinement.
+These families are particularly amenable to bit-blasting: the nonlinear structure is shallow,
+instances are large (routinely hundreds of pures), and satisfying assignments tend to involve
+small values.
+
+The \texttt{20220315-MathProblems} family consists of 1100 instances encoding number-theoretic
 problems, many of which involve sums of cubes ($x^3 + y^3 + z^3 = n$).
 \solver solves 585--587 of these (53\%). This gap directly reflects the contribution of the
 secant-based axioms for $x^k$: the convergence on cubic constraints requires bounds that go
 beyond tangent-plane lemmas.
-
-\emph{Remark on uninterpreted functions.}
-\solver targets QF\_NIA and does not handle uninterpreted functions (UF) natively.
-This is not a fundamental limitation: the Ackermann encoding~\cite{ackermann54} reduces
-QF\_UFLIA to QF\_LIA by replacing each UF application with a fresh integer variable and
-adding congruence axioms of the form
-$x_1 = y_1 \land \cdots \land x_n = y_n \implies f(x_1,\ldots,x_n) = f(y_1,\ldots,y_n)$.
-Hence UF over integers does not add expressive power beyond plain LIA.
