@@ -10,7 +10,7 @@ The \textit{Eq-zero} and \textit{Eq} axioms enforce the correct value directly: 
 if and only if $x = v$ (or $x = -v$ for even $k$).
 The \textit{Gap} axiom states that $\pure{x^k}$ cannot lie in the open gap between consecutive achievable values of $x^k$.
 The \textit{Mod} axiom adds a modular congruence: $x \equiv v \pmod{m}$ implies
-$x^k \equiv v^k \pmod{m}$; for prime $m$ the converse holds as well.
+$x^k \equiv v^k \pmod{m}$; for $m = 2$ the converse holds as well.
 By default we instantiate it only for $m = 2$.
 
 The \textit{Lin.\,LB} and \textit{Lin.\,UB} axioms provide secant-based linear bounds using the
@@ -55,6 +55,9 @@ $\mu(x)=v$, $\mu(y)=w$, and $\mu(\pure{x^k y^l}) \neq v^k w^l$.
 The \textit{Eq-zero} and \textit{Eq} axioms play the same role as in the $x^k$ case;
 the \textit{Eq} axiom additionally exploits existing pures $\pure{x^k}$ or $\pure{y^l}$ when
 available, replacing one factor by its pure rather than its model value.
+The \textit{Mod} axiom states that $x \equiv v \pmod{m}$ and $y \equiv w \pmod{m}$ together
+imply $x^k y^l \equiv v^k w^l \pmod{m}$; unlike the $x^k$ case, the converse does not hold in
+general, not even for $m = 2$.
 
 The \textit{Lin.\,LB} and \textit{Lin.\,UB} axioms
 (Tables~\ref{tab:mul-axioms-lb}--\ref{tab:mul-axioms-ub}) linearize $x^k$ via the secant
