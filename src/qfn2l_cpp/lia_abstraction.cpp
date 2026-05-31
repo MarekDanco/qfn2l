@@ -1725,12 +1725,11 @@ bool LiaAbstraction::check_nia() {
             return result;
         };
 
-        // Evaluate each implicant literal with proper NIA semantics.
-        // get_value on the pure's original term is wrong when the term contains
-        // nested pures: the LIA solver uses their (potentially incorrect) LIA
-        // model values instead of their NIA values, producing a false match.
-        // CheckVal::visit resolves nested pures correctly; nullopt (undecidable)
-        // is treated conservatively as "may need axioms".
+        // Evaluate each implicant literal under true NIA semantics: each pure
+        // is replaced by the NIA value of its underlying term (nested pures are
+        // resolved recursively). Literals that evaluate to false need axioms;
+        // nullopt (only for genuine undecidability, e.g. division by zero) is
+        // treated conservatively.
         HasUninterpreted hu2(_ctx);
         CheckVal cv2(_ctx, hu2, _pures, _ctx.solver);
         for (const auto& lit : implicant) {

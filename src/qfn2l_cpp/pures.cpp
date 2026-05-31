@@ -138,16 +138,12 @@ std::optional<smt::Term> CheckVal::operator()(const smt::Term& t) {
 
 std::optional<smt::Term> CheckVal::visit_purified(const smt::Term& orig,
                                                   const smt::Term& pure) {
-    // Get the value of the pure from the LIA model.
-    const auto pv_opt = try_get_value(_lia_solver, pure);
-    if (!pv_opt)
-        return std::nullopt;
-    const smt::Term pv = *pv_opt;
-    // Get the actual NIA value of the original term.
-    const auto tv = visit(orig);
-    if (!tv)
-        return std::nullopt;
-    return (pv == *tv) ? std::optional<smt::Term>{pv} : std::nullopt;
+    (void)pure;
+    // Evaluate the original nonlinear term under true NIA semantics.
+    // The LIA model value of the pure is irrelevant here: we want the actual
+    // NIA value so that callers can distinguish NIA-true from NIA-false,
+    // rather than collapsing both into nullopt whenever pures are inconsistent.
+    return visit(orig);
 }
 
 std::optional<smt::Term> CheckVal::visit_leaf(const smt::Term& t) {
