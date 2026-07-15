@@ -67,11 +67,12 @@
 \begin{abstract}
 	Incremental Linearization has previously been proposed for solving SMT problems over quantifier-free
 	nonlinear integer arithmetic and has proven effective despite its conceptual simplicity.
-	In this paper, we introduce a revised axiom set that improves convergence on polynomial constraints,
+	In this paper, we introduce a revised axiom set that improves convergence on polynomial constraints
+	built from higher-degree monomials, such as powers and mixed products,
 	a class of problems on which prior axiomatizations struggled. We present a standalone implementation
 	built on top of Z3 for linear integer arithmetic and evaluate it on the NIA benchmark set from SMT-LIB.
 	Our results show that the approach is competitive with state-of-the-art solvers overall and
-	substantially outperforms them on benchmarks dominated by polynomial constraints.
+	substantially outperforms them on benchmarks dominated by such polynomial constraints.
 	\keywords{SMT \and Nonlinear Arithmetic \and NIA \and Linearization.}
 \end{abstract}
 
@@ -81,6 +82,7 @@
 \input{algorithm}
 \input{axioms}
 \input{experiments}
+\input{comparison}
 \input{conclusion}
 
 \bibliographystyle{splncs04}

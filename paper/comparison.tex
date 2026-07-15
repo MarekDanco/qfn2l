@@ -1,0 +1,39 @@
+\section{Comparison with Prior Work}\label{sec:comparison}
+
+We now compare our algorithm with the incremental linearization approach of
+Cimatti et al.~\cite{cimatti2018sat}, implemented in MathSAT5.
+Both instantiate the same CEGAR skeleton; the differences lie in the abstract
+domain, axiom generation, failing-term selection, and model repair.
+
+\emph{Abstract domain.}
+Cimatti et al.~\cite{cimatti2018sat} replace each product $x y$ with an uninterpreted
+function symbol $f(x,y)$, yielding a QF\_UFLIA abstraction; congruence
+($f(a,b) = f(a',b')$ whenever $a=a'$ and $b=b'$) is then automatic.\footnote{This also means the Ackermann encoding~\cite{ackermann54} can reduce any QF\_UFLIA formula to QF\_LIA, so UF over integers does not add expressive power.}
+We use plain fresh constants instead, so the abstract domain is QF\_LIA, and
+congruence must be added as explicit axioms when violated.
+
+\emph{Axiom generation.}
+Cimatti et al.~\cite{cimatti2018sat} generate lemmas in three sequential rounds (basic axioms,
+proportionality, tangent-plane), stopping as soon as a round produces at
+least one lemma.
+We add all violated axioms in a single pass, regardless of type.
+
+\emph{Failing-term selection.}
+Cimatti et al.~\cite{cimatti2018sat} scan all constraints of $\varphi$ falsified by $\mu$ and
+collect every product $x y$ in those constraints.
+We use an implicant of $\hat\varphi$ under $\mu$ and restrict to pures in
+literals that fail under NIA semantics, which is more targeted.
+
+\emph{Model repair.}
+Cimatti et al.~\cite{cimatti2018sat} generate axioms and immediately return to the main UFLIA solve.
+We first attempt \textsc{Model-Fix}: a heuristic sub-loop that pins irrelevant variables,
+accumulates axioms over several restricted LIA calls, and tries to find a
+NIA-valid model without returning to the outer loop.
+When successful this saves an outer LIA call; when not, the axioms gathered
+during the attempt are still retained and the outer loop continues as normal.
+
+\emph{Axiom set.}
+The axioms in~\cite{cimatti2018sat} cover sign, zero, neutrality,
+proportionality, and tangent-plane conditions for binary products.
+We retain sign, zero, and tangent-plane axioms and add secant-based bounds for
+monomials $x^k$ and mixed products $x^k y^l$, described in \Cref{sec:axioms}.

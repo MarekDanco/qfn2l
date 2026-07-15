@@ -14,6 +14,9 @@ We report three configurations of \solver: the base solver (\solver), the base s
 the frontier strategy for tangent-plane lemmas (\solver+\textsc{Frontier}), and an ablation
 with lazy congruence axioms enabled (\solver+\textsc{Congr.}); the first two run without
 congruence.
+All three configurations include the secant-based axioms of \Cref{sec:axioms};
+the frontier strategy (\Cref{sec:algorithm}) is an orthogonal tangent-plane
+instantiation heuristic adopted from~\cite{cimatti2017tacas}.
 
 \input{tables/results}
 
@@ -23,6 +26,9 @@ On the full benchmark set \solver is competitive with cvc5 and trails Z3, MathSA
 Yices. Z3 combines a large number of built-in tactics and heuristics; MathSAT is
 closed source. \solver, by contrast, is a concise open-source implementation with a
 single LIA backend and no problem-specific tuning.
+Since MathSAT5 implements the incremental linearization approach of Cimatti et
+al.~\cite{cimatti2018sat} (cf.\ \Cref{sec:comparison}), the comparison with
+MathSAT5 also serves as an experimental comparison with that work.
 
 Enabling the frontier strategy adds a small but consistent improvement at no cost.
 Enabling congruence axioms (\solver+\textsc{Congr.}) reduces the overall count by around

@@ -1,10 +1,28 @@
 \section{Algorithm}\label{sec:algorithm}
 
+Our solver is an instance of counterexample-guided abstraction refinement
+(CEGAR)~\cite{clarke2000cegar}: the input formula is abstracted into QF\_LIA,
+and the abstraction is iteratively strengthened until it either becomes
+unsatisfiable or yields a model correct under the nonlinear semantics.
+Three issues arise: the abstraction forgets both the meaning of the
+nonlinear operations and \emph{congruence} between their occurrences, so a
+model of the abstraction may be spurious; the solver must decide which
+abstracted terms to blame, which we do via an \emph{implicant} of the
+abstract formula (a subset of its literals sufficient for the model to
+satisfy it); and the offending terms must be refined by linear axioms
+(\Cref{sec:axioms}) that exclude the spurious model.
+Additionally, before returning to the LIA solver, we attempt a cheap
+\emph{model repair} that tries to patch the spurious model directly.
+
 \emph{Purification.}
-Given a QF\_NIA formula $\varphi$, the first step is \emph{purification}: every
-nonlinear subterm $t$ (a product whose factors are not all constants, or an
-integer division/modulo with a non-constant divisor) is replaced by a fresh
-integer constant $\pure{t}$, called a \emph{pure}.
+Given a QF\_NIA formula $\varphi$, the first step is \emph{purification}:
+every maximal nonlinear subterm $t$ is replaced by a fresh integer constant
+$\pure{t}$, called a \emph{pure}.
+A subterm is nonlinear if it is a monomial with at least two non-constant
+factors, counting multiplicity (so $x^2$ qualifies), or an integer
+division/modulo with a non-constant divisor.
+Maximality means that a monomial is replaced in one go: $x y^2$ yields the
+single pure $\pure{x y^2}$ rather than pures for $x y$ or $y^2$.
 Equal subterms share the same pure.
 The result $\hat\varphi$ is a QF\_LIA formula over the original variables and
 the new pure constants.
@@ -84,44 +102,10 @@ constraints.
 Lazy congruence axioms (requiring $\pure{t_1} = \pure{t_2}$ whenever
 $t_1 = t_2$ holds in $\mu$ but $\mu(\pure{t_1}) \neq \mu(\pure{t_2})$) are
 collected into $\mathcal{N}$ before per-pure axiom generation.
-
-\emph{Comparison with~\cite{cimatti2018sat}.}
-Both approaches instantiate the same CEGAR skeleton; the differences lie in the abstract domain, axiom generation, failing-term selection, and model repair.
-
-\emph{Abstract domain.}
-Cimatti et al.\ replace each product $x y$ with an uninterpreted
-function symbol $f(x,y)$, yielding a QF\_UFLIA abstraction; congruence
-($f(a,b) = f(a',b')$ whenever $a=a'$ and $b=b'$) is then automatic.\footnote{This also means the Ackermann encoding~\cite{ackermann54} can reduce any QF\_UFLIA formula to QF\_LIA, so UF over integers does not add expressive power.}
-We use plain fresh constants instead, so the abstract domain is QF\_LIA, and
-congruence must be added as explicit axioms when violated.
-
-\emph{Axiom generation.}
-Cimatti et al.\ generate lemmas in three sequential rounds (basic axioms,
-proportionality, tangent-plane), stopping as soon as a round produces at
-least one lemma.
-We add all violated axioms in a single pass, regardless of type.
-
-\emph{Failing-term selection.}
-Cimatti et al.\ scan all constraints of $\varphi$ falsified by $\mu$ and
-collect every product $x y$ in those constraints.
-We use an implicant of $\hat\varphi$ under $\mu$ and restrict to pures in
-literals that fail under NIA semantics, which is more targeted.
-
-\emph{Model repair.}
-Cimatti et al.\ generate axioms and immediately return to the main LIA solve.
-We first attempt \textsc{Model-Fix}: a heuristic sub-loop that pins irrelevant variables,
-accumulates axioms over several restricted LIA calls, and tries to find a
-NIA-valid model without returning to the outer loop.
-When successful this saves an outer LIA call; when not, the axioms gathered
-during the attempt are still retained and the outer loop continues as normal.
-
-\emph{Axiom set.}
-The axioms in~\cite{cimatti2018sat} cover sign, zero, neutrality,
-proportionality, and tangent-plane conditions for binary products.
-We retain sign, zero, and tangent-plane axioms and add secant-based bounds for
-monomials $x^k$ and mixed products $x^k y^l$, described in \Cref{sec:axioms}.
 For tangent-plane lemmas we optionally employ the \emph{frontier} strategy
 of~\cite{cimatti2017tacas}: a per-pure bounding box tracks all model values
 seen so far, and whenever a new point extends the box, extra tangent planes
 are instantiated at the two mixed corners to ensure both upper and lower
 bounds exist in every region.
+A detailed comparison with the incremental linearization algorithm
+of~\cite{cimatti2018sat} is given in \Cref{sec:comparison}.

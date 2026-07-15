@@ -8,8 +8,9 @@ with uninterpreted functions (QF\_UFLIA). Following the SMT-LIB~\cite{smtlib}
 standard, the signature of QF\_NIA comprises integer constants (numerals),
 functions $\{+, -, \cdot, \mathit{div}, \mathit{mod}, \mathit{abs}\}$, and
 predicates $\{<, \leq, \approx, \geq, >\}$.
-In QF\_LIA, only multiplication by constants and
-$\{\mathit{div},\mathit{mod}\}$ by nonzero constants are allowed. In
+In QF\_LIA, multiplication is restricted to multiplication by integer
+constants, and $\mathit{div}$ and $\mathit{mod}$ are restricted to nonzero
+constant divisors; the remaining operators are unrestricted. In
 QF\_UFLIA, arbitrary uninterpreted function symbols are also allowed.
 
 Let $\vars$ be an infinite set of variables. We use

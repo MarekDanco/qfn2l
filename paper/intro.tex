@@ -19,17 +19,27 @@ doubly exponential procedures such as Cylindrical Algebraic Decomposition
 
 A conceptually simple yet effective approach for dealing with nonlinear
 arithmetic is \emph{incremental linearization}~\cite{cimatti2017,cimatti-tcl18,cimatti2018sat}.
-The key idea is to replace each nonlinear subterm
-$x y$ with a fresh \emph{uninterpreted function symbol} $f(x, y)$,
-yielding an UFLIA abstraction handled by a solver for linear arithmetic
-with uninterpreted functions. When the solver finds a model, it is checked
+The key idea is to replace each nonlinear operation with a fresh
+\emph{uninterpreted function symbol}---a product $x y$ becomes
+$f_\times(x, y)$, and integer division and modulo with non-constant divisors
+are treated analogously---yielding an abstraction in linear integer
+arithmetic with uninterpreted functions (UFLIA).
+When the UFLIA solver finds a model, it is checked
 against the nonlinear semantics; if the check fails, linear \emph{axioms}
-refining $f$ are added on demand, and the process is repeated.
+refining the uninterpreted symbols are added on demand, and the process is
+repeated.
 
 In this paper, we depart from the uninterpreted-function formulation and
 instead abstract each nonlinear subterm by a plain fresh constant (a
 \emph{pure}), working entirely within QF\_LIA\@.
-Congruence is no longer automatic and is enforced by explicit axioms added lazily.
+The two abstractions differ in how they treat \emph{congruence}: a UFLIA
+solver enforces it automatically, deriving
+$f_\times(x, y) = f_\times(x', y')$ whenever $x = x'$ and $y = y'$ hold.
+With pures, syntactically identical subterms share a single constant, but two
+distinct subterms that happen to be equal under the current model may still
+receive inconsistent values; congruence is therefore enforced by explicit
+axioms, added lazily when a violation is observed---which our experiments
+indicate is rarely needed (\Cref{sec:experiments}).
 This shifts the focus entirely to the quality of the linear axioms added at
 each step.
 
@@ -39,8 +49,9 @@ iteration fast.
 Prior work for QF\_NIA relied on a fixed collection of sign, zero, neutrality,
 proportionality, and tangent-plane axioms for products~\cite{cimatti2018sat}.
 While generally applicable, these axioms leave substantial room for improvement
-on formulae dominated by \emph{polynomial} constraints, terms of the form
-$x^k$ or mixed products $x^k y^l$, on which prior axiomatizations can
+on formulae dominated by \emph{polynomial} constraints---by which we mean
+constraints built from higher-degree monomials, i.e., powers
+$x^k$ and mixed products $x^k y^l$---on which prior axiomatizations can
 struggle to converge within practical time limits.
 
 We revisit incremental linearization for QF\_NIA with a focus
@@ -72,7 +83,7 @@ top of Z3 as the QF\_LIA backend.
 An experimental evaluation on the full QF\_NIA benchmark suite from SMT-LIB
 shows that \solver is competitive with state-of-the-art solvers overall
 and substantially outperforms them on benchmark families dominated by
-polynomial constraints.
+such polynomial constraints, most notably instances involving sums of cubes.
 
 \paragraph{Contributions.}
 Compared to prior work on incremental linearization for QF\_NIA,
