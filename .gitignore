@@ -224,5 +224,6 @@ src/cpp2dai.sh
 src/sync_bench.sh
 
 # Claude review outputs
-/reviews/
+reviews/
 /code-review-*.md
+/paper/notes/review.md
