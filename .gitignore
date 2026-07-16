@@ -226,4 +226,4 @@ src/sync_bench.sh
 # Claude review outputs
 reviews/
 /code-review-*.md
-/paper/notes/review.md
+/paper/notes
