@@ -12,21 +12,13 @@
 \DontPrintSemicolon%
 
 
-\usepackage[textwidth=3cm,tickmarkheight=3pt]{todonotes}
-\newcommand{\marek}[1]{\todo[color=red!10]{#1 \\-Marek}}
-\newcommand{\mj}[1]{\todo[color=green!10]{#1 \\-MJ}}
-
-\usepackage[colorlinks=true, linktoc=all, 
-    linkcolor=BlueViolet,
-    citecolor=RoyalBlue,
-    filecolor=magenta,
-    urlcolor=Fuchsia,
+\usepackage[hidelinks,
     pdftitle={Revisiting Incremental Linearization for Nonlinear Integer Arithmetic},
     pdfauthor={Marek Danco, Karel Chvalovsky, Mikolas Janota}]{hyperref}
 \usepackage[nameinlink,capitalize,noabbrev]{cleveref} % must come after hyperref
 \crefname{algocf}{Algorithm}{Algorithms}
 \Crefname{algocf}{Algorithm}{Algorithms}
-\renewcommand\UrlFont{\color{blue}\rmfamily}
+\renewcommand\UrlFont{\rmfamily}
 \urlstyle{rm}
 
 \newcommand{\keep}[2]{\textsf{k}(#1,#2)}
@@ -84,7 +76,7 @@ Mikol\'{a}\v{s} Janota\orcidID{0000-0003-3487-784X}}
 
 \begin{credits}
 \subsubsection{\ackname}
-This work was supported by the European Union under the project
+The research was supported by the European Union under the project
 ROBOPROX (reg.\ no.\ CZ.02.01.01/00/22\_008/0004590).
 This article is part of the RICAIP project that has received funding from the
 European Union's Horizon 2020 research and innovation programme under grant

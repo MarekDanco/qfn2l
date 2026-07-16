@@ -99,9 +99,12 @@ Axiom classes are described in \Cref{sec:axioms}; they cover sign and zero
 conditions, secant-based linear bounds for monomials $x^k$, bounds for mixed
 products $x^k y^l$, tangent-plane lemmas, and integer division and modulo
 constraints.
-Lazy congruence axioms (requiring $\pure{t_1} = \pure{t_2}$ whenever
-$t_1 = t_2$ holds in $\mu$ but $\mu(\pure{t_1}) \neq \mu(\pure{t_2})$) are
-collected into $\mathcal{N}$ before per-pure axiom generation.
+Lazy \emph{congruence} axioms are collected into $\mathcal{N}$ before
+per-pure axiom generation: for a pair of pures whose arguments agree, the
+pures must be equal, e.g.\ $x_1 \approx x_2 \wedge y_1 \approx y_2
+	\rightarrow \pure{x_1 y_1} \approx \pure{x_2 y_2}$; for equal powers
+$\pure{x^k}$, $\pure{y^k}$ this is strengthened to sign-aware monotonicity
+axioms.
 For tangent-plane lemmas we optionally employ the \emph{frontier} strategy
 of~\cite{cimatti2017tacas}: a per-pure bounding box tracks all model values
 seen so far, and whenever a new point extends the box, extra tangent planes
