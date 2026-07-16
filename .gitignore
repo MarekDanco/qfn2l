@@ -222,3 +222,7 @@ details.txt
 src/2dai.sh
 src/cpp2dai.sh
 src/sync_bench.sh
+
+# Claude review outputs
+/reviews/
+/code-review-*.md
