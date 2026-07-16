@@ -14,15 +14,20 @@ satisfy it); and the offending terms must be refined by linear axioms
 Additionally, before returning to the LIA solver, we attempt a cheap
 \emph{model repair} that tries to patch the spurious model directly.
 
-\emph{Purification.}
-Given a QF\_NIA formula $\varphi$, the first step is \emph{purification}:
-every maximal nonlinear subterm $t$ is replaced by a fresh integer constant
-$\pure{t}$, called a \emph{pure}.
-A subterm is nonlinear if it is a monomial with at least two non-constant
-factors, counting multiplicity (so $x^2$ qualifies), or an integer
-division/modulo with a non-constant divisor.
-Maximality means that a monomial is replaced in one go: $x y^2$ yields the
-single pure $\pure{x y^2}$ rather than pures for $x y$ or $y^2$.
+\emph{Normalization and purification.}
+Given a QF\_NIA formula $\varphi$, nonlinear monomials are first
+\emph{normalized}: by introducing fresh variables with defining equalities,
+every monomial is rewritten into the form $c \cdot x^k y^l$, where $c$ is an
+integer constant and $x, y$ are variables.
+For instance, $x y z$ becomes $d z$ for a fresh variable $d$ constrained by
+$d \approx x y$; nonlinear factors other than variables, such as integer
+divisions, are likewise replaced by fresh defined variables.
+The second step is \emph{purification}: every nonlinear subterm $t$, i.e., a
+monomial $x^k y^l$ with $k + l \geq 2$, or an integer division/modulo with a
+non-constant divisor, is replaced by a fresh integer constant $\pure{t}$,
+called a \emph{pure}.
+Each monomial is replaced as a whole: $x y^2$ yields the single pure
+$\pure{x y^2}$ and no pures for its sub-terms $x y$ or $y^2$.
 Equal subterms share the same pure.
 The result $\hat\varphi$ is a QF\_LIA formula over the original variables and
 the new pure constants.
@@ -55,9 +60,10 @@ Otherwise we expand $\mathcal{A}$ with $\mathcal{N}$ and repeat.
 \begin{algorithm}[t]
 	\caption{\textsc{Check-Nia}($\varphi, \hat\varphi, P, \mu, \mathcal{A}$)}\label{alg:checknia}
 	\DontPrintSemicolon
-	$I \leftarrow \textsc{Implicant}(\hat\varphi, \mu)$\;
 	\lIf{$\mu \models_{\mathrm{NIA}} \varphi$}{\Return $\emptyset$}
-	$R \leftarrow \{\,p \in P \mid p \in I,\;\text{literal of $I$ containing $p$ is NIA-false}\,\}$\;
+	$I \leftarrow \textsc{Implicant}(\hat\varphi, \mu)$\;
+	$R \leftarrow \{\,\pure{t} \in I \mid \mu(\pure{t}) \neq \mu(t)
+		\wedge \pure{t}\text{ occurs in a falsified literal}\,\}$\;
 	$\mathit{res}, \mathcal{N} \leftarrow \textsc{Model-Fix}(\mu, R)$\;
 	\lIf{$\mathit{res}$}{\Return $\emptyset$}
 	$\mathcal{N} \leftarrow \mathcal{N} \cup {}$ congruence axioms for $R$\;
@@ -67,22 +73,16 @@ Otherwise we expand $\mathcal{A}$ with $\mathcal{N}$ and repeat.
 	\Return $\mathcal{N}$\;
 \end{algorithm}
 
-\emph{Implicant-based targeting.}
-We evaluate $\hat\varphi$ under $\mu$ using \emph{three-valued NIA semantics}:
-each pure $\pure{t}$ is assigned value $\mu(t)$ if its LIA model value
-$\mu(\pure{t})$ agrees with its NIA value, and $\mathit{unknown}$ otherwise.
-The result propagates by standard three-valued logic.
-Because the LIA model already satisfies $\hat\varphi$, every literal needed
-for satisfaction is either pure-free (same truth value under NIA) or
-pure-containing (at worst $\mathit{unknown}$, never $\mathit{false}$), so the
-overall result is either $\mathit{true}$ or $\mathit{unknown}$.
-If it is $\mathit{true}$, the original variable assignment already satisfies
-$\varphi$ and we return $\emptyset$ immediately.
-Otherwise the traversal's cached per-literal truth values are used to extract
-an \emph{implicant}: a subset $I$ of literals of $\hat\varphi$ sufficient
-for $\mu \models \hat\varphi$.
-We then collect into $R$ the pures appearing in literals of $I$ that evaluate
-to false under NIA semantics.
+\emph{NIA check and implicant-based targeting.}
+\textsc{Check-Nia} first checks whether the values that $\mu$ assigns to the
+variables already satisfy $\varphi$, regardless of the values of the pures;
+if so, we return $\emptyset$ immediately.
+Otherwise we extract an \emph{implicant} $I$ of $\hat\varphi$ under $\mu$ by
+descending through the formula structure, keeping all conjuncts of a
+conjunction and one $\mu$-satisfied disjunct of a disjunction.
+We then evaluate each literal of $I$ with each pure $\pure{t}$ replaced by
+the value of $t$ under $\mu$, and collect into $R$ the pures with
+$\mu(\pure{t}) \neq \mu(t)$ that occur in a falsified literal.
 
 \emph{Model repair.}
 When $R \neq \emptyset$ we first attempt \textsc{Model-Fix}: a heuristic that pins

@@ -3,15 +3,9 @@
   title         = {Improving Bit-Blasting for Nonlinear Integer Constraints},
   year          = {2023},
   isbn          = {9798400702211},
-  publisher     = {Association for Computing Machinery},
-  address       = {New York, NY, USA},
-  abstract      = {Nonlinear integer constraints are common and difficult in the verification and analysis of software/hardware. SMT(QF\_NIA) generalizes such constraints, which is a boolean combination of nonlinear integer arithmetic constraints. A classical method to solve SMT(QF\_NIA) is bit-blasting, which reduces them to boolean satisfiability problems. Currently, the existing pure bit-blasting based solvers are noncompetitive with other state-of-the-art SMT solvers. The bit-blasting based methods have some problems: First, the bit-blasting method is hampered by nonlinear multiplication operations; second, it sometimes does not search in a proper search space; and third, it contains some redundancy. In this paper, we focus on improving the efficiency of bit-blasting based method. To decide on a proper search space, we proposed an adaptive function for hard nonlinear multiplications, and heuristic strategies to analyze specific constraints. We also found that different orders in successive additions will result in bit vectors with different bit-widths. We proposed an optimal order decision algorithm to save redundancy in successive additions. We implement a solver with the proposed methods named BLAN. Experiments demonstrate that BLAN outperforms other state-of-the-art SMT solvers (APROVE, CVC5, MATHSAT, YICES2, Z3) on the satisfiable SMT(QF\_NIA) instances in SMT-LIB. We provide an outlook of BLAN on solving unsatisfiable instances via combining with other solvers. Sensitivity analysis also demonstrates the effectiveness of the proposed methods.},
-  booktitle     = {Proceedings of the 32nd ACM SIGSOFT International Symposium on Software Testing and Analysis},
-  pages         = {14–25},
-  numpages      = {12},
-  keywords      = {nonlinear integer constraints, satisfiability modulo theories},
-  location      = {Seattle, WA, USA},
-  series        = {ISSTA 2023}
+  publisher     = {{ACM}},
+  booktitle     = {International Symposium on Software Testing and Analysis, {ISSTA}},
+  pages         = {14--25}
 }
 @inbook{Fuhs,
   title         = {{SAT} Solving for Termination Analysis with Polynomial Interpretations},
@@ -58,7 +52,7 @@
   isbn          = {9783319630465},
   issn          = {1611-3349},
   booktitle     = {Automated Deduction – CADE 26},
-  publisher     = {Springer International Publishing},
+  publisher     = {Springer},
   author        = {Cimatti,  Alessandro and Griggio,  Alberto and Irfan,  Ahmed and Roveri,  Marco and Sebastiani,  Roberto},
   year          = {2017},
   pages         = {95–113}
@@ -184,7 +178,7 @@
 @inproceedings{z3,
   author        = {Leonardo Mendon{\c{c}}a de Moura and Nikolaj Bj{\o}rner},
   title         = {{Z3:} An Efficient {SMT} Solver},
-  booktitle     = {Tools and Algorithms for the Construction and Analysis of Systems, 14th International Conference, {TACAS} 2008},
+  booktitle     = {Tools and Algorithms for the Construction and Analysis of Systems, {TACAS}},
   pages         = {337--340},
   year          = {2008},
   crossref      = {DBLP:conf/tacas/2008},
@@ -286,8 +280,7 @@
 @book{ackermann54,
   title         = {Solvable Cases of the Decision Problem},
   author        = {Ackermann, Wilhelm},
-  publisher     = {North-Holland Publishing Company},
-  address       = {Amsterdam},
+  publisher     = {North-Holland},
   year          = {1954},
   series        = {Studies in Logic and the Foundations of Mathematics}
 }
@@ -439,12 +432,10 @@
 }
 @inproceedings{collins75,
   author        = "Collins, George E.",
-  editor        = "Brakhage, H.",
-  title         = "Quantifier elimination for real closed fields by cylindrical algebraic decompostion",
+  title         = "Quantifier elimination for real closed fields by cylindrical algebraic decomposition",
   booktitle     = "Automata Theory and Formal Languages",
   year          = "1975",
   publisher     = "Springer",
-  address       = "Berlin, Heidelberg",
   pages         = "134--183",
   isbn          = "978-3-540-37923-2"
 }
@@ -563,24 +554,20 @@
 }
 @inproceedings{cimatti2018sat,
   author        = "Cimatti, Alessandro and Griggio, Alberto and Irfan, Ahmed and Roveri, Marco and Sebastiani, Roberto",
-  editor        = "Beyersdorff, Olaf and Wintersteiger, Christoph M.",
   title         = "Experimenting on Solving Nonlinear Integer Arithmetic with Incremental Linearization",
   booktitle     = "Theory and Applications of Satisfiability Testing -- SAT 2018",
   year          = "2018",
-  publisher     = "Springer International Publishing",
-  address       = "Cham",
+  publisher     = "Springer",
   pages         = "383--398",
   abstract      = "Incremental linearization is a conceptually simple, yet effective, technique that we have recently proposed for solving SMT problems over nonlinear real arithmetic constraints. In this paper, we show how the same approach can be applied successfully also to the harder case of nonlinear integer arithmetic problems. We describe in detail our implementation of the basic ideas inside the MathSAT SMT solver, and evaluate its effectiveness with an extensive experimental analysis over all nonlinear integer benchmarks in SMT-LIB. Our results show that MathSAT is very competitive with (and often outperforms) state-of-the-art SMT solvers based on alternative techniques.",
   isbn          = "978-3-319-94144-8"
 }
 @inproceedings{cimatti2017tacas,
   author        = "Cimatti, Alessandro and Griggio, Alberto and Irfan, Ahmed and Roveri, Marco and Sebastiani, Roberto",
-  editor        = "Legay, Axel and Margaria, Tiziana",
-  title         = "Invariant Checking of NRA Transition Systems via Incremental Reduction to LRA with EUF",
+  title         = "Invariant Checking of {NRA} Transition Systems via Incremental Reduction to {LRA} with {EUF}",
   booktitle     = "Tools and Algorithms for the Construction and Analysis of Systems",
   year          = "2017",
-  publisher     = "Springer Berlin Heidelberg",
-  address       = "Berlin, Heidelberg",
+  publisher     = "Springer",
   pages         = "58--75",
   abstract      = "Model checking invariant properties of designs, represented as transition systems, with non-linear real arithmetic (NRA), is an important though very hard problem. On the one hand NRA is a hard-to-solve theory; on the other hand most of the powerful model checking techniques lack support for NRA. In this paper, we present a counterexample-guided abstraction refinement (CEGAR) approach that leverages linearization techniques from differential calculus to enable the use of mature and efficient model checking algorithms for transition systems on linear real arithmetic (LRA) with uninterpreted functions (EUF). The results of an empirical evaluation confirm the validity and potential of this approach.",
   isbn          = "978-3-662-54577-5"
@@ -588,12 +575,10 @@
 
 @inproceedings{clarke2000cegar,
   author        = "Clarke, Edmund and Grumberg, Orna and Jha, Somesh and Lu, Yuan and Veith, Helmut",
-  editor        = "Emerson, E. Allen and Sistla, Aravinda Prasad",
   title         = "Counterexample-Guided Abstraction Refinement",
   booktitle     = "Computer Aided Verification -- CAV 2000",
   year          = "2000",
-  publisher     = "Springer Berlin Heidelberg",
-  address       = "Berlin, Heidelberg",
+  publisher     = "Springer",
   pages         = "154--169",
   isbn          = "978-3-540-45047-4"
 }
@@ -611,18 +596,15 @@
   author =      {Dutertre, Bruno},
   title =      {Yices 2.2},
   booktitle = {Computer-Aided Verification (CAV'2014)},
-  editor =       {Biere, Armin and Bloem, Roderick},
   year =      2014,
   volume =       8559,
-  series =       {Lecture Notes in Computer Science},
+  series =       {LNCS},
   pages =        {737--744},
-  month =      {July},
   publisher =    {Springer}}
 
 @inproceedings{mathsat5,
   author = {Alessandro Cimatti and Alberto Griggio and Bastiaan Schaafsma and Roberto Sebastiani},
   title = {{The MathSAT5 SMT Solver}},
-  editor = {Nir Piterman and Scott Smolka},
   booktitle = {Proceedings of TACAS},
   year = {2013},
   volume = {7795},
@@ -632,8 +614,8 @@
 
 @inproceedings{mann2021smt,
   title={{SMT}-switch: a solver-agnostic {C++ API} for {SMT} solving},
-  author={Mann, Makai and Wilson, Amalee and Zohar, Yoni and Stuntz, Lindsey and Irfan, Ahmed and Brown, Kristopher and Donovick, Caleb and Guman, Allison and Tinelli, Cesare and Barrett, Clark},
-  booktitle={International Conference on Theory and Applications of Satisfiability Testing},
+  author={Mann, Makai and Wilson, Amalee and Zohar, Yoni and Stuntz, Lindsey and Irfan, Ahmed and others},
+  booktitle={Theory and Applications of Satisfiability Testing, {SAT}},
   pages={377--386},
   year={2021},
   organization={Springer}
