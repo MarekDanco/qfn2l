@@ -48,7 +48,3 @@ Selected options (see `--help` for the full list):
   the integration tests)
 - `testing/fuzzing/` — fuzzing scripts
 - `paper/` — LaTeX sources of the paper
-
-## License
-
-MIT — see [LICENSE](LICENSE).
