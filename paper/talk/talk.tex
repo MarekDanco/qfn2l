@@ -1,0 +1,554 @@
+\documentclass[11pt]{beamer}
+\usetheme{metropolis}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\usepackage{stmaryrd}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,calc,decorations.pathreplacing}
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest}
+\renewcommand{\footnoterule}{}
+
+% --- macros from the paper ---
+\newcommand{\pure}[1]{\llbracket{#1}\rrbracket}
+\newcommand{\vars}{\textsf{vars}}
+\newcommand{\xs}{\bar{x}}
+\newcommand\napprox{\not\approx}
+\newcommand{\divc}[2]{#1\,\mathit{div}\,#2}
+\newcommand{\modc}[2]{#1\,\mathit{mod}\,#2}
+\newcommand{\solver}{\textsf{qfn2l}}
+\newcommand{\CC}[3]{\mathit{C}(#1,#2,#3)}
+
+\title{Revisiting Incremental Linearization for\\Nonlinear Integer Arithmetic}
+\author{\underline{Marek Dančo} \and Karel Chvalovský \and Mikoláš Janota}
+\institute{Czech Technical University in Prague}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\begin{frame}{Nonlinear Integer Arithmetic (QF\_NIA)}
+	\begin{itemize}
+		\item Quantifier-free formulas over the integers with
+		      $\{+,-,\cdot,\mathit{div},\mathit{mod},\mathit{abs}\}$
+		\item Truly nonlinear:
+		      \begin{itemize}
+			      \item variables multiplied together ($x\cdot y$, $x^2$, $x^ky^l$)
+			      \item $\mathit{div}$/$\mathit{mod}$ with a \alert{non-constant divisor}
+			            ($\divc{x}{y}$, $\modc{x}{y}$)
+		      \end{itemize}
+		\item Satisfiability is \alert{undecidable}
+		      (Hilbert's 10th problem, Matiyasevich)
+		\item Even the rational relaxation QF\_NRA needs doubly exponential
+		      procedures (CAD)
+	\end{itemize}
+	\begin{block}{This talk}
+		An incomplete but practical procedure for QF\_NIA ---
+		and a \alert{stronger axiom set} for polynomial constraints
+	\end{block}
+\end{frame}
+
+\begin{frame}{State-of-the-art solvers fail on simple problems}
+	\[
+		x^3 + y^3 + z^3 = 79
+	\]
+	\begin{itemize}
+		\item ``Sum of three cubes'' --- benchmark \texttt{STC\_0079.smt2}
+		      from the \texttt{20220315-Math\-Problems} family of SMT-LIB QF\_NIA
+		\item cvc5, MathSAT, Yices~2 and Z3 all \alert{time out} within 3 minutes
+		\pause
+		\item \solver{} finds $x=-19$, $y=35$, $z=-33$ in around \alert{20 seconds}
+	\end{itemize}
+	\begin{block}{Where prior work struggles}
+		Formulas dominated by \emph{polynomial} constraints, i.e.\ built from
+		higher-degree monomials --- powers $x^k$ and mixed products $x^ky^l$
+	\end{block}
+\end{frame}
+
+\begin{frame}{Key observation: the formula is ``almost LIA''}
+	\[
+		\alert{\varphi}:\quad \alert{x^2}\leq x \;\land\; x\geq 2
+	\]
+	Replace $x^2$ by a fresh integer constant $p$ (a \alert{pure}):
+	\[
+		\alert{\widehat{\varphi}}:\quad \alert{p}\leq x \;\land\; x\geq 2
+		\qquad\text{--- plain LIA, and satisfiable}
+	\]
+	Refine with axioms until the abstraction is faithful enough:
+	\[
+		\widehat\varphi \;\land\; \underbrace{(x\geq 2\Rightarrow p\geq 2x)}_{\text{secant bound at }x=2}
+		\;\models\; 2x\leq p\leq x \;\models\; x\leq 0 \quad\lightning
+	\]
+	\begin{itemize}
+		\item Two iterations, no nonlinear reasoning at all
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Incremental linearization: two abstractions}
+	\begin{itemize}
+		\item \alert{Cimatti et al.} (MathSAT, cvc5): each product becomes an
+		      \emph{uninterpreted function}
+		      \[
+			      x\cdot y \;\mapsto\; f_\times(x,y) \qquad\Rightarrow\qquad \text{QF\_UFLIA}
+		      \]
+		      congruence comes for free from the UF solver
+		\item \alert{This work}: each nonlinear subterm becomes a
+		      \emph{fresh constant}
+		      \[
+			      t \;\mapsto\; \pure{t} \qquad\Rightarrow\qquad \text{QF\_LIA}
+		      \]
+		      congruence must be added by \emph{explicit, lazy} axioms
+	\end{itemize}
+	\begin{block}{Is that a loss?}
+		Our experiments say no: congruence violations are \alert{rare}, and paying
+		for pairwise congruence checks upfront costs $\approx1\,600$ instances
+	\end{block}
+\end{frame}
+
+\begin{frame}{Our approach in one slide}
+	\begin{center}
+		\begin{tikzpicture}[
+			node distance=0.55cm and 0.75cm,
+			box/.style={draw=mDarkTeal, thick, rounded corners, align=center,
+					inner sep=5pt, font=\scriptsize, minimum height=0.9cm},
+			res/.style={align=center, font=\small\bfseries, text=mLightBrown},
+			arr/.style={-{Stealth}, thick, mDarkTeal},
+			lbl/.style={font=\tiny, midway}
+			]
+			\node[box] (phi) {NIA $\varphi$};
+			\node[box, right=of phi] (abs) {LIA\\$\widehat\varphi\land\bigwedge\mathcal{A}$};
+			\node[box, right=of abs] (lia) {LIA\\solver};
+			\node[box, right=of lia] (chk) {NIA\\check};
+			\node[res, right=of chk] (sat) {SAT};
+			\node[res, below=1.0cm of lia] (unsat) {UNSAT};
+			\node[box, draw=mLightBrown, very thick, fill=mLightBrown!12,
+				font=\scriptsize\bfseries, below=1.0cm of chk] (ax)
+			{add axioms\\$\mathcal{A}\gets\mathcal{A}\cup\mathcal{N}$};
+			\draw[arr] (phi) -- node[lbl, above] {purify} (abs);
+			\draw[arr] (abs) -- (lia);
+			\draw[arr] (lia) -- node[lbl, above] {model $\mu$} (chk);
+			\draw[arr] (chk) -- node[lbl, above] {$\mu\models_{\mathrm{NIA}}\varphi$} (sat);
+			\draw[arr] (lia) -- node[lbl, right] {unsat} (unsat);
+			\draw[arr, mLightBrown] (chk) -- node[lbl, right] {spurious} (ax);
+			\draw[arr, mLightBrown] (ax) -| ($(abs)+(0,-1.6cm)$) -- (abs);
+		\end{tikzpicture}
+	\end{center}
+	\begin{itemize}
+		\item $\widehat\varphi$ is a LIA \alert{overapproximation} of $\varphi$
+		      $\Rightarrow$ \textsc{unsat} transfers back immediately
+		\item A model of $\widehat\varphi$ may be \alert{spurious}
+		      $\Rightarrow$ refine and repeat (CEGAR)
+	\end{itemize}
+\end{frame}
+
+\section{Algorithm}
+
+\begin{frame}{Normalization and purification}
+	\begin{block}{Normalization}
+		Every nonlinear monomial is rewritten into the form $c\cdot x^ky^l$
+		using fresh defined variables:\quad
+		$xyz \rightsquigarrow d\,z$ with $d\approx xy$
+	\end{block}
+	\begin{block}{Purification}
+		Every nonlinear subterm $t$ is replaced by a fresh constant $\pure{t}$:
+		monomials $x^ky^l$ with $k+l\geq 2$, and $\divc{x}{y}$, $\modc{x}{y}$
+		with a non-constant divisor
+	\end{block}
+	\begin{itemize}
+		\item each monomial as a \alert{whole}: $xy^2$ gives only $\pure{xy^2}$,
+		      no pures for $xy$ or $y^2$
+		\item equal subterms share a pure
+		\item result: a QF\_LIA formula $\widehat\varphi$ over the original
+		      variables and the pures
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Main loop}
+	\begin{block}{\textsc{Qf-Nia-Solve}($\varphi$)}
+		\begin{enumerate}
+			\item $\widehat\varphi, P \gets \textsc{Purify}(\varphi)$;\quad
+			      $\mathcal{A}\gets\emptyset$
+			\item \textbf{loop}
+			      \begin{itemize}
+				      \item $\mathit{res}\gets\textsc{Check-Lia}(\widehat\varphi\land\bigwedge\mathcal{A})$
+				      \item \textbf{if} $\mathit{res}=\mathit{unsat}$ \textbf{then return}
+				            \alert{\textsc{unsat}}
+				      \item $\mu\gets\textsc{Model}(\mathit{res})$
+				      \item $\mathcal{N}\gets\textsc{Check-Nia}(\varphi,\widehat\varphi,P,\mu,\mathcal{A})$
+				      \item \textbf{if} $\mathcal{N}=\emptyset$ \textbf{then return}
+				            \alert{\textsc{sat}}, $\mu$
+				      \item $\mathcal{A}\gets\mathcal{A}\cup\mathcal{N}$
+			      \end{itemize}
+		\end{enumerate}
+	\end{block}
+	\begin{itemize}
+		\item $\mathcal{A}$ --- linear axioms accumulated across iterations
+		\item Axioms are \alert{sound}: every NIA model satisfies them, so
+		      \textsc{unsat} of the abstraction is conclusive
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Which terms to blame? Implicant-based targeting}
+	\begin{block}{\textsc{Check-Nia}($\varphi,\widehat\varphi,P,\mu,\mathcal{A}$)}
+		\small
+		\begin{enumerate}
+			\item \textbf{if} $\mu\models_{\mathrm{NIA}}\varphi$ \textbf{then return}
+			      $\emptyset$ \hfill\emph{(values of pures irrelevant)}
+			\item $I\gets\textsc{Implicant}(\widehat\varphi,\mu)$
+			\item $R\gets\{\pure{t}\in I \mid \mu(\pure{t})\neq\mu(t)
+			      \land \pure{t}\text{ in a falsified literal}\}$
+			\item $\mathit{res},\mathcal{N}\gets\textsc{Model-Fix}(\mu,R)$;\quad
+			      \textbf{if} $\mathit{res}$ \textbf{then return} $\emptyset$
+			\item $\mathcal{N}\gets\mathcal{N}\cup{}$congruence axioms for $R$
+			\item \textbf{for each} $p\in R$:\quad
+			      $\mathcal{N}\gets\mathcal{N}\cup\textsc{Axioms}(p,\mu)$
+		\end{enumerate}
+	\end{block}
+	\vspace{-0.5em}
+	\begin{itemize}
+		\item \alert{Implicant}: all conjuncts, one $\mu$-satisfied disjunct per
+		      disjunction
+		\item only the pures in literals \alert{failing} under NIA semantics are
+		      blamed --- far more targeted than prior work
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Model repair}
+	Before going back to the LIA solver, try to \alert{patch} the spurious model.
+	\begin{block}{\textsc{Model-Fix}}
+		\begin{itemize}
+			\item pin the variables irrelevant to the failing literals
+			\item run a few sub-iterations on the restricted LIA problem,
+			      accumulating axioms
+			\item if a NIA-valid model appears $\Rightarrow$ answer \textsc{sat}
+			      without an outer iteration
+		\end{itemize}
+	\end{block}
+	\begin{itemize}
+		\item when it fails, the axioms gathered on the way are \alert{kept}
+		\item Cimatti et al.\ return to the outer solver right after generating
+		      lemmas
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Example run}
+	\[
+		\varphi:\quad \alert<1>{x^2}\leq x \;\land\; x\geq 2
+	\]
+	\begin{enumerate}
+		\small
+		\item<1-> purify: $p:=\pure{x^2}$,\quad
+		      $\widehat\varphi\gets p\leq x\land x\geq 2$
+		\item<2-> LIA solve: model $\{x\mapsto 2,\ p\mapsto 1\}$
+		\item<3-> NIA check: $2^2=4\neq 1$ --- \alert{spurious};
+		      implicant $\{p\leq x,\ x\geq 2\}$, the literal $p\leq x$ reads
+		      $4\leq 2$ \alert{false} $\Rightarrow R=\{p\}$
+		\item<4-> axioms for $p$ at $v=2$, among them \textit{Lin.\,LB}:
+		      \[
+			      x\geq 2 \;\Rightarrow\; p\geq 2x
+		      \]
+		\item<5-> LIA solve: $2x\leq p\leq x$ gives $x\leq 0$, contradicting
+		      $x\geq 2$ --- \alert{unsat}
+		\item<6-> the abstraction is unsat $\Rightarrow$ $\varphi$ is
+		      \alert{\textsc{unsat}}, after two iterations
+	\end{enumerate}
+\end{frame}
+
+\section{Refinement Axioms}
+
+\begin{frame}{Quick reminder}
+	\begin{itemize}
+		\item $\widehat\varphi\land\bigwedge\mathcal{A}$ is \textbf{sat}, but for
+		      some nonlinear term $t$
+		      \[
+			      \mu(\pure{t})\;\neq\;t[\mu]
+		      \]
+		\item the model is \alert{spurious} --- it satisfies $\widehat\varphi$,
+		      not $\varphi$
+		\item Goal: linear axioms that make $\pure{t}$ track $t$ more closely and
+		      \alert{rule out} this bad model
+		\item Quality of the axioms decides everything:
+		      \emph{tight} axioms cut iterations, \emph{cheap} axioms keep each
+		      iteration fast
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Axioms for $\pure{x^k}$}
+	Generated when $\mu(x)=v$ but $\mu(\pure{x^k})\neq v^k$
+	\begin{center}
+		\footnotesize
+		\begin{tabular}{ll}
+			\toprule
+			\textit{Sign}     & $\pure{x^k}\geq 0$ \ ($k$ even), \quad
+			$x>0\iff\pure{x^k}>0$ \ ($k$ odd)                                             \\
+			\textit{Eq-zero}  & $(\pure{x^k}=0)\iff(x=0)$                                 \\
+			\textit{Eq}       & $(\pure{x^k}=v^k)\iff(x=v)$                               \\
+			\textit{Gap}      & $\pure{x^k}\leq v^k \lor \pure{x^k}\geq(v+1)^k$           \\
+			\textit{Mod}      & $x\equiv v\!\!\pmod m \implies \pure{x^k}\equiv v^k\!\!\pmod m$ \\
+			\midrule
+			\textit{Lin.\,LB} & $x\geq v \implies \pure{x^k}\geq v^{k-1}x$                \\
+			\textit{Lin.\,UB} & $0\leq x\leq v \implies \pure{x^k}\leq v^{k-1}x$          \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+	\begin{itemize}
+		\item shown for $v\geq 0$; symmetric variants for $v<0$ by the parity of $k$
+		\item \textit{Sign} is model-independent, added once
+		\item the \alert{secant bounds} are the new ingredient
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Bounding powers by secant lines}
+	\begin{columns}[c]
+		\column{0.55\textwidth}
+		\begin{center}
+			\begin{tikzpicture}
+				\begin{axis}[
+						width=1.1\textwidth,
+						height=1.2\textwidth,
+						domain=0:4,
+						xmax=4.5,
+						ymax=18,
+						xlabel={$x$},
+						ylabel={$x^2$},
+						axis lines=middle,
+						xtick={1,2,3,4},
+						ytick={1,4,9,16},
+					]
+					\addplot[mDarkTeal, very thick] {x^2};
+					\addplot[blue, thick, domain=3:4] {4*x};
+					\addplot[blue, densely dashed, domain=0:3] {4*x};
+					\addplot[blue, thick, domain=2:4] {3*x};
+					\addplot[blue, densely dashed, domain=0:2] {3*x};
+					\addplot[blue, densely dashed, domain=3:4] {2*x};
+					\addplot[blue, thick, domain=1:3] {2*x};
+					\addplot[blue, densely dashed, domain=0:1] {2*x};
+					\addplot[blue, thick, domain=0:2] {x};
+					\addplot[blue, densely dashed, domain=2:4] {x};
+					\addplot[red, thick] coordinates {(1,0) (1,2)};
+					\addplot[red, thick] coordinates {(2,2) (2,6)};
+					\addplot[red, thick] coordinates {(3,6) (3,12)};
+				\end{axis}
+			\end{tikzpicture}
+		\end{center}
+		\column{0.45\textwidth}
+		The line $v^{k-1}x$ passes through the origin and $(v,v^k)$, and bounds
+		$x^k$ on each side of $v$:
+		\[
+			x\geq v\Rightarrow \pure{x^k}\geq v^{k-1}x
+		\]
+		\[
+			0\leq x\leq v\Rightarrow \pure{x^k}\leq v^{k-1}x
+		\]
+		\begin{itemize}
+			\item tangent planes give only \alert{lower} bounds for convex $x^k$
+			\item secants give \alert{two-sided} constraints
+		\end{itemize}
+	\end{columns}
+\end{frame}
+
+\begin{frame}{Bounding mixed powers $\pure{x^ky^l}$}
+	Linearize $x^k$ by its secant, treat $y^l$ as a constant coefficient:
+	\[
+		x^ky^l \;\geq\; x^kw^l \;\geq\; v^{k-1}x\,w^l
+	\]
+	\begin{block}{Secant conditions $\CC{x^k}{v^k}{\downarrow/\uparrow}$}
+		\centering\footnotesize
+		\begin{tabular}{lll}
+			\toprule
+			                             & $\CC{x^k}{v^k}{\downarrow}$ & $\CC{x^k}{v^k}{\uparrow}$ \\
+			\midrule
+			$v\geq 0$                    & $x\geq v$                   & $0\leq x\leq v$           \\
+			$v<0$, $k$ even              & $x\leq v$                   & $v\leq x\leq 0$           \\
+			$v<0$, $k$ odd               & $v\leq x\leq 0$             & $x\leq v$                 \\
+			\bottomrule
+		\end{tabular}
+	\end{block}
+	\begin{itemize}
+		\item the arrows are chosen by the signs of $v^k$ and $w^l$ so that the
+		      inequality survives multiplication (four cases, all proved)
+		\item e.g.\ $v,w>0$:\quad
+		      $x\geq v\land y\geq w \implies \pure{x^3y^2}\geq v^2w^2\,x$
+		\item symmetric construction: fix $x^k$, linearize $y^l$
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Tangent planes for $x\cdot y$}
+	\begin{columns}[c]
+		\column{0.46\textwidth}
+		\begin{center}
+			\includegraphics[width=\textwidth]{figs/tangent_plane.pdf}
+		\end{center}
+		\column{0.54\textwidth}
+		\footnotesize
+		Tangent plane of $xy$ at $(v,w)=(10,10)$ is
+		$T = wx+vy-vw = 10x+10y-100$, and the sign of $xy-T=(x-v)(y-w)$ picks
+		the side:
+		\begin{align*}
+			x>v\land y>w &\Rightarrow \pure{xy}>T \\
+			x>v\land y<w &\Rightarrow \pure{xy}<T
+		\end{align*}
+		\begin{itemize}
+			\item only for the bilinear case $k=l=1$
+			\item = McCormick envelope at the model point
+		\end{itemize}
+	\end{columns}
+	\vspace{0.3em}
+	{\footnotesize\alert{Frontier strategy}: a per-pure bounding box of the model
+	values seen so far; a point extending the box triggers tangent planes at the
+	two mixed corners, so both bounds exist in every region.}
+\end{frame}
+
+\begin{frame}{Integer division and modulo}
+	\small
+	Axioms for $\pure{\divc{x}{y}}$ and $\pure{\modc{x}{y}}$ when $\mu(x)=v$,
+	$\mu(y)=w$.
+	\vspace{-0.4em}
+	\begin{block}{Fix-divisor --- pinning $y$ makes it linear in $x$}
+		\vspace{-0.6em}
+		\begin{align*}
+			y=w &\implies \pure{\divc{x}{y}}=\divc{x}{w} \\
+			y=w &\implies \pure{\modc{x}{y}}=\modc{x}{w}
+		\end{align*}
+		\vspace{-1.2em}
+
+		the right-hand sides are LIA, since $w$ is a numeral
+	\end{block}
+	\begin{block}{Large-divisor --- a big $|y|$ determines the result}
+		for $v\geq 0$:
+		\vspace{-0.6em}
+		\begin{align*}
+			x=v\land|y|>v &\implies \pure{\divc{x}{y}}=0 \\
+			x=v\land|y|>v &\implies \pure{\modc{x}{y}}=v
+		\end{align*}
+		\vspace{-1.2em}
+
+		for $v<0$: conclusions follow SMT-LIB, where $\mathit{mod}$ is non-negative
+		($\pure{\divc{x}{y}}=\mp1$, $\pure{\modc{x}{y}}=|y|-|v|$)
+	\end{block}
+\end{frame}
+
+\section{Comparison with Prior Work}
+
+\begin{frame}{Versus Cimatti et al.\ (MathSAT5)}
+	Same CEGAR skeleton --- the differences:
+	\begin{center}
+		\resizebox{\linewidth}{!}{%
+		\footnotesize
+		\begin{tabular}{lll}
+			\toprule
+			                 & \textbf{Cimatti et al.}           & \textbf{\solver}                    \\
+			\midrule
+			abstract domain  & QF\_UFLIA, $f_\times(x,y)$        & QF\_LIA, pures $\pure{t}$           \\
+			congruence       & free from the UF solver           & explicit, lazy axioms               \\
+			axiom generation & three rounds, stop at first hit   & all violated axioms in one pass     \\
+			failing terms    & all products in falsified constr. & pures in failing implicant literals \\
+			model repair     & none                              & \textsc{Model-Fix} sub-loop         \\
+			axiom set        & sign, zero, neutrality,           & sign, zero, tangent \alert{plus}    \\
+			                 & proportionality, tangent          & secant bounds for $x^k$, $x^ky^l$   \\
+			\bottomrule
+		\end{tabular}}
+	\end{center}
+	\begin{itemize}
+		\item MathSAT5 implements that approach, so the experimental comparison
+		      with MathSAT5 doubles as a comparison with it
+	\end{itemize}
+\end{frame}
+
+\section{Experiments}
+
+\begin{frame}{Setup}
+	\begin{itemize}
+		\item \solver{} implemented in \alert{C++} on top of the smt-switch
+		      abstraction layer, using \alert{Z3 as the LIA backend}
+		\item Linked against the \emph{same} Z3~4.15.4 build used as the standalone
+		      Z3 baseline $\Rightarrow$ differences come from the strategy, not the
+		      engine
+		\item Benchmarks: the \alert{full} SMT-LIB QF\_NIA set --- 25\,444 instances
+		\item 180\,s wall clock, 40\,GB memory, AMD EPYC 7513
+		\item Baselines: Z3~4.15.4, MathSAT5~5.6.16, Yices~2.6.4, cvc5~1.3.2
+		\item Three configurations: base, {+}\textsc{Frontier} (tangent
+		      instantiation), {+}\textsc{Congr.} (lazy congruence, ablation)
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Results}
+	\begin{center}
+		\footnotesize
+		\begin{tabular}{lrr}
+			\toprule
+			\textbf{Solver}                     & \textbf{Total} (25\,444) & \textbf{MathProblems} (1\,100) \\
+			\midrule
+			\alert{\solver{}+\textsc{Frontier}} & \alert{14\,086}          & \alert{586}                    \\
+			\alert{\solver}                     & \alert{14\,011}          & \alert{585}                    \\
+			\alert{\solver{}+\textsc{Congr.}}   & \alert{12\,421}          & \alert{587}                    \\
+			\midrule
+			Z3~4.15.4                           & 19\,205                  & 118                            \\
+			MathSAT5~5.6.16                     & 16\,377                  & 171                            \\
+			Yices~2.6.4                         & 15\,853                  & 119                            \\
+			cvc5~1.3.2                          & 12\,996                  & 157                            \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+	\begin{itemize}
+		\item \alert{MathProblems} (sums of cubes): \solver{} solves \alert{53\%},
+		      best baseline 16\% --- what the secant axioms for $x^k$ buy
+		\item overall competitive with cvc5, behind Z3 / MathSAT / Yices
+		\item frontier: small consistent gain, free.
+		      Congruence: $-1\,600$ instances
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Per-family picture}
+	\begin{center}
+		\footnotesize
+		\begin{tabular}{lrr}
+			\toprule
+			\textbf{Family}                  & \textbf{\solver{}+\textsc{Fr.}} & \textbf{best baseline} \\
+			\midrule
+			ITS (17\,046)                    & 4\,203/3\,908                   & 8\,154/4\,452 (Z3)     \\
+			AProVE (2\,409)                  & 1\,418/579                      & 1\,642/687 (Z3)        \\
+			SAT14 (1\,926)                   & 1\,568/61                       & 1\,853/72 (Z3)         \\
+			\midrule
+			mcm (186)                        & \alert{11/0}                    & 9/0 (cvc5)             \\
+			calypto (177)                    & \alert{80/97}                   & 79/97 (Z3)             \\
+			UltimateAutomizerSvcomp23 (58)   & \alert{7/15}                    & 8/12 (Z3)              \\
+			LCTES (2)                        & \alert{0/2}                     & 0/1 (Z3)               \\
+			\bottomrule
+		\end{tabular}\\[0.4em]
+		\scriptsize (sat/unsat solved within 180\,s)
+	\end{center}
+	\begin{itemize}
+		\item The gap is on \alert{satisfiable} instances of large families
+		\item Those are shallow, huge (hundreds of pures), with small solutions ---
+		      ideal for \alert{bit-blasting}, which competitors use;
+		      we must witness sat by refinement over a LIA abstraction
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Conclusions and future work}
+	\begin{block}{Summary}
+		\begin{itemize}
+			\item QF\_NIA $\to$ QF\_LIA by purification into plain constants,
+			      refined by CEGAR --- no UF, no geometry
+			\item new \alert{secant-based} bounds for $x^k$ and $x^ky^l$: power
+			      terms as first-class abstractions
+			\item implicant-based blame assignment, model repair
+			\item competitive overall, \alert{dominant} on polynomial benchmarks
+		\end{itemize}
+	\end{block}
+	\begin{block}{Future work}
+		\begin{itemize}
+			\item bit-blasting preprocessing for small-model sat instances
+			\item pruning axioms made redundant by stronger ones
+			\item new axiom schemas for further problem classes
+		\end{itemize}
+	\end{block}
+\end{frame}
+
+\end{document}

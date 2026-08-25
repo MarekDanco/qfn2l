@@ -1,0 +1,4 @@
+\beamer@sectionintoc {1}{Algorithm}{8}{0}{1}
+\beamer@sectionintoc {2}{Refinement Axioms}{19}{0}{2}
+\beamer@sectionintoc {3}{Comparison with Prior Work}{26}{0}{3}
+\beamer@sectionintoc {4}{Experiments}{28}{0}{4}
