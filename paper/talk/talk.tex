@@ -32,9 +32,9 @@
 
 \maketitle
 
-\begin{frame}{Nonlinear Integer Arithmetic (QF\_NIA)}
+\begin{frame}{Quantifier-Free Nonlinear Integer Arithmetic (QF\_NIA)}
 	\begin{itemize}
-		\item Quantifier-free formulas over the integers with
+		\item Quantifier-free formulas over the \alert{integers} with
 		      $\{+,-,\cdot,\mathit{div},\mathit{mod},\mathit{abs}\}$
 		\item Truly nonlinear:
 		      \begin{itemize}
@@ -44,12 +44,9 @@
 		      \end{itemize}
 		\item Satisfiability is \alert{undecidable}
 		      (Hilbert's 10th problem, Matiyasevich)
-		\item Even the rational relaxation QF\_NRA needs doubly exponential
-		      procedures (CAD)
 	\end{itemize}
 	\begin{block}{This talk}
-		An incomplete but practical procedure for QF\_NIA ---
-		and a \alert{stronger axiom set} for polynomial constraints
+		An incomplete but practical decision procedure for QF\_NIA
 	\end{block}
 \end{frame}
 
@@ -61,7 +58,7 @@
 		\item ``Sum of three cubes'' --- benchmark \texttt{STC\_0079.smt2}
 		      from the \texttt{20220315-Math\-Problems} family of SMT-LIB QF\_NIA
 		\item cvc5, MathSAT, Yices~2 and Z3 all \alert{time out} within 3 minutes
-		\pause
+		      \pause
 		\item \solver{} finds $x=-19$, $y=35$, $z=-33$ in around \alert{20 seconds}
 	\end{itemize}
 	\begin{block}{Where prior work struggles}
@@ -201,7 +198,7 @@
 			      $\emptyset$ \hfill\emph{(values of pures irrelevant)}
 			\item $I\gets\textsc{Implicant}(\widehat\varphi,\mu)$
 			\item $R\gets\{\pure{t}\in I \mid \mu(\pure{t})\neq\mu(t)
-			      \land \pure{t}\text{ in a falsified literal}\}$
+				      \land \pure{t}\text{ in a falsified literal}\}$
 			\item $\mathit{res},\mathcal{N}\gets\textsc{Model-Fix}(\mu,R)$;\quad
 			      \textbf{if} $\mathit{res}$ \textbf{then return} $\emptyset$
 			\item $\mathcal{N}\gets\mathcal{N}\cup{}$congruence axioms for $R$
@@ -285,14 +282,14 @@
 		\begin{tabular}{ll}
 			\toprule
 			\textit{Sign}     & $\pure{x^k}\geq 0$ \ ($k$ even), \quad
-			$x>0\iff\pure{x^k}>0$ \ ($k$ odd)                                             \\
-			\textit{Eq-zero}  & $(\pure{x^k}=0)\iff(x=0)$                                 \\
-			\textit{Eq}       & $(\pure{x^k}=v^k)\iff(x=v)$                               \\
-			\textit{Gap}      & $\pure{x^k}\leq v^k \lor \pure{x^k}\geq(v+1)^k$           \\
+			$x>0\iff\pure{x^k}>0$ \ ($k$ odd)                                                   \\
+			\textit{Eq-zero}  & $(\pure{x^k}=0)\iff(x=0)$                                       \\
+			\textit{Eq}       & $(\pure{x^k}=v^k)\iff(x=v)$                                     \\
+			\textit{Gap}      & $\pure{x^k}\leq v^k \lor \pure{x^k}\geq(v+1)^k$                 \\
 			\textit{Mod}      & $x\equiv v\!\!\pmod m \implies \pure{x^k}\equiv v^k\!\!\pmod m$ \\
 			\midrule
-			\textit{Lin.\,LB} & $x\geq v \implies \pure{x^k}\geq v^{k-1}x$                \\
-			\textit{Lin.\,UB} & $0\leq x\leq v \implies \pure{x^k}\leq v^{k-1}x$          \\
+			\textit{Lin.\,LB} & $x\geq v \implies \pure{x^k}\geq v^{k-1}x$                      \\
+			\textit{Lin.\,UB} & $0\leq x\leq v \implies \pure{x^k}\leq v^{k-1}x$                \\
 			\bottomrule
 		\end{tabular}
 	\end{center}
@@ -361,11 +358,11 @@
 		\centering\footnotesize
 		\begin{tabular}{lll}
 			\toprule
-			                             & $\CC{x^k}{v^k}{\downarrow}$ & $\CC{x^k}{v^k}{\uparrow}$ \\
+			                & $\CC{x^k}{v^k}{\downarrow}$ & $\CC{x^k}{v^k}{\uparrow}$ \\
 			\midrule
-			$v\geq 0$                    & $x\geq v$                   & $0\leq x\leq v$           \\
-			$v<0$, $k$ even              & $x\leq v$                   & $v\leq x\leq 0$           \\
-			$v<0$, $k$ odd               & $v\leq x\leq 0$             & $x\leq v$                 \\
+			$v\geq 0$       & $x\geq v$                   & $0\leq x\leq v$           \\
+			$v<0$, $k$ even & $x\leq v$                   & $v\leq x\leq 0$           \\
+			$v<0$, $k$ odd  & $v\leq x\leq 0$             & $x\leq v$                 \\
 			\bottomrule
 		\end{tabular}
 	\end{block}
@@ -390,8 +387,8 @@
 		$T = wx+vy-vw = 10x+10y-100$, and the sign of $xy-T=(x-v)(y-w)$ picks
 		the side:
 		\begin{align*}
-			x>v\land y>w &\Rightarrow \pure{xy}>T \\
-			x>v\land y<w &\Rightarrow \pure{xy}<T
+			x>v\land y>w & \Rightarrow \pure{xy}>T \\
+			x>v\land y<w & \Rightarrow \pure{xy}<T
 		\end{align*}
 		\begin{itemize}
 			\item only for the bilinear case $k=l=1$
@@ -400,8 +397,8 @@
 	\end{columns}
 	\vspace{0.3em}
 	{\footnotesize\alert{Frontier strategy}: a per-pure bounding box of the model
-	values seen so far; a point extending the box triggers tangent planes at the
-	two mixed corners, so both bounds exist in every region.}
+		values seen so far; a point extending the box triggers tangent planes at the
+		two mixed corners, so both bounds exist in every region.}
 \end{frame}
 
 \begin{frame}{Integer division and modulo}
@@ -412,8 +409,8 @@
 	\begin{block}{Fix-divisor --- pinning $y$ makes it linear in $x$}
 		\vspace{-0.6em}
 		\begin{align*}
-			y=w &\implies \pure{\divc{x}{y}}=\divc{x}{w} \\
-			y=w &\implies \pure{\modc{x}{y}}=\modc{x}{w}
+			y=w & \implies \pure{\divc{x}{y}}=\divc{x}{w} \\
+			y=w & \implies \pure{\modc{x}{y}}=\modc{x}{w}
 		\end{align*}
 		\vspace{-1.2em}
 
@@ -423,8 +420,8 @@
 		for $v\geq 0$:
 		\vspace{-0.6em}
 		\begin{align*}
-			x=v\land|y|>v &\implies \pure{\divc{x}{y}}=0 \\
-			x=v\land|y|>v &\implies \pure{\modc{x}{y}}=v
+			x=v\land|y|>v & \implies \pure{\divc{x}{y}}=0 \\
+			x=v\land|y|>v & \implies \pure{\modc{x}{y}}=v
 		\end{align*}
 		\vspace{-1.2em}
 
@@ -439,20 +436,20 @@
 	Same CEGAR skeleton --- the differences:
 	\begin{center}
 		\resizebox{\linewidth}{!}{%
-		\footnotesize
-		\begin{tabular}{lll}
-			\toprule
-			                 & \textbf{Cimatti et al.}           & \textbf{\solver}                    \\
-			\midrule
-			abstract domain  & QF\_UFLIA, $f_\times(x,y)$        & QF\_LIA, pures $\pure{t}$           \\
-			congruence       & free from the UF solver           & explicit, lazy axioms               \\
-			axiom generation & three rounds, stop at first hit   & all violated axioms in one pass     \\
-			failing terms    & all products in falsified constr. & pures in failing implicant literals \\
-			model repair     & none                              & \textsc{Model-Fix} sub-loop         \\
-			axiom set        & sign, zero, neutrality,           & sign, zero, tangent \alert{plus}    \\
-			                 & proportionality, tangent          & secant bounds for $x^k$, $x^ky^l$   \\
-			\bottomrule
-		\end{tabular}}
+			\footnotesize
+			\begin{tabular}{lll}
+				\toprule
+				                 & \textbf{Cimatti et al.}           & \textbf{\solver}                    \\
+				\midrule
+				abstract domain  & QF\_UFLIA, $f_\times(x,y)$        & QF\_LIA, pures $\pure{t}$           \\
+				congruence       & free from the UF solver           & explicit, lazy axioms               \\
+				axiom generation & three rounds, stop at first hit   & all violated axioms in one pass     \\
+				failing terms    & all products in falsified constr. & pures in failing implicant literals \\
+				model repair     & none                              & \textsc{Model-Fix} sub-loop         \\
+				axiom set        & sign, zero, neutrality,           & sign, zero, tangent \alert{plus}    \\
+				                 & proportionality, tangent          & secant bounds for $x^k$, $x^ky^l$   \\
+				\bottomrule
+			\end{tabular}}
 	\end{center}
 	\begin{itemize}
 		\item MathSAT5 implements that approach, so the experimental comparison
@@ -509,16 +506,16 @@
 		\footnotesize
 		\begin{tabular}{lrr}
 			\toprule
-			\textbf{Family}                  & \textbf{\solver{}+\textsc{Fr.}} & \textbf{best baseline} \\
+			\textbf{Family}                & \textbf{\solver{}+\textsc{Fr.}} & \textbf{best baseline} \\
 			\midrule
-			ITS (17\,046)                    & 4\,203/3\,908                   & 8\,154/4\,452 (Z3)     \\
-			AProVE (2\,409)                  & 1\,418/579                      & 1\,642/687 (Z3)        \\
-			SAT14 (1\,926)                   & 1\,568/61                       & 1\,853/72 (Z3)         \\
+			ITS (17\,046)                  & 4\,203/3\,908                   & 8\,154/4\,452 (Z3)     \\
+			AProVE (2\,409)                & 1\,418/579                      & 1\,642/687 (Z3)        \\
+			SAT14 (1\,926)                 & 1\,568/61                       & 1\,853/72 (Z3)         \\
 			\midrule
-			mcm (186)                        & \alert{11/0}                    & 9/0 (cvc5)             \\
-			calypto (177)                    & \alert{80/97}                   & 79/97 (Z3)             \\
-			UltimateAutomizerSvcomp23 (58)   & \alert{7/15}                    & 8/12 (Z3)              \\
-			LCTES (2)                        & \alert{0/2}                     & 0/1 (Z3)               \\
+			mcm (186)                      & \alert{11/0}                    & 9/0 (cvc5)             \\
+			calypto (177)                  & \alert{80/97}                   & 79/97 (Z3)             \\
+			UltimateAutomizerSvcomp23 (58) & \alert{7/15}                    & 8/12 (Z3)              \\
+			LCTES (2)                      & \alert{0/2}                     & 0/1 (Z3)               \\
 			\bottomrule
 		\end{tabular}\\[0.4em]
 		\scriptsize (sat/unsat solved within 180\,s)
