@@ -32,7 +32,28 @@
 
 \maketitle
 
-\begin{frame}{Quantifier-Free Nonlinear Integer Arithmetic (QF\_NIA)}
+\begin{frame}{Why care? Verifying smart contracts}
+	A \alert{smart contract} is a program on a blockchain that itself holds
+	and moves cryptocurrency.
+	\begin{block}{BeautyChain (BEC) token hack, 2018}
+		\small
+		\begin{semiverbatim}
+			\alert{uint256} amount = uint256(cnt) * \_value;  \alert{// attacker's pick}
+			require(balances[msg.sender] >= amount);
+		\end{semiverbatim}
+		\normalsize
+		\[
+			\texttt{cnt}=2,\ \texttt{\_value}=2^{255}
+			\Rightarrow \alert{\text{\texttt{amount}}=0}
+			\Rightarrow \text{free tokens!}
+		\]
+	\end{block}
+	\begin{itemize}
+		\item This is a nonlinear arithmetic question!
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Quantifier-Free Nonlinear Integer Arithmetic (NIA)}
 	\begin{itemize}
 		\item Quantifier-free formulas over the \alert{integers} with
 		      $\{+,-,\cdot,\mathit{div},\mathit{mod},\mathit{abs}\}$
@@ -46,100 +67,96 @@
 		      (Hilbert's 10th problem, Matiyasevich)
 	\end{itemize}
 	\begin{block}{This talk}
-		An incomplete but practical decision procedure for QF\_NIA
+		An incomplete but practical decision procedure for NIA
 	\end{block}
 \end{frame}
 
-\begin{frame}{State-of-the-art solvers fail on simple problems}
+\begin{frame}{Simple-looking equations defeat state-of-the-art solvers}
 	\[
 		x^3 + y^3 + z^3 = 79
 	\]
 	\begin{itemize}
-		\item ``Sum of three cubes'' --- benchmark \texttt{STC\_0079.smt2}
-		      from the \texttt{20220315-Math\-Problems} family of SMT-LIB QF\_NIA
-		\item cvc5, MathSAT, Yices~2 and Z3 all \alert{time out} within 3 minutes
-		      \pause
-		\item \solver{} finds $x=-19$, $y=35$, $z=-33$ in around \alert{20 seconds}
-	\end{itemize}
-	\begin{block}{Where prior work struggles}
-		Formulas dominated by \emph{polynomial} constraints, i.e.\ built from
-		higher-degree monomials --- powers $x^k$ and mixed products $x^ky^l$
-	\end{block}
-\end{frame}
-
-\begin{frame}{Key observation: the formula is ``almost LIA''}
-	\[
-		\alert{\varphi}:\quad \alert{x^2}\leq x \;\land\; x\geq 2
-	\]
-	Replace $x^2$ by a fresh integer constant $p$ (a \alert{pure}):
-	\[
-		\alert{\widehat{\varphi}}:\quad \alert{p}\leq x \;\land\; x\geq 2
-		\qquad\text{--- plain LIA, and satisfiable}
-	\]
-	Refine with axioms until the abstraction is faithful enough:
-	\[
-		\widehat\varphi \;\land\; \underbrace{(x\geq 2\Rightarrow p\geq 2x)}_{\text{secant bound at }x=2}
-		\;\models\; 2x\leq p\leq x \;\models\; x\leq 0 \quad\lightning
-	\]
-	\begin{itemize}
-		\item Two iterations, no nonlinear reasoning at all
+		\item A ``sum of three cubes'' problem
+		\item A job for \alert{SMT solvers} $\leftarrow$ SAT solving + First order theories
+		\item cvc5, MathSAT, Yices~2 and Z3 all fail
 	\end{itemize}
 \end{frame}
 
-\begin{frame}{Incremental linearization: two abstractions}
+\begin{frame}{Can we get away with just LIA?}
 	\begin{itemize}
-		\item \alert{Cimatti et al.} (MathSAT, cvc5): each product becomes an
-		      \emph{uninterpreted function}
-		      \[
-			      x\cdot y \;\mapsto\; f_\times(x,y) \qquad\Rightarrow\qquad \text{QF\_UFLIA}
-		      \]
-		      congruence comes for free from the UF solver
-		\item \alert{This work}: each nonlinear subterm becomes a
-		      \emph{fresh constant}
-		      \[
-			      t \;\mapsto\; \pure{t} \qquad\Rightarrow\qquad \text{QF\_LIA}
-		      \]
-		      congruence must be added by \emph{explicit, lazy} axioms
+		\item \alert{LIA} (linear arithmetic)
+		      \begin{itemize}
+			      \item easy for SMT solvers
+			      \item Simplex algorithm + branch-and-bound
+		      \end{itemize}
+		\item \alert{NIA} (nonlinear, current problem)
+		      \begin{itemize}
+			      \item even small problems don't get solved
+		      \end{itemize}
 	\end{itemize}
-	\begin{block}{Is that a loss?}
-		Our experiments say no: congruence violations are \alert{rare}, and paying
-		for pairwise congruence checks upfront costs $\approx1\,600$ instances
+	\begin{block}{Idea}
+		Can we approximate NIA problems using LIA?
 	\end{block}
+\end{frame}
+
+\begin{frame}{The idea, on an example}
+	\[
+		\varphi:\ \alert{x^2}\leq x \land x\geq 2
+	\]
+	\pause
+	Replace $x^2$ by a fresh constant $p$ (a \alert{pure}).
+	We get a LIA formula:
+	\[
+		\widehat\varphi:\ \alert{p}\leq x \land x\geq 2
+	\]
+	Add a refinement axiom:
+	\[
+		\widehat\varphi \;\land\; (x\geq 2\Rightarrow \alert{p}\geq 2x)
+	\]
+	\pause
+	This forces:
+	\[
+		2x \leq \alert{p} \leq x \;\models\; x\leq 0
+	\]
+	unsat
 \end{frame}
 
 \begin{frame}{Our approach in one slide}
 	\begin{center}
-		\begin{tikzpicture}[
-			node distance=0.55cm and 0.75cm,
-			box/.style={draw=mDarkTeal, thick, rounded corners, align=center,
-					inner sep=5pt, font=\scriptsize, minimum height=0.9cm},
-			res/.style={align=center, font=\small\bfseries, text=mLightBrown},
-			arr/.style={-{Stealth}, thick, mDarkTeal},
-			lbl/.style={font=\tiny, midway}
-			]
-			\node[box] (phi) {NIA $\varphi$};
-			\node[box, right=of phi] (abs) {LIA\\$\widehat\varphi\land\bigwedge\mathcal{A}$};
-			\node[box, right=of abs] (lia) {LIA\\solver};
-			\node[box, right=of lia] (chk) {NIA\\check};
-			\node[res, right=of chk] (sat) {SAT};
-			\node[res, below=1.0cm of lia] (unsat) {UNSAT};
-			\node[box, draw=mLightBrown, very thick, fill=mLightBrown!12,
-				font=\scriptsize\bfseries, below=1.0cm of chk] (ax)
-			{add axioms\\$\mathcal{A}\gets\mathcal{A}\cup\mathcal{N}$};
-			\draw[arr] (phi) -- node[lbl, above] {purify} (abs);
-			\draw[arr] (abs) -- (lia);
-			\draw[arr] (lia) -- node[lbl, above] {model $\mu$} (chk);
-			\draw[arr] (chk) -- node[lbl, above] {$\mu\models_{\mathrm{NIA}}\varphi$} (sat);
-			\draw[arr] (lia) -- node[lbl, right] {unsat} (unsat);
-			\draw[arr, mLightBrown] (chk) -- node[lbl, right] {spurious} (ax);
-			\draw[arr, mLightBrown] (ax) -| ($(abs)+(0,-1.6cm)$) -- (abs);
-		\end{tikzpicture}
+		\resizebox{\linewidth}{!}{%
+			\begin{tikzpicture}[
+				node distance=0.55cm and 1.15cm,
+				box/.style={draw=mDarkTeal, thick, rounded corners, align=center,
+						inner sep=5pt, font=\normalsize, minimum height=0.8cm,
+						minimum width=1.4cm},
+				res/.style={align=center, font=\normalsize\bfseries, text=mLightBrown},
+				arr/.style={-{Stealth}, thick, mDarkTeal},
+				lbl/.style={font=\small, midway}
+				]
+				\node[box] (phi) {$\varphi$};
+				\node[box, right=of phi] (abs) {$\widehat\varphi\land\bigwedge\mathcal{A}$};
+				\node[box, right=of abs] (lia) {LIA\\solver};
+				\node[box, right=of lia] (chk) {NIA\\check};
+				\node[res, right=of chk] (sat) {SAT};
+				\node[res, above=1.0cm of lia] (unsat) {UNSAT};
+				\node[box, draw=mLightBrown, very thick, fill=mLightBrown!12,
+					font=\normalsize\bfseries, below=1.0cm of chk] (ax)
+				{add axioms\\$\mathcal{A}\gets\mathcal{A}\cup\mathcal{N}$};
+				\draw[arr] (phi) -- node[lbl, above] {purify} (abs);
+				\draw[arr] (abs) -- (lia);
+				\draw[arr] (lia) -- node[lbl, above] {sat} (chk);
+				\draw[arr] (chk) -- node[lbl, above] {ok} (sat);
+				\draw[arr] (lia) -- node[lbl, right] {unsat} (unsat);
+				\draw[arr, mLightBrown] (chk) -- node[lbl, right] {spurious} (ax);
+				\draw[arr, mLightBrown] (ax) -| ($(abs)+(0,-1.6cm)$) -- (abs);
+			\end{tikzpicture}%
+		}
 	\end{center}
 	\begin{itemize}
 		\item $\widehat\varphi$ is a LIA \alert{overapproximation} of $\varphi$
-		      $\Rightarrow$ \textsc{unsat} transfers back immediately
+		      $\Rightarrow$ \textsc{unsat} transfers
 		\item A model of $\widehat\varphi$ may be \alert{spurious}
-		      $\Rightarrow$ refine and repeat (CEGAR)
+		      $\Rightarrow$ refine and repeat
 	\end{itemize}
 \end{frame}
 
