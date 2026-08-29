@@ -38,16 +38,25 @@
 	\begin{block}{BeautyChain (BEC) token hack, 2018}
 		\small
 		\begin{semiverbatim}
-			\alert{uint256} amount = uint256(cnt) * \_value;  \alert{// attacker's pick}
-			require(balances[msg.sender] >= amount);
+			\alert{uint256} amount = uint256(cnt) * \_value;
 		\end{semiverbatim}
 		\normalsize
+		$\begin{array}{l}
+				\left.
+				\begin{array}{l}
+					\texttt{cnt}\text{: \# recipients} \\
+					\texttt{\_value}\text{: tokens sent to each}
+				\end{array}
+				\right\}\ \alert{\text{attacker's pick}} \\
+				\hphantom{x}\texttt{amount}\text{: what the attacker pays the bank}
+			\end{array}$
 		\[
 			\texttt{cnt}=2,\ \texttt{\_value}=2^{255}
 			\Rightarrow \alert{\text{\texttt{amount}}=0}
 			\Rightarrow \text{free tokens!}
 		\]
 	\end{block}
+	\pause
 	\begin{itemize}
 		\item This is a nonlinear arithmetic question!
 	\end{itemize}
