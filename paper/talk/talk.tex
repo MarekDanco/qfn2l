@@ -240,11 +240,11 @@
 			\item $R\gets\{\pure{t}\in I \mid \mu(\pure{t})\neq\mu(t)\}$
 			      \hfill\emph{(collect wrong pures)}
 			      \begin{itemize}
-			      \item For example: $p \approx x^3$, $\mu(p) = 5$, $\mu(x) = 2$
+				      \item For example: $p \approx x^3$, $\mu(p) = 5$, $\mu(x) = 2$
 			      \end{itemize}
 			      \pause
 			\item $\mathit{res},\mathcal{N}\gets\textsc{Model-Fix}(\mu,R)$
-				\hfill\emph{(is $\mu$ \textbf{almost} correct?)}
+			      \hfill\emph{(is $\mu$ \textbf{almost} correct?)}
 			\item \textbf{if} $\mathit{res}$ \textbf{then return} $\emptyset$
 			      \pause
 			\item \textbf{for each} $p\in R$:\quad
@@ -254,19 +254,15 @@
 	\end{block}
 \end{frame}
 
-\begin{frame}{Model repair}
-	Before going back to the LIA solver, try to \alert{patch} the spurious model.
-	\begin{block}{\textsc{Model-Fix}}
-		\begin{itemize}
-			\item pin the variables irrelevant to the failing literals
-			\item run a few sub-iterations on the restricted LIA problem,
-			      accumulating axioms
-			\item if a NIA-valid model appears $\Rightarrow$ answer \textsc{sat}
-			      without an outer iteration
-		\end{itemize}
-	\end{block}
+\begin{frame}{Model-Fix}
+	Adding axioms makes $\widehat\varphi$ harder to solve. Instead, run cheap
+	``sub-iterations'' on the spurious model.
+	\pause
 	\begin{itemize}
-		\item when it fails, the axioms gathered on the way are \alert{kept}
+		\item Pin variables irrelevant to the failing literals
+		\item Sub-iterate on the restricted problem
+		\item NIA-valid model appears $\Rightarrow$ answer \alert{\textsc{sat}} directly
+		\item Otherwise, keep the gathered axioms and go back\\ to the main loop
 	\end{itemize}
 \end{frame}
 
@@ -276,20 +272,22 @@
 	\]
 	\begin{enumerate}
 		\small
-		\item<1-> purify: $p:=\pure{x^2}$,\quad
-		      $\widehat\varphi\gets p\leq x\land x\geq 2$
-		\item<2-> LIA solve: model $\{x\mapsto 2,\ p\mapsto 1\}$
-		\item<3-> NIA check: $2^2=4\neq 1$ --- \alert{spurious};
-		      implicant $\{p\leq x,\ x\geq 2\}$, the literal $p\leq x$ reads
-		      $4\leq 2$ \alert{false} $\Rightarrow R=\{p\}$
-		\item<4-> axioms for $p$ at $v=2$, among them \textit{Lin.\,LB}:
+		\item<1-> Purify: $\alert<1>{p}:=\pure{x^2}$
+		      \[
+			      \hspace*{-\leftmargin}\makebox[\textwidth][c]{$\widehat\varphi:\quad
+					      \alert<1>{p}\leq x\land x\geq 2$}
+		      \]
+		\item<2-> LIA solve: $\mu=\{x\mapsto 2,\ p\mapsto 1\}$
+		\item<3-> NIA check: $\mu(p) \neq \mu(x^2) \Rightarrow \alert{\text{$\mu$ is spurious}}$\\
+		      $I=\{p\leq x,\ x\geq 2\}$, $R=\{p\}$
+		\item<4-> add axioms for $p$, among them \textit{Lin.\,LB}:
 		      \[
 			      x\geq 2 \;\Rightarrow\; p\geq 2x
 		      \]
 		\item<5-> LIA solve: $2x\leq p\leq x$ gives $x\leq 0$, contradicting
-		      $x\geq 2$ --- \alert{unsat}
+		      $x\geq 2$
 		\item<6-> the abstraction is unsat $\Rightarrow$ $\varphi$ is
-		      \alert{\textsc{unsat}}, after two iterations
+		      \alert{\textsc{unsat}}
 	\end{enumerate}
 \end{frame}
 
