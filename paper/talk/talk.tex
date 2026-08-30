@@ -33,7 +33,7 @@
 \maketitle
 
 \begin{frame}{Why care? Verifying smart contracts}
-	A \alert{smart contract} is a program on a blockchain that itself holds
+	A \alert{smart contract} is a program on a blockchain that holds
 	and moves cryptocurrency.
 	\begin{block}{BeautyChain (BEC) token hack, 2018}
 		\small
@@ -72,7 +72,7 @@
 			      \item $\mathit{div}$/$\mathit{mod}$ with a \alert{non-constant divisor}
 			            ($\divc{x}{y}$, $\modc{x}{y}$)
 		      \end{itemize}
-		\item Satisfiability is \alert{undecidable}
+		\item Satisfiability is \alert{undecidable} \\
 		      (Hilbert's 10th problem, Matiyasevich)
 	\end{itemize}
 	\begin{block}{This talk}
@@ -88,6 +88,8 @@
 		\item A ``sum of three cubes'' problem
 		\item A job for \alert{SMT solvers} $\leftarrow$ SAT solving + First order theories
 		\item cvc5, MathSAT, Yices~2 and Z3 all fail
+		      \pause
+		\item Our solver finds $x = -19,\; y = 35,\; z = -33$ in $\sim$20s
 	\end{itemize}
 \end{frame}
 
@@ -173,51 +175,48 @@
 
 \begin{frame}{Normalization and purification}
 	\begin{block}{Normalization}
-		Every nonlinear monomial is rewritten into the form $c\cdot x^ky^l$
-		using fresh defined variables:\quad
-		$xyz \rightsquigarrow d\,z$ with $d\approx xy$
+		Every nonlinear monomial is rewritten into the form $c\cdot x^ky^l$.
+		\begin{itemize}
+			\item $c$ \quad concrete integer
+			\item $x, y$ \quad variables
+		\end{itemize}
 	\end{block}
 	\begin{block}{Purification}
-		Every nonlinear subterm $t$ is replaced by a fresh constant $\pure{t}$:
-		monomials $x^ky^l$ with $k+l\geq 2$, and $\divc{x}{y}$, $\modc{x}{y}$
-		with a non-constant divisor
+		Every nonlinear subterm $t$ is replaced by a fresh constant $\pure{t}$.
+		Call $\pure{t}$ a \alert{pure}.
 	\end{block}
 	\begin{itemize}
-		\item each monomial as a \alert{whole}: $xy^2$ gives only $\pure{xy^2}$,
-		      no pures for $xy$ or $y^2$
-		\item equal subterms share a pure
-		\item result: a QF\_LIA formula $\widehat\varphi$ over the original
-		      variables and the pures
+		\item mul: \quad $x^ky^l \;\rightsquigarrow\; \pure{x^ky^l}$
+		\item div: \quad $\divc{x}{y} \;\rightsquigarrow\; \pure{\divc{x}{y}}$
+		\item mod: \quad $\modc{x}{y} \;\rightsquigarrow\; \pure{\modc{x}{y}}$
 	\end{itemize}
+	\begin{block}{Result}
+		A LIA formula $\widehat\varphi$ over the original variables and pures.
+	\end{block}
 \end{frame}
 
 \begin{frame}{Main loop}
-	\begin{block}{\textsc{Qf-Nia-Solve}($\varphi$)}
-		\begin{enumerate}
-			\item $\widehat\varphi, P \gets \textsc{Purify}(\varphi)$;\quad
-			      $\mathcal{A}\gets\emptyset$
-			\item \textbf{loop}
-			      \begin{itemize}
-				      \item $\mathit{res}\gets\textsc{Check-Lia}(\widehat\varphi\land\bigwedge\mathcal{A})$
-				      \item \textbf{if} $\mathit{res}=\mathit{unsat}$ \textbf{then return}
-				            \alert{\textsc{unsat}}
-				      \item $\mu\gets\textsc{Model}(\mathit{res})$
-				      \item $\mathcal{N}\gets\textsc{Check-Nia}(\varphi,\widehat\varphi,P,\mu,\mathcal{A})$
-				      \item \textbf{if} $\mathcal{N}=\emptyset$ \textbf{then return}
-				            \alert{\textsc{sat}}, $\mu$
-				      \item $\mathcal{A}\gets\mathcal{A}\cup\mathcal{N}$
-			      \end{itemize}
-		\end{enumerate}
-	\end{block}
-	\begin{itemize}
-		\item $\mathcal{A}$ --- linear axioms accumulated across iterations
-		\item Axioms are \alert{sound}: every NIA model satisfies them, so
-		      \textsc{unsat} of the abstraction is conclusive
-	\end{itemize}
+	Given a NIA formula $\varphi$:
+	\begin{enumerate}
+		\item $\widehat\varphi, P \gets \textsc{Purify}(\varphi)$
+		\item $\mathcal{A}\gets\emptyset$ \hfill\emph{(refinement axioms)}
+		\item \textbf{loop}
+		      \begin{itemize}
+			      \item $\mathit{res}\gets\textsc{Solve}(\widehat\varphi\land\bigwedge\mathcal{A})$
+			      \item \textbf{if} $\mathit{res}=\mathit{unsat}$ \textbf{then return}
+			            \alert{\textsc{unsat}}
+			      \item $\mu\gets\textsc{Model}(\mathit{res})$
+			      \item $\mathcal{N}\gets\textsc{Check}(\varphi,\widehat\varphi,P,\mu,\mathcal{A})$
+			            \hfill\emph{(check $\mu$ against NIA semantics)}
+			      \item \textbf{if} $\mathcal{N}=\emptyset$ \textbf{then return}
+			            \alert{\textsc{sat}}, $\mu$
+			      \item $\mathcal{A}\gets\mathcal{A}\cup\mathcal{N}$
+		      \end{itemize}
+	\end{enumerate}
 \end{frame}
 
-\begin{frame}{Which terms to blame? Implicant-based targeting}
-	\begin{block}{\textsc{Check-Nia}($\varphi,\widehat\varphi,P,\mu,\mathcal{A}$)}
+\begin{frame}{Checking $\mu$ against NIA semantics}
+	\begin{block}{\textsc{Check}($\varphi,\widehat\varphi,P,\mu,\mathcal{A}$)}
 		\small
 		\begin{enumerate}
 			\item \textbf{if} $\mu\models_{\mathrm{NIA}}\varphi$ \textbf{then return}
