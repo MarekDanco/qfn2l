@@ -269,24 +269,25 @@
 \begin{frame}{Quick reminder}
 	\begin{itemize}
 		\item $\widehat\varphi\land\bigwedge\mathcal{A}$ is \textbf{sat}, but for
-		      some nonlinear term $t$
+		      some nonlinear term $t$:
 		      \[
-			      \mu(\pure{t})\;\neq\;t[\mu]
+			      \mu(\pure{t})\;\neq\;\mu(t)
 		      \]
-		\item the model is \alert{spurious} --- it satisfies $\widehat\varphi$,
+		\item The model is \alert{spurious} $\Rightarrow$ it satisfies $\widehat\varphi$,
 		      not $\varphi$
-		\item Goal: linear axioms that make $\pure{t}$ track $t$ more closely and
-		      \alert{rule out} this bad model
+		      \vskip 1cm
+		\item Goal: linear axioms that make $\pure{t}$ track $t$ more closely and \alert{rule out}
+		      this bad model (or more models)
 		\item Quality of the axioms decides everything:
-		      \emph{tight} axioms cut iterations, \emph{cheap} axioms keep each
-		      iteration fast
+		      \begin{itemize}
+			      \item \emph{tight} axioms cut iterations
+			      \item \emph{cheap} axioms keep each iteration fast
+		      \end{itemize}
 	\end{itemize}
 \end{frame}
 
 \begin{frame}{Axioms for $\pure{x^k}$}
-	Generated when $\mu(x)=v$ but $\mu(\pure{x^k})\neq v^k$
 	\begin{center}
-		\footnotesize
 		\begin{tabular}{ll}
 			\toprule
 			\textit{Sign}     & $\pure{x^k}\geq 0$ \ ($k$ even), \quad
@@ -301,11 +302,6 @@
 			\bottomrule
 		\end{tabular}
 	\end{center}
-	\begin{itemize}
-		\item shown for $v\geq 0$; symmetric variants for $v<0$ by the parity of $k$
-		\item \textit{Sign} is model-independent, added once
-		\item the \alert{secant bounds} are the new ingredient
-	\end{itemize}
 \end{frame}
 
 \begin{frame}{Bounding powers by secant lines}
@@ -342,71 +338,47 @@
 			\end{tikzpicture}
 		\end{center}
 		\column{0.45\textwidth}
-		The line $v^{k-1}x$ passes through the origin and $(v,v^k)$, and bounds
-		$x^k$ on each side of $v$:
+		The line $v^{k-1}x$ passes through the origin and $(v,v^k)$
 		\[
 			x\geq v\Rightarrow \pure{x^k}\geq v^{k-1}x
 		\]
 		\[
 			0\leq x\leq v\Rightarrow \pure{x^k}\leq v^{k-1}x
 		\]
-		\begin{itemize}
-			\item tangent planes give only \alert{lower} bounds for convex $x^k$
-			\item secants give \alert{two-sided} constraints
-		\end{itemize}
 	\end{columns}
 \end{frame}
 
 \begin{frame}{Bounding mixed powers $\pure{x^ky^l}$}
-	Linearize $x^k$ by its secant, treat $y^l$ as a constant coefficient:
-	\[
-		x^ky^l \;\geq\; x^kw^l \;\geq\; v^{k-1}x\,w^l
-	\]
-	\begin{block}{Secant conditions $\CC{x^k}{v^k}{\downarrow/\uparrow}$}
-		\centering\footnotesize
-		\begin{tabular}{lll}
-			\toprule
-			                & $\CC{x^k}{v^k}{\downarrow}$ & $\CC{x^k}{v^k}{\uparrow}$ \\
-			\midrule
-			$v\geq 0$       & $x\geq v$                   & $0\leq x\leq v$           \\
-			$v<0$, $k$ even & $x\leq v$                   & $v\leq x\leq 0$           \\
-			$v<0$, $k$ odd  & $v\leq x\leq 0$             & $x\leq v$                 \\
-			\bottomrule
-		\end{tabular}
-	\end{block}
 	\begin{itemize}
-		\item the arrows are chosen by the signs of $v^k$ and $w^l$ so that the
-		      inequality survives multiplication (four cases, all proved)
-		\item e.g.\ $v,w>0$:\quad
-		      $x\geq v\land y\geq w \implies \pure{x^3y^2}\geq v^2w^2\,x$
-		\item symmetric construction: fix $x^k$, linearize $y^l$
+		\item Same goal as before: keep the bound \emph{linear} in the
+		      variables $\pure{x^my^n}$ depends on
+		\item Linearize $x^m$ via the secant bound; treat $y^n$ as a
+		      constant coefficient
+		\item e.g.
+		      \[
+			      x\geq 0\land y\geq 5\Rightarrow\pure{x^3y^2}\geq 25\,\pure{x^3}
+		      \]
+		\item Symmetric construction: fix $x^m$ constant, linearize $y^n$
+		      instead
 	\end{itemize}
 \end{frame}
 
-\begin{frame}{Tangent planes for $x\cdot y$}
+\begin{frame}{Cimatti et al.: tangent planes for $x\cdot y$}
 	\begin{columns}[c]
-		\column{0.46\textwidth}
+		\column{0.52\textwidth}
 		\begin{center}
 			\includegraphics[width=\textwidth]{figs/tangent_plane.pdf}
 		\end{center}
-		\column{0.54\textwidth}
-		\footnotesize
-		Tangent plane of $xy$ at $(v,w)=(10,10)$ is
-		$T = wx+vy-vw = 10x+10y-100$, and the sign of $xy-T=(x-v)(y-w)$ picks
-		the side:
-		\begin{align*}
-			x>v\land y>w & \Rightarrow \pure{xy}>T \\
-			x>v\land y<w & \Rightarrow \pure{xy}<T
-		\end{align*}
-		\begin{itemize}
-			\item only for the bilinear case $k=l=1$
-			\item = McCormick envelope at the model point
-		\end{itemize}
+		\column{0.48\textwidth}
+		At the plotted point $(v,w)=(10,10)$:
+		\[
+			T = 10x + 10y - 100
+		\]
+		Axiom added for the region $x>10 \land y>10$:
+		\[
+			x>10\land y>10\ \Rightarrow\ \pure{xy} > T
+		\]
 	\end{columns}
-	\vspace{0.3em}
-	{\footnotesize\alert{Frontier strategy}: a per-pure bounding box of the model
-		values seen so far; a point extending the box triggers tangent planes at the
-		two mixed corners, so both bounds exist in every region.}
 \end{frame}
 
 \begin{frame}{Integer division and modulo}
