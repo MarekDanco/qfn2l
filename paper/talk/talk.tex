@@ -108,6 +108,9 @@
 	\begin{block}{Idea}
 		Can we approximate NIA problems using LIA?
 	\end{block}
+	\pause
+	Yes, by \alert{linearization}: approximate nonlinear terms with linear
+	axioms, then refine.
 \end{frame}
 
 \begin{frame}{The idea, on an example}
@@ -120,7 +123,7 @@
 	\[
 		\widehat\varphi:\ \alert{p}\leq x \land x\geq 2
 	\]
-	Add a refinement axiom:
+	Add a refinement axiom, a \alert{linearization} of $x^2$:
 	\[
 		\widehat\varphi \;\land\; (x\geq 2\Rightarrow \alert{p}\geq 2x)
 	\]
@@ -201,7 +204,10 @@
 		\item $\widehat\varphi, P \gets \textsc{Purify}(\varphi)$
 		\item $\mathcal{A}\gets\emptyset$ \hfill\emph{(refinement axioms)}
 		\item \textbf{loop}
-		      \begin{itemize}
+		      \begingroup
+		      \setbeamertemplate{enumerate subitem}{\arabic{enumii}.}
+		      \begin{enumerate}
+			      \setcounter{enumii}{3}
 			      \item $\mathit{res}\gets\textsc{Solve}(\widehat\varphi\land\bigwedge\mathcal{A})$
 			      \item \textbf{if} $\mathit{res}=\mathit{unsat}$ \textbf{then return}
 			            \alert{\textsc{unsat}}
@@ -211,7 +217,8 @@
 			      \item \textbf{if} $\mathcal{N}=\emptyset$ \textbf{then return}
 			            \alert{\textsc{sat}}, $\mu$
 			      \item $\mathcal{A}\gets\mathcal{A}\cup\mathcal{N}$
-		      \end{itemize}
+		      \end{enumerate}
+		      \endgroup
 	\end{enumerate}
 \end{frame}
 
@@ -253,8 +260,6 @@
 	\end{block}
 	\begin{itemize}
 		\item when it fails, the axioms gathered on the way are \alert{kept}
-		\item Cimatti et al.\ return to the outer solver right after generating
-		      lemmas
 	\end{itemize}
 \end{frame}
 

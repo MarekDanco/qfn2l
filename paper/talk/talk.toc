@@ -1,4 +1,4 @@
-\beamer@sectionintoc {1}{Algorithm}{12}{0}{1}
-\beamer@sectionintoc {2}{Refinement Axioms}{23}{0}{2}
-\beamer@sectionintoc {3}{Comparison with Prior Work}{30}{0}{3}
-\beamer@sectionintoc {4}{Experiments}{32}{0}{4}
+\beamer@sectionintoc {1}{Algorithm}{13}{0}{1}
+\beamer@sectionintoc {2}{Refinement Axioms}{24}{0}{2}
+\beamer@sectionintoc {3}{Comparison with Prior Work}{31}{0}{3}
+\beamer@sectionintoc {4}{Experiments}{33}{0}{4}
