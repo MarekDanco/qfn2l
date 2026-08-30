@@ -135,7 +135,31 @@
 	unsat
 \end{frame}
 
-\begin{frame}{Our approach in one slide}
+\section{Algorithm}
+
+\begin{frame}{Normalization and purification}
+	\begin{block}{Normalization}
+		Every nonlinear monomial is rewritten into the form $c\cdot x^ky^l$.
+		\begin{itemize}
+			\item $c$ \quad concrete integer
+			\item $x, y$ \quad variables
+		\end{itemize}
+	\end{block}
+	\begin{block}{Purification}
+		Every nonlinear subterm $t$ is replaced by a fresh constant $\pure{t}$.
+		Call $\pure{t}$ a \alert{pure}.
+	\end{block}
+	\begin{itemize}
+		\item mul: \quad $x^ky^l \;\rightsquigarrow\; \pure{x^ky^l}$
+		\item div: \quad $\divc{x}{y} \;\rightsquigarrow\; \pure{\divc{x}{y}}$
+		\item mod: \quad $\modc{x}{y} \;\rightsquigarrow\; \pure{\modc{x}{y}}$
+	\end{itemize}
+	\begin{block}{Result}
+		A LIA formula $\widehat\varphi$ over the original variables and pures.
+	\end{block}
+\end{frame}
+
+\begin{frame}{Main loop}
 	\begin{center}
 		\resizebox{\linewidth}{!}{%
 			\begin{tikzpicture}[
@@ -167,63 +191,12 @@
 		}
 	\end{center}
 	\begin{itemize}
-		\item $\widehat\varphi$ is a LIA \alert{overapproximation} of $\varphi$
-		      $\Rightarrow$ \textsc{unsat} transfers
-		\item A model of $\widehat\varphi$ may be \alert{spurious}
-		      $\Rightarrow$ refine and repeat
+		\item $\widehat\varphi \gets \textsc{Purify}(\varphi)$ is an
+		      \alert{overapproximation} of $\varphi$ $\Rightarrow$
+		      \textsc{unsat} transfers
+		\item a model $\mu$ of $\widehat\varphi\land\bigwedge\mathcal{A}$ may
+		      be \alert{spurious} (next slide)
 	\end{itemize}
-\end{frame}
-
-\section{Algorithm}
-
-\begin{frame}{Normalization and purification}
-	\begin{block}{Normalization}
-		Every nonlinear monomial is rewritten into the form $c\cdot x^ky^l$.
-		\begin{itemize}
-			\item $c$ \quad concrete integer
-			\item $x, y$ \quad variables
-		\end{itemize}
-	\end{block}
-	\begin{block}{Purification}
-		Every nonlinear subterm $t$ is replaced by a fresh constant $\pure{t}$.
-		Call $\pure{t}$ a \alert{pure}.
-	\end{block}
-	\begin{itemize}
-		\item mul: \quad $x^ky^l \;\rightsquigarrow\; \pure{x^ky^l}$
-		\item div: \quad $\divc{x}{y} \;\rightsquigarrow\; \pure{\divc{x}{y}}$
-		\item mod: \quad $\modc{x}{y} \;\rightsquigarrow\; \pure{\modc{x}{y}}$
-	\end{itemize}
-	\begin{block}{Result}
-		A LIA formula $\widehat\varphi$ over the original variables and pures.
-	\end{block}
-\end{frame}
-
-\begin{frame}{Main loop}
-	Given a NIA formula $\varphi$:
-	\begin{enumerate}
-		\item $\widehat\varphi, P \gets \textsc{Purify}(\varphi)$
-		\item $\mathcal{A}\gets\emptyset$ \hfill\emph{(refinement axioms)}
-		      \pause
-		\item \textbf{loop}
-		      \begingroup
-		      \setbeamertemplate{enumerate subitem}{\arabic{enumii}.}
-		      \begin{enumerate}
-			      \setcounter{enumii}{3}
-			      \item $\mathit{res}\gets\textsc{Solve}(\widehat\varphi\land\bigwedge\mathcal{A})$
-			      \item \textbf{if} $\mathit{res}=\mathit{unsat}$ \textbf{then return}
-			            \alert{\textsc{unsat}}
-			            \pause
-			      \item $\mu\gets\textsc{Model}(\mathit{res})$
-			      \item $\mathcal{N}\gets\textsc{Check}(\varphi,\widehat\varphi,P,\mu,\mathcal{A})$
-			            \hfill\emph{(check $\mu$ against NIA semantics)}
-			            \pause
-			      \item \textbf{if} $\mathcal{N}=\emptyset$ \textbf{then return}
-			            \alert{\textsc{sat}}, $\mu$
-			            \hfill\emph{($\mu$ is also model under NIA)}
-			      \item $\mathcal{A}\gets\mathcal{A}\cup\mathcal{N}$
-		      \end{enumerate}
-		      \endgroup
-	\end{enumerate}
 \end{frame}
 
 \begin{frame}{Checking $\mu$ against NIA semantics}
@@ -278,7 +251,7 @@
 					      \alert<1>{p}\leq x\land x\geq 2$}
 		      \]
 		\item<2-> LIA solve: $\mu=\{x\mapsto 2,\ p\mapsto 1\}$
-		\item<3-> NIA check: $\mu(p) \neq \mu(x^2) \Rightarrow \alert{\text{$\mu$ is spurious}}$\\
+		\item<3-> NIA check: $\mu(x^2) \neq \mu(p) \Rightarrow \alert{\text{$\mu$ is spurious}}$\\
 		      $I=\{p\leq x,\ x\geq 2\}$, $R=\{p\}$
 		\item<4-> add axioms for $p$, among them \textit{Lin.\,LB}:
 		      \[
