@@ -203,6 +203,7 @@
 	\begin{enumerate}
 		\item $\widehat\varphi, P \gets \textsc{Purify}(\varphi)$
 		\item $\mathcal{A}\gets\emptyset$ \hfill\emph{(refinement axioms)}
+		      \pause
 		\item \textbf{loop}
 		      \begingroup
 		      \setbeamertemplate{enumerate subitem}{\arabic{enumii}.}
@@ -211,11 +212,14 @@
 			      \item $\mathit{res}\gets\textsc{Solve}(\widehat\varphi\land\bigwedge\mathcal{A})$
 			      \item \textbf{if} $\mathit{res}=\mathit{unsat}$ \textbf{then return}
 			            \alert{\textsc{unsat}}
+			            \pause
 			      \item $\mu\gets\textsc{Model}(\mathit{res})$
 			      \item $\mathcal{N}\gets\textsc{Check}(\varphi,\widehat\varphi,P,\mu,\mathcal{A})$
 			            \hfill\emph{(check $\mu$ against NIA semantics)}
+			            \pause
 			      \item \textbf{if} $\mathcal{N}=\emptyset$ \textbf{then return}
 			            \alert{\textsc{sat}}, $\mu$
+			            \hfill\emph{($\mu$ is also model under NIA)}
 			      \item $\mathcal{A}\gets\mathcal{A}\cup\mathcal{N}$
 		      \end{enumerate}
 		      \endgroup
@@ -227,24 +231,27 @@
 		\small
 		\begin{enumerate}
 			\item \textbf{if} $\mu\models_{\mathrm{NIA}}\varphi$ \textbf{then return}
-			      $\emptyset$ \hfill\emph{(values of pures irrelevant)}
+			      $\emptyset$
+			      \hfill\emph{(values of pures irrelevant)}
+			      \pause
 			\item $I\gets\textsc{Implicant}(\widehat\varphi,\mu)$
-			\item $R\gets\{\pure{t}\in I \mid \mu(\pure{t})\neq\mu(t)
-				      \land \pure{t}\text{ in a falsified literal}\}$
-			\item $\mathit{res},\mathcal{N}\gets\textsc{Model-Fix}(\mu,R)$;\quad
-			      \textbf{if} $\mathit{res}$ \textbf{then return} $\emptyset$
-			\item $\mathcal{N}\gets\mathcal{N}\cup{}$congruence axioms for $R$
+			      \hfill\emph{($I \models \widehat\varphi$)}
+			      \pause
+			\item $R\gets\{\pure{t}\in I \mid \mu(\pure{t})\neq\mu(t)\}$
+			      \hfill\emph{(collect wrong pures)}
+			      \begin{itemize}
+			      \item For example: $p \approx x^3$, $\mu(p) = 5$, $\mu(x) = 2$
+			      \end{itemize}
+			      \pause
+			\item $\mathit{res},\mathcal{N}\gets\textsc{Model-Fix}(\mu,R)$
+				\hfill\emph{(is $\mu$ \textbf{almost} correct?)}
+			\item \textbf{if} $\mathit{res}$ \textbf{then return} $\emptyset$
+			      \pause
 			\item \textbf{for each} $p\in R$:\quad
 			      $\mathcal{N}\gets\mathcal{N}\cup\textsc{Axioms}(p,\mu)$
+			\item \textbf{return} $\mathcal{N}$
 		\end{enumerate}
 	\end{block}
-	\vspace{-0.5em}
-	\begin{itemize}
-		\item \alert{Implicant}: all conjuncts, one $\mu$-satisfied disjunct per
-		      disjunction
-		\item only the pures in literals \alert{failing} under NIA semantics are
-		      blamed --- far more targeted than prior work
-	\end{itemize}
 \end{frame}
 
 \begin{frame}{Model repair}
