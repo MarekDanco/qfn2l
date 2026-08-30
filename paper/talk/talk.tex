@@ -293,7 +293,6 @@
 			\textit{Sign}     & $\pure{x^k}\geq 0$ \ ($k$ even), \quad
 			$x>0\iff\pure{x^k}>0$ \ ($k$ odd)                                                   \\
 			\textit{Eq-zero}  & $(\pure{x^k}=0)\iff(x=0)$                                       \\
-			\textit{Eq}       & $(\pure{x^k}=v^k)\iff(x=v)$                                     \\
 			\textit{Gap}      & $\pure{x^k}\leq v^k \lor \pure{x^k}\geq(v+1)^k$                 \\
 			\textit{Mod}      & $x\equiv v\!\!\pmod m \implies \pure{x^k}\equiv v^k\!\!\pmod m$ \\
 			\midrule
@@ -396,47 +395,39 @@
 
 		the right-hand sides are LIA, since $w$ is a numeral
 	\end{block}
-	\begin{block}{Large-divisor --- a big $|y|$ determines the result}
-		for $v\geq 0$:
-		\vspace{-0.6em}
-		\begin{align*}
-			x=v\land|y|>v & \implies \pure{\divc{x}{y}}=0 \\
-			x=v\land|y|>v & \implies \pure{\modc{x}{y}}=v
-		\end{align*}
-		\vspace{-1.2em}
-
-		for $v<0$: conclusions follow SMT-LIB, where $\mathit{mod}$ is non-negative
-		($\pure{\divc{x}{y}}=\mp1$, $\pure{\modc{x}{y}}=|y|-|v|$)
-	\end{block}
+	\pause
+	\begin{align*}
+		\Large\text{... and others}
+	\end{align*}
 \end{frame}
 
-\section{Comparison with Prior Work}
-
-\begin{frame}{Versus Cimatti et al.\ (MathSAT5)}
-	Same CEGAR skeleton --- the differences:
-	\begin{center}
-		\resizebox{\linewidth}{!}{%
-			\footnotesize
-			\begin{tabular}{lll}
-				\toprule
-				                 & \textbf{Cimatti et al.}           & \textbf{\solver}                    \\
-				\midrule
-				abstract domain  & QF\_UFLIA, $f_\times(x,y)$        & QF\_LIA, pures $\pure{t}$           \\
-				congruence       & free from the UF solver           & explicit, lazy axioms               \\
-				axiom generation & three rounds, stop at first hit   & all violated axioms in one pass     \\
-				failing terms    & all products in falsified constr. & pures in failing implicant literals \\
-				model repair     & none                              & \textsc{Model-Fix} sub-loop         \\
-				axiom set        & sign, zero, neutrality,           & sign, zero, tangent \alert{plus}    \\
-				                 & proportionality, tangent          & secant bounds for $x^k$, $x^ky^l$   \\
-				\bottomrule
-			\end{tabular}}
-	\end{center}
-	\begin{itemize}
-		\item MathSAT5 implements that approach, so the experimental comparison
-		      with MathSAT5 doubles as a comparison with it
-	\end{itemize}
-\end{frame}
-
+% \section{Comparison with Prior Work}
+%
+% \begin{frame}{Versus Cimatti et al.\ (MathSAT5)}
+% 	Same CEGAR skeleton --- the differences:
+% 	\begin{center}
+% 		\resizebox{\linewidth}{!}{%
+% 			\footnotesize
+% 			\begin{tabular}{lll}
+% 				\toprule
+% 				                 & \textbf{Cimatti et al.}           & \textbf{\solver}                    \\
+% 				\midrule
+% 				abstract domain  & QF\_UFLIA, $f_\times(x,y)$        & QF\_LIA, pures $\pure{t}$           \\
+% 				congruence       & free from the UF solver           & explicit, lazy axioms               \\
+% 				axiom generation & three rounds, stop at first hit   & all violated axioms in one pass     \\
+% 				failing terms    & all products in falsified constr. & pures in failing implicant literals \\
+% 				model repair     & none                              & \textsc{Model-Fix} sub-loop         \\
+% 				axiom set        & sign, zero, neutrality,           & sign, zero, tangent \alert{plus}    \\
+% 				                 & proportionality, tangent          & secant bounds for $x^k$, $x^ky^l$   \\
+% 				\bottomrule
+% 			\end{tabular}}
+% 	\end{center}
+% 	\begin{itemize}
+% 		\item MathSAT5 implements that approach, so the experimental comparison
+% 		      with MathSAT5 doubles as a comparison with it
+% 	\end{itemize}
+% \end{frame}
+%
 \section{Experiments}
 
 \begin{frame}{Setup}
