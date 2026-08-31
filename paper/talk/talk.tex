@@ -58,6 +58,7 @@
 	\end{block}
 	\pause
 	\begin{itemize}
+		\item Correctness can be verified algorithmically!
 		\item This is a nonlinear arithmetic question!
 	\end{itemize}
 \end{frame}
@@ -201,21 +202,20 @@
 \end{frame}
 
 \begin{frame}{Checking $\mu$ against NIA semantics}
-	\begin{block}{\textsc{Check}($\varphi,\widehat\varphi,P,\mu,\mathcal{A}$)}
+	\begin{block}
 		\small
 		\begin{enumerate}
-			\item \textbf{if} $\mu\models_{\mathrm{NIA}}\varphi$ \textbf{then return}
-			      $\emptyset$
-			      \hfill\emph{(values of pures irrelevant)}
-			      \pause
 			\item $I\gets\textsc{Implicant}(\widehat\varphi,\mu)$
-			      \hfill\emph{($I \models \widehat\varphi$)}
+			      \hfill\emph{(a part of $\widehat\varphi$ that suffices: $\mu\models I\models\widehat\varphi$)}
 			      \pause
 			\item $R\gets\{\pure{t}\in I \mid \mu(\pure{t})\neq\mu(t)\}$
 			      \hfill\emph{(collect wrong pures)}
-			      \begin{itemize}
-				      \item For example: $p \approx x^3$, $\mu(p) = 5$, $\mu(x) = 2$
-			      \end{itemize}
+			      \pause
+			      \medskip
+			      \begin{center}
+				      Example:\quad $\mu(\pure{x^3})=5$ \quad but \quad $\mu(x)=2$
+			      \end{center}
+			      \medskip
 			      \pause
 			\item $\mathit{res},\mathcal{N}\gets\textsc{Model-Fix}(\mu,R)$
 			      \hfill\emph{(is $\mu$ \textbf{almost} correct?)}
@@ -281,7 +281,7 @@
 		      this bad model (or more models)
 		\item Quality of the axioms decides everything:
 		      \begin{itemize}
-			      \item \emph{tight} axioms cut iterations
+			      \item \emph{tight} axioms cut number of iterations
 			      \item \emph{cheap} axioms keep each iteration fast
 		      \end{itemize}
 	\end{itemize}
@@ -293,7 +293,7 @@
 			\begin{tabular}{ll}
 				\toprule
 				\textit{Sign}    & $\pure{x^k}\geq 0$ \ ($k$ even), \quad
-				$x>0\iff\pure{x^k}>0$ \ ($k$ odd)                                                   \\
+				$x>0\iff\pure{x^k}>0$ \ ($k$ odd)                                                  \\
 				\textit{Eq-zero} & $(\pure{x^k}=0)\iff(x=0)$                                       \\
 				\textit{Gap}     & $\pure{x^k}\leq v^k \lor \pure{x^k}\geq(v+1)^k$                 \\
 				\textit{Mod}     & $x\equiv v\!\!\pmod m \implies \pure{x^k}\equiv v^k\!\!\pmod m$ \\
