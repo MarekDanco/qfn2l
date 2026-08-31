@@ -66,7 +66,7 @@
 \begin{frame}{Quantifier-Free Nonlinear Integer Arithmetic (NIA)}
 	\begin{itemize}
 		\item Quantifier-free formulas over the \alert{integers} with
-		      $\{+,-,\cdot,\mathit{div},\mathit{mod},\mathit{abs}\}$
+		      $\{+,-,\cdot,\mathit{div},\mathit{mod}\}$
 		\item Truly nonlinear:
 		      \begin{itemize}
 			      \item variables multiplied together ($x\cdot y$, $x^2$, $x^ky^l$)
@@ -139,14 +139,14 @@
 
 \section{Algorithm}
 
-\begin{frame}{Normalization and purification}
-	\begin{block}{Normalization}
-		Every nonlinear monomial is rewritten into the form $c\cdot x^ky^l$.
-		\begin{itemize}
-			\item $c$ \quad concrete integer
-			\item $x, y$ \quad variables
-		\end{itemize}
-	\end{block}
+\begin{frame}{Purification}
+	% \begin{block}{Normalization}
+	% 	Every nonlinear monomial is rewritten into the form $c\cdot x^ky^l$.
+	% 	\begin{itemize}
+	% 		\item $c$ \quad concrete integer
+	% 		\item $x, y$ \quad variables
+	% 	\end{itemize}
+	% \end{block}
 	\begin{block}{Purification}
 		Every nonlinear subterm $t$ is replaced by a fresh constant $\pure{t}$.
 		Call $\pure{t}$ a \alert{pure}.
@@ -193,7 +193,7 @@
 		}
 	\end{center}
 	\begin{itemize}
-		\item $\widehat\varphi \gets \textsc{Purify}(\varphi)$ is an
+		\item $\widehat\varphi\land\bigwedge\mathcal{A}$ is an
 		      \alert{overapproximation} of $\varphi$ $\Rightarrow$
 		      \textsc{unsat} transfers
 		\item a model $\mu$ of $\widehat\varphi\land\bigwedge\mathcal{A}$ may
@@ -355,9 +355,9 @@
 \end{frame}
 
 \begin{frame}{Bounding mixed powers $\pure{x^ky^l}$}
-	\textbf{Goal:} keep the bound \emph{linear} in the variables $\pure{x^my^n}$ depends on
+	% \textbf{Goal:} keep the bound \emph{linear} in the variables $\pure{x^my^n}$ depends on
 	\begin{itemize}
-		\item Linearize $x^m$ via the secant bound; treat $y^n$ constant
+		\item Linearize $x^k$ via the secant bound; treat $y^l$ constant
 		\item e.g.
 		      \[
 			      x\geq 3\land y\geq 5\Rightarrow\pure{x^3y^2}\geq 3^2 \,5^2 \,x
@@ -365,7 +365,7 @@
 		      \[
 			      0\leq x\leq 3\land 0\leq y\leq 5\Rightarrow\pure{x^3y^2}\leq 3^2 \,5^2 \,x
 		      \]
-		\item Symmetric construction: fix $x^m$ constant, linearize $y^n$
+		\item Symmetric construction: fix $x^k$ constant, linearize $y^l$
 		      instead
 	\end{itemize}
 \end{frame}
