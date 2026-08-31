@@ -254,7 +254,7 @@
 		\item<2-> LIA solve: $\mu=\{x\mapsto 2,\ p\mapsto 1\}$
 		\item<3-> NIA check: $\mu(x^2) \neq \mu(p) \Rightarrow \alert{\text{$\mu$ is spurious}}$\\
 		      $I=\{p\leq x,\ x\geq 2\}$, $R=\{p\}$
-		\item<4-> add axioms for $p$, among them \textit{Lin.\,LB}:
+		\item<4-> add axioms for $p$, among them \textit{Linear Lower Bound}:
 		      \[
 			      \hspace*{-\leftmargin}\makebox[\textwidth][c]{$x\geq 2 \;\Rightarrow\; p\geq 2x$}
 		      \]
@@ -289,18 +289,24 @@
 
 \begin{frame}{Axioms for $\pure{x^k}$}
 	\begin{center}
-		\begin{tabular}{ll}
+		\sbox0{%
+			\begin{tabular}{ll}
+				\toprule
+				\textit{Sign}    & $\pure{x^k}\geq 0$ \ ($k$ even), \quad
+				$x>0\iff\pure{x^k}>0$ \ ($k$ odd)                                                   \\
+				\textit{Eq-zero} & $(\pure{x^k}=0)\iff(x=0)$                                       \\
+				\textit{Gap}     & $\pure{x^k}\leq v^k \lor \pure{x^k}\geq(v+1)^k$                 \\
+				\textit{Mod}     & $x\equiv v\!\!\pmod m \implies \pure{x^k}\equiv v^k\!\!\pmod m$ \\
+				\bottomrule
+			\end{tabular}}%
+		\usebox0
+
+		\begin{tabular*}{\wd0}{ll@{\extracolsep{\fill}}}
 			\toprule
-			\textit{Sign}     & $\pure{x^k}\geq 0$ \ ($k$ even), \quad
-			$x>0\iff\pure{x^k}>0$ \ ($k$ odd)                                                   \\
-			\textit{Eq-zero}  & $(\pure{x^k}=0)\iff(x=0)$                                       \\
-			\textit{Gap}      & $\pure{x^k}\leq v^k \lor \pure{x^k}\geq(v+1)^k$                 \\
-			\textit{Mod}      & $x\equiv v\!\!\pmod m \implies \pure{x^k}\equiv v^k\!\!\pmod m$ \\
-			\midrule
-			\textit{Lin.\,LB} & $x\geq v \implies \pure{x^k}\geq v^{k-1}x$                      \\
-			\textit{Lin.\,UB} & $0\leq x\leq v \implies \pure{x^k}\leq v^{k-1}x$                \\
+			\textit{Linear lower bound} & $x\geq v \implies \pure{x^k}\geq v^{k-1}x$        \\
+			\textit{Linear upper bound} & $0\leq x\leq v \implies \pure{x^k}\leq v^{k-1}x$ \\
 			\bottomrule
-		\end{tabular}
+		\end{tabular*}
 	\end{center}
 \end{frame}
 
@@ -426,10 +432,11 @@
 		\item Tested against: Z3, MathSAT5, Yices, cvc5
 		\item Four configurations:
 		      \begin{itemize}
+			      \small
 			      \item base (as presented here)
-			      \item {+}\textsc{Frontier}
-			      \item {+}\textsc{Congr.}
-			      \item {+}\textsc{Congr.}\,$-$\,\textsc{Model-Fix}
+			      \item {+}\textsc{Frontier}: reduces the overhead of tangent plane axioms
+			      \item {+}\textsc{Congr.}: pures with equal arguments are equal
+			      \item {+}\textsc{Congr.}\,$-$\,\textsc{Model-Fix}: congruence on, model-fix off
 		      \end{itemize}
 	\end{itemize}
 \end{frame}
@@ -448,10 +455,10 @@
 			{\solver{}$+$\textsc{Congr.}\,$-$\,\textsc{Model-Fix}}
 			                              & {11\,473}                & {587}                          \\
 			\midrule
-			Z3~4.15.4                     & 19\,205                  & 118                            \\
-			MathSAT5~5.6.16               & 16\,377                  & 171                            \\
-			Yices~2.6.4                   & 15\,853                  & 119                            \\
-			cvc5~1.3.2                    & 12\,996                  & 157                            \\
+			Z3                            & 19\,205                  & 118                            \\
+			MathSAT5                      & 16\,377                  & 171                            \\
+			Yices                         & 15\,853                  & 119                            \\
+			cvc5                          & 12\,996                  & 157                            \\
 			\bottomrule
 		\end{tabular}
 	\end{center}
@@ -499,6 +506,7 @@
 	\end{block}
 	\begin{block}{Future work}
 		\begin{itemize}
+			\item part of our project on quantified NIA
 			\item bit-blasting preprocessing for small-model sat instances
 			\item pruning axioms made redundant by stronger ones
 		\end{itemize}
