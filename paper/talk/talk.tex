@@ -48,7 +48,7 @@
 					\texttt{\_value}\text{: tokens sent to each}
 				\end{array}
 				\right\}\ \alert{\text{attacker's pick}} \\
-				\hphantom{x}\texttt{amount}\text{: what the attacker pays the bank}
+					\hphantom{x}\texttt{amount}\text{: total debited from the attacker's balance}
 			\end{array}$
 		\[
 			\texttt{cnt}=2,\ \texttt{\_value}=2^{255}
@@ -73,8 +73,8 @@
 			      \item $\mathit{div}$/$\mathit{mod}$ with a \alert{non-constant divisor}
 			            ($\divc{x}{y}$, $\modc{x}{y}$)
 		      \end{itemize}
-		\item Satisfiability is \alert{undecidable} \\
-		      (Hilbert's 10th problem, Matiyasevich)
+		% \item Satisfiability is \alert{undecidable} \\
+		%       (Hilbert's 10th problem, Matiyasevich)
 	\end{itemize}
 	\begin{block}{This talk}
 		An incomplete but practical decision procedure for NIA
@@ -115,27 +115,27 @@
 	axioms, then refine.
 \end{frame}
 
-\begin{frame}{The idea, on an example}
-	\[
-		\varphi:\ \alert{x^2}\leq x \land x\geq 2
-	\]
-	\pause
-	Replace $x^2$ by a fresh constant $p$ (a \alert{pure}).
-	We get a LIA formula:
-	\[
-		\widehat\varphi:\ \alert{p}\leq x \land x\geq 2
-	\]
-	Add a refinement axiom, a \alert{linearization} of $x^2$:
-	\[
-		\widehat\varphi \;\land\; (x\geq 2\Rightarrow \alert{p}\geq 2x)
-	\]
-	\pause
-	This forces:
-	\[
-		2x \leq \alert{p} \leq x \;\models\; x\leq 0
-	\]
-	unsat
-\end{frame}
+% \begin{frame}{The idea, on an example}
+% 	\[
+% 		\varphi:\ \alert{x^2}\leq x \land x\geq 2
+% 	\]
+% 	\pause
+% 	Replace $x^2$ by a fresh constant $p$ (a \alert{pure}).
+% 	We get a LIA formula:
+% 	\[
+% 		\widehat\varphi:\ \alert{p}\leq x \land x\geq 2
+% 	\]
+% 	Add a refinement axiom, a \alert{linearization} of $x^2$:
+% 	\[
+% 		\widehat\varphi \;\land\; (x\geq 2\Rightarrow \alert{p}\geq 2x)
+% 	\]
+% 	\pause
+% 	This forces:
+% 	\[
+% 		2x \leq \alert{p} \leq x \;\models\; x\leq 0
+% 	\]
+% 	unsat
+% \end{frame}
 
 \section{Algorithm}
 
@@ -241,25 +241,25 @@
 	\end{itemize}
 \end{frame}
 
-\begin{frame}{Same example, more verbose}
+\begin{frame}{Example}
 	\[
 		\varphi:\quad \alert<1>{x^2}\leq x \;\land\; x\geq 2
 	\]
 	\begin{enumerate}
 		\small
-		\item<1-> Purify: $\alert<1>{p}:=\pure{x^2}$
+		\item<1-> Purify: introduce $\alert<1>{\pure{x^2}}$
 		      \[
 			      \hspace*{-\leftmargin}\makebox[\textwidth][c]{$\widehat\varphi:\quad
-					      \alert<1>{p}\leq x\land x\geq 2$}
+					      \alert<1>{\pure{x^2}}\leq x\land x\geq 2$}
 		      \]
-		\item<2-> LIA solve: $\mu=\{x\mapsto 2,\ p\mapsto 1\}$
-		\item<3-> NIA check: $\mu(x^2) \neq \mu(p) \Rightarrow \alert{\text{$\mu$ is spurious}}$\\
-		      $I=\{p\leq x,\ x\geq 2\}$, $R=\{p\}$
-		\item<4-> add axioms for $p$, among them \textit{Linear Lower Bound}:
+		\item<2-> LIA solve: $\mu=\{x\mapsto 2,\ \pure{x^2}\mapsto 1\}$
+		\item<3-> NIA check: $\mu(x^2) \neq \mu(\pure{x^2}) \Rightarrow \alert{\text{$\mu$ is spurious}}$\\
+		      $I=\{\pure{x^2}\leq x,\ x\geq 2\}$, $R=\{\pure{x^2}\}$
+		\item<4-> add axioms for $\pure{x^2}$, among them \textit{Linear Lower Bound}:
 		      \[
-			      \hspace*{-\leftmargin}\makebox[\textwidth][c]{$x\geq 2 \;\Rightarrow\; p\geq 2x$}
+			      \hspace*{-\leftmargin}\makebox[\textwidth][c]{$x\geq 2 \;\Rightarrow\; \pure{x^2}\geq 2x$}
 		      \]
-		\item<5-> LIA solve: $2x\leq p\leq x$ gives $x\leq 0$, contradicting
+		\item<5-> LIA solve: $2x\leq \pure{x^2}\leq x$ gives $x\leq 0$, contradicting
 		      $x\geq 2$
 		\item<6-> the abstraction is unsat $\Rightarrow$ $\varphi$ is
 		      \alert{\textsc{unsat}}
