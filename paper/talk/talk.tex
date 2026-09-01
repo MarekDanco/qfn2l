@@ -90,8 +90,8 @@
 		\item A ``sum of three cubes'' problem
 		\item A job for \alert{SMT solvers} $\leftarrow$ SAT solving + First order theories
 		\item cvc5, MathSAT, Yices~2 and Z3 all fail
-		      \pause
-		\item Our solver finds $x = -19,\; y = 35,\; z = -33$ in $\sim$20s
+		%       \pause
+		% \item Our solver finds $x = -19,\; y = 35,\; z = -33$ in $\sim$20s
 	\end{itemize}
 \end{frame}
 
@@ -202,6 +202,7 @@
 \end{frame}
 
 \begin{frame}{Checking $\mu$ against NIA semantics}
+	LIA solver returns model $\mu$:
 	\begin{block}
 		\small
 		\begin{enumerate}
@@ -510,7 +511,7 @@
 	\begin{block}{Future work}
 		\begin{itemize}
 			\item part of our project on quantified NIA
-			\item bit-blasting preprocessing for small-model sat instances
+			\item preprocessing for small-model sat instances
 			\item pruning axioms made redundant by stronger ones
 		\end{itemize}
 	\end{block}
