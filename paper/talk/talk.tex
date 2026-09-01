@@ -90,8 +90,8 @@
 		\item A ``sum of three cubes'' problem
 		\item A job for \alert{SMT solvers} $\leftarrow$ SAT solving + First order theories
 		\item cvc5, MathSAT, Yices~2 and Z3 all fail
-		%       \pause
-		% \item Our solver finds $x = -19,\; y = 35,\; z = -33$ in $\sim$20s
+		      %       \pause
+		      % \item Our solver finds $x = -19,\; y = 35,\; z = -33$ in $\sim$20s
 	\end{itemize}
 \end{frame}
 
@@ -278,14 +278,14 @@
 		\item The model is \alert{spurious} $\Rightarrow$ it satisfies $\widehat\varphi$,
 		      not $\varphi$
 		      \vskip 1cm
-		\item Goal: linear axioms that make $\pure{t}$ track $t$ more closely and \alert{rule out}
-		      this bad model (or more models)
-		\item Quality of the axioms decides everything:
-		      \begin{itemize}
-			      \item \emph{tight} axioms cut number of iterations
-			      \item \emph{cheap} axioms keep each iteration fast
-		      \end{itemize}
+		      % \item Quality of the axioms decides everything:
+		      %       \begin{itemize}
+		      % 	      \item \emph{tight} axioms cut number of iterations
+		      % 	      \item \emph{cheap} axioms keep each iteration fast
+		      % \end{itemize}
 	\end{itemize}
+	\textbf{Goal}: linear axioms that make $\pure{t}$ track $t$ more closely and \alert{rule out}
+	this bad model (or more models)
 \end{frame}
 
 \begin{frame}{Axioms for $\pure{x^k}$}
@@ -366,8 +366,10 @@
 		      \[
 			      0\leq x\leq 3\land 0\leq y\leq 5\Rightarrow\pure{x^3y^2}\leq 3^2 \,5^2 \,x
 		      \]
+		\vskip 2 em
 		\item Symmetric construction: fix $x^k$ constant, linearize $y^l$
 		      instead
+		\item These axioms form secant planes
 	\end{itemize}
 \end{frame}
 
