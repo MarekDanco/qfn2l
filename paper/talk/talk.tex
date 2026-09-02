@@ -441,8 +441,8 @@
 			      \small
 			      \item base (as presented here)
 			      \item {+}\textsc{Frontier}: reduces the overhead of tangent plane axioms
-			      \item {+}\textsc{Congr.}: pures with equal arguments are equal
-			      \item {+}\textsc{Congr.}\,$-$\,\textsc{Model-Fix}: congruence on, model-fix off
+			      \item {+}\textsc{Congruence}: pures with equal arguments are equal
+			      \item {+}\textsc{Congruence}\,$-$\,\textsc{Model-Fix}: congruence on, model-fix off
 		      \end{itemize}
 	\end{itemize}
 \end{frame}
@@ -457,8 +457,8 @@
 			\midrule
 			{\solver{}+\textsc{Frontier}} & {14\,086}                & {586}                          \\
 			{\solver}                     & {14\,011}                & {585}                          \\
-			{\solver{}+\textsc{Congr.}}   & {12\,421}                & {587}                          \\
-			{\solver{}$+$\textsc{Congr.}\,$-$\,\textsc{Model-Fix}}
+			{\solver{}+\textsc{Congruence}}   & {12\,421}                & {587}                          \\
+			{\solver{}$+$\textsc{Congruence}\,$-$\,\textsc{Model-Fix}}
 			                              & {11\,473}                & {587}                          \\
 			\midrule
 			Z3                            & 19\,205                  & 118                            \\
@@ -497,8 +497,8 @@
 	\end{center}
 	\begin{itemize}
 		\item The gap is on \alert{satisfiable} instances of large families
-		\item Those are shallow, huge (hundreds of pures), with small solutions
-		      ideal for \alert{bit-blasting}
+		\item Those are shallow (usually $x\cdot y$), huge (hundreds of pures), with small solutions
+			($|\mu(x)|$ < 10, for most $x$)
 	\end{itemize}
 \end{frame}
 
@@ -507,7 +507,7 @@
 		\begin{itemize}
 			\item NIA $\to$ LIA by purification into plain constants
 			\item new \alert{secant-based} bounds for $x^k$ and $x^ky^l$
-			\item competitive overall, \alert{dominant} on polynomial benchmarks
+			\item competitive overall, \alert{dominant} on MathProblems benchmarks
 		\end{itemize}
 	\end{block}
 	\begin{block}{Future work}
